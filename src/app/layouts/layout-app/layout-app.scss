@@ -1,0 +1,253 @@
+:host {
+  display: block;
+}
+
+$sidebar: 240px;
+
+.shell {
+  min-height: 100vh;
+  background: var(--erp-bg);
+}
+
+.scrim {
+  display: none;
+  padding: 0;
+  border: none;
+  appearance: none;
+}
+
+/* ---------- Sidebar ---------- */
+.side {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: $sidebar;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: #0c1117;
+  border-right: 1px solid var(--erp-border-2);
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 1.35rem 1.25rem 1.15rem;
+  }
+  &__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--erp-green) 14%, transparent);
+    color: var(--erp-green);
+    font-size: 1.05rem;
+    flex-shrink: 0;
+  }
+  &__name {
+    display: flex;
+    flex-direction: column;
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+
+    small {
+      font-weight: 500;
+      font-size: 0.68rem;
+      color: var(--erp-dim);
+      letter-spacing: 0;
+    }
+  }
+
+  &__nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.4rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 11px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--erp-muted);
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+
+    i {
+      font-size: 1.05rem;
+    }
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    &--active {
+      background: var(--erp-green);
+      color: #06120c;
+      font-weight: 700;
+    }
+    &--muted {
+      color: var(--erp-muted);
+    }
+  }
+
+  &__foot {
+    padding: 0.85rem 1rem;
+    border-top: 1px solid var(--erp-border-2);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  &__user {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.7rem;
+    background: #11171f;
+    border: 1px solid var(--erp-border);
+    border-radius: 12px;
+  }
+  &__avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #1c2530;
+    color: var(--erp-muted);
+    flex-shrink: 0;
+  }
+  &__uinfo {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.82rem;
+    font-weight: 700;
+
+    small {
+      font-weight: 500;
+      font-size: 0.68rem;
+      color: var(--erp-dim);
+    }
+  }
+}
+
+/* ---------- Main ---------- */
+.main {
+  margin-left: $sidebar;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.6rem;
+  background: rgba(11, 14, 19, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--erp-border-2);
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+  }
+  &__menu {
+    display: none;
+    padding: 0.5rem;
+    border-radius: 9px;
+    background: #141b24;
+    border: 1px solid #232c37;
+    color: var(--erp-text);
+    cursor: pointer;
+  }
+  &__titles {
+    min-width: 0;
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    p {
+      margin: 0.1rem 0 0;
+      font-size: 0.8rem;
+      color: var(--erp-dim);
+    }
+  }
+  &__date {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 10px;
+    background: #141b24;
+    border: 1px solid #232c37;
+    color: var(--erp-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+}
+
+.content {
+  flex: 1;
+  padding: 1.6rem;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1023px) {
+  .side {
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 270px;
+    box-shadow: none;
+  }
+  .main {
+    margin-left: 0;
+  }
+  .top__menu {
+    display: flex;
+  }
+  .shell--open {
+    .side {
+      transform: translateX(0);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+      z-index: 60;
+    }
+    .scrim {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 11, 0.6);
+      z-index: 55;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .top__date {
+    display: none;
+  }
+  .content {
+    padding: 1rem;
+  }
+  .top {
+    padding: 0.75rem 1rem;
+  }
+}

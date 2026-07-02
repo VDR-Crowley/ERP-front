@@ -1,0 +1,160 @@
+{
+	"cursor.rules": {
+		"angular": {
+			"component": {
+				"structure": "12-sections",
+				"order": [
+					"observables",
+					"viewModels",
+					"publicProperties",
+					"protectedProperties",
+					"privateProperties",
+					"getters",
+					"setters",
+					"constructor",
+					"lifecycleHooks",
+					"publicMethods",
+					"protectedMethods",
+					"privateMethods"
+				],
+				"lifecycleHooks": {
+					"order": [
+						"ngOnChanges",
+						"ngOnInit",
+						"ngDoCheck",
+						"ngAfterContentInit",
+						"ngAfterContentChecked",
+						"ngAfterViewInit",
+						"ngAfterViewChecked",
+						"ngOnDestroy"
+					],
+					"required": false
+				},
+				"constructor": {
+					"required": true,
+					"preferred": [
+						"ResponsiveService"
+					],
+					"forbidden": ["inject()"]
+				},
+				"modifiers": {
+					"publicProperties": "only @Input/@Output and public methods",
+					"protectedProperties": "internal component properties",
+					"privateProperties": "truly private properties only",
+					"protectedMethods": "internal component methods"
+				},
+				"naming": {
+					"files": "kebab-case",
+					"components": "PascalCase",
+					"variables": "camelCase",
+					"constants": "UPPER_SNAKE_CASE",
+					"interfaces": "PascalCase with I prefix"
+				},
+				"imports": {
+					"order": [
+						"Angular core and common modules",
+						"RxJS modules",
+						"Angular-specific modules",
+						"Core application imports",
+						"Shared module imports",
+						"Environment-specific imports",
+						"Relative path imports"
+					]
+				},
+				"typescript": {
+					"strict": true,
+					"noAny": true,
+					"interfaces": "preferred over types",
+					"optionalChaining": "required",
+					"nullishCoalescing": "required",
+					"immutability": "preferred",
+					"pureFunctions": "preferred"
+				},
+				"performance": {
+					"trackBy": "required for ngFor",
+					"purePipes": "preferred",
+					"onPush": "recommended",
+					"signals": "preferred for reactive state",
+					"asyncPipe": "required for observables",
+					"lazyLoading": "required for feature modules",
+					"deferrableViews": "preferred for non-essential components"
+				},
+				"security": {
+					"sanitization": "required for dynamic content",
+					"noInnerHTML": "forbidden",
+					"xssPrevention": "required",
+					"trustedSanitization": "required for dynamic content"
+				},
+				"accessibility": {
+					"semanticHtml": "required",
+					"ariaAttributes": "required",
+					"keyboardNavigation": "required",
+					"screenReaderSupport": "required"
+				},
+				"modernFeatures": {
+					"standalone": "preferred",
+					"signals": "preferred for reactive state",
+					"ngOptimizedImage": "required for images",
+					"inject": "preferred over constructor injection"
+				}
+			},
+			"service": {
+				"injectable": "required",
+				"singleton": "preferred",
+				"immutable": "preferred",
+				"pureFunctions": "preferred",
+				"signals": "preferred for reactive state",
+				"errorHandling": "required"
+			},
+			"testing": {
+				"pattern": "Arrange-Act-Assert",
+				"coverage": "high",
+				"mocking": "required for dependencies",
+				"standalone": "preferred for components"
+			}
+		}
+	},
+	"cursor.codeStyle": {
+		"typescript": {
+			"preferInject": false,
+			"componentStructure": "proposal-journey",
+			"lifecycleOrder": [
+				"ngOnChanges",
+				"ngOnInit",
+				"ngDoCheck",
+				"ngAfterContentInit",
+				"ngAfterContentChecked",
+				"ngAfterViewInit",
+				"ngAfterViewChecked",
+				"ngOnDestroy"
+			]
+		}
+	},
+	"editor.defaultFormatter": "biomejs.biome",
+	"editor.formatOnSave": true,
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit",
+		"quickfix.biome": "explicit"
+	},
+	"editor.tabSize": 2,
+	"editor.insertSpaces": true,
+	"editor.detectIndentation": false,
+	"files.eol": "\n",
+	"files.insertFinalNewline": true,
+	"files.trimTrailingWhitespace": true,
+	"typescript.preferences.quoteStyle": "single",
+	"javascript.preferences.quoteStyle": "single",
+	"typescript.preferences.semicolons": "insert",
+	"javascript.preferences.semicolons": "insert",
+	"typescript.preferences.trailingCommas": "es5",
+	"javascript.preferences.trailingCommas": "es5",
+	"typescript.preferences.bracketSpacing": true,
+	"javascript.preferences.bracketSpacing": true,
+	"typescript.preferences.arrowParens": "avoid",
+	"javascript.preferences.arrowParens": "avoid",
+	"typescript.preferences.bracketSameLine": false,
+	"javascript.preferences.bracketSameLine": false,
+	"editor.rulers": [100],
+	"editor.snippetSuggestions": "top",
+	"editor.suggest.snippetsPreventQuickSuggestions": false
+}

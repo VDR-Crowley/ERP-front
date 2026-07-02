@@ -1,0 +1,14 @@
+---
+description: Core — contratos em interfaces/
+globs: src/app/core/interfaces/**/*.ts
+alwaysApply: false
+---
+
+# Core: `interfaces/`
+
+- **`src/app/core/interfaces/`** — contratos TypeScript (`interface`, `type`): DTOs partilhados (auth, user, whitelabel, client, etc.), domínios e ecrãs. Usar **`*.interface.ts`** para ficheiros novos.
+- **Imports preferidos:** `import { X } from '@core/interfaces/...'` (evitar `src/app/core/models/...` — pasta antiga removida).
+- **`core/models/`** e **`interfaces/models/`** no nível de `core` **não existem**; tudo está na raiz de `interfaces/`.
+
+Quando criar tipos novos:
+- **Um único ficheiro** por domínio evita duplicar definições (ex.: `Communicator` em `communicator.interface.ts`).

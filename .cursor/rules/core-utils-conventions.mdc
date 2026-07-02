@@ -1,0 +1,27 @@
+---
+description: Núcleo compartilhado — utils, base e alias @core
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# Core: utilitários e base
+
+## `src/app/core/utils/`
+
+- **Um único lugar** para helpers/utilitários do núcleo da aplicação.
+- **Não** criar `src/app/core/helpers/`; entradas novas usam `utils`.
+- **Nomes de ficheiro:** `kebab-case` + sufixo **`.util.ts`** (funções, classes leves, storage wrappers). Ex.: `format-currency.util.ts`, `local-storage.util.ts`, `calculate-deadline.util.ts`. Exceção aceitável: declarações (ex.: `save-as.d.ts`).
+- **Imports:** `import { X } from '@core/utils/nome-do-ficheiro-sem-ts'` (o path coincide com o nome do ficheiro, ex.: `@core/utils/format-date-for-api.util`).
+- **Subpastas por domínio** quando fizer sentido (ex.: `utils/phone/` para validadores relacionados).
+- **Não confundir** com `src/app/pages/conkey/core/utils/` (módulo Conkey) nem com `.../features/form/helpers/` (helpers locais de feature).
+
+## `src/app/core/base/`
+
+- **Classe base de componentes** (`BaseComponent`): `import BaseComponent from '@core/base/base-component'`.
+
+```typescript
+import { LocalStorage } from '@core/utils/local-storage.util';
+import formatCurrency from '@core/utils/format-currency.util';
+import Form from '@core/utils/form.util';
+import BaseComponent from '@core/base/base-component';
+```

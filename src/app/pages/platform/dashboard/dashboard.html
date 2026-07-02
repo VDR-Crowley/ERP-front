@@ -1,0 +1,161 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--green">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Produção hoje (codornas)</div>
+          <div class="kpi__value">{{ num(resumo.producaoDiariaCodornas) }} <span>ovos</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
+      </div>
+      <div class="kpi__foot">Média diária de codornas</div>
+    </article>
+
+    <article class="kpi kpi--blue">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Produção hoje (galinhas)</div>
+          <div class="kpi__value">{{ num(resumo.producaoDiariaGalinhas) }} <span>ovos</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
+      </div>
+      <div class="kpi__foot">Média diária de galinhas</div>
+    </article>
+
+    <article class="kpi kpi--purple">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Faturamento (vendas)</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(faturamento) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-dollar"></i></span>
+      </div>
+      <div class="kpi__foot">{{ vendasPendentes }} venda(s) pendente(s)</div>
+    </article>
+
+    <article class="kpi kpi--amber">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Plantel total</div>
+          <div class="kpi__value">{{ num(totalAves) }} <span>aves</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-th-large"></i></span>
+      </div>
+      <div class="kpi__foot">
+        {{ num(resumo.totalCodornas) }} codornas · {{ num(resumo.totalGalinhas) }} galinhas
+      </div>
+    </article>
+  </section>
+
+  <section class="panels-2">
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Produção diária</h2>
+        <a class="btn btn--ghost" routerLink="/plataforma/producao">Ver todas</a>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th class="num">Codorna</th>
+              <th class="num">Galinha</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of producaoRecente; track p.data) {
+              <tr>
+                <td class="strong">{{ ptDate(p.data) }}</td>
+                <td class="num">{{ num(p.ovosCodorna) }}</td>
+                <td class="num">{{ num(p.ovosGalinha) }}</td>
+                <td class="num strong">{{ num((p.ovosCodorna ?? 0) + (p.ovosGalinha ?? 0)) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Plantel & ração</h2>
+        <a class="btn btn--ghost" routerLink="/plataforma/plantel">Gerenciar</a>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 420px">
+          <thead>
+            <tr>
+              <th>Espécie</th>
+              <th class="num">Qtd</th>
+              <th class="num">Sacos/mês</th>
+              <th class="num">Custo/mês</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of plantel; track item.especie) {
+              <tr>
+                <td class="strong">{{ item.especie }}</td>
+                <td class="num">{{ num(item.quantidade) }}</td>
+                <td class="num">{{ num(item.sacosRacaoMes) }}</td>
+                <td class="num strong">{{ brl(item.totalMes) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="dash-summary">
+        <div>
+          <span class="dash-summary__label">Sacos/mês</span>
+          <span class="dash-summary__value">{{ num(totalSacos) }}</span>
+        </div>
+        <div class="dash-summary__sep"></div>
+        <div>
+          <span class="dash-summary__label">Investimento mensal</span>
+          <span class="dash-summary__value dash-summary__value--amber">{{ brl(investimentoRacao) }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Últimas vendas</h2>
+      <a class="btn btn--ghost" routerLink="/plataforma/vendas">Ver todas</a>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th class="num">Qtd</th>
+            <th class="num">Total</th>
+            <th>Comprador</th>
+            <th>Vendedor</th>
+            <th>Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of ultimasVendas; track $index) {
+            <tr>
+              <td>{{ ptDate(v.data) }}</td>
+              <td class="strong">{{ v.produto }}</td>
+              <td class="num">{{ num(v.quantidade) }}</td>
+              <td class="num strong">{{ brl(v.total) }}</td>
+              <td>{{ v.comprador }}</td>
+              <td>{{ v.vendedor }}</td>
+              <td>
+                @if (v.pendentePagamento) {
+                  <span class="badge badge--warn">Pendente</span>
+                } @else {
+                  <span class="badge badge--ok">Pago</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

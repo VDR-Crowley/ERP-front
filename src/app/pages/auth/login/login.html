@@ -1,0 +1,76 @@
+<div class="login">
+  <aside class="login__art">
+    <div class="login__brand">
+      <span class="login__logo"><i class="pi pi-inbox"></i></span>
+      <span class="login__brandname">
+        MiniERP
+        <small>Criação de Codornas</small>
+      </span>
+    </div>
+
+    <div class="login__pitch">
+      <h2>Gestão simples para a sua granja.</h2>
+      <p>
+        Controle produção, vendas, estoque e plantel em um só lugar — feito para pequenos e médios
+        produtores.
+      </p>
+      <ul>
+        <li><i class="pi pi-check"></i> Registro diário de produção e vendas</li>
+        <li><i class="pi pi-check"></i> Indicadores e estoque sempre atualizados</li>
+        <li><i class="pi pi-check"></i> Controle de plantel e custo de ração</li>
+      </ul>
+    </div>
+
+    <span class="login__copy">© 2026 MiniERP · Todos os direitos reservados</span>
+  </aside>
+
+  <section class="login__form-wrap">
+    <div class="login__card">
+      <div class="login__brand login__brand--sm">
+        <span class="login__logo"><i class="pi pi-inbox"></i></span>
+        <span class="login__brandname">MiniERP</span>
+      </div>
+
+      <h1>Bem-vindo de volta</h1>
+      <p class="login__lead">Entre com suas credenciais para acessar o painel.</p>
+
+      <form class="login__form" (ngSubmit)="onSubmit()">
+        <label class="field">
+          <span>E-mail</span>
+          <input
+            type="email"
+            name="email"
+            autocomplete="username"
+            required
+            [(ngModel)]="email"
+          />
+        </label>
+
+        <label class="field">
+          <span>Senha</span>
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+            [(ngModel)]="password"
+          />
+        </label>
+
+        <div class="login__row">
+          <label class="login__remember">
+            <input type="checkbox" name="remember" [(ngModel)]="remember" />
+            Lembrar de mim
+          </label>
+          <a href="#" class="login__link">Esqueci a senha</a>
+        </div>
+
+        <button type="submit" class="btn btn--primary login__submit">Entrar</button>
+
+        <p class="login__signup">
+          Não tem conta? <a href="#" class="login__link login__link--strong">Cadastre-se</a>
+        </p>
+      </form>
+    </div>
+  </section>
+</div>

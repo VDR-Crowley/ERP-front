@@ -1,0 +1,62 @@
+<div class="shell" [class.shell--open]="menuOpen()">
+  <button type="button" class="scrim" aria-label="Fechar menu" (click)="closeMenu()"></button>
+
+  <aside class="side">
+    <div class="side__brand">
+      <span class="side__logo"><i class="pi pi-inbox"></i></span>
+      <span class="side__name">
+        MiniERP
+        <small>Criação de Codornas</small>
+      </span>
+    </div>
+
+    <nav class="side__nav">
+      @for (item of nav; track item.path) {
+        <a
+          class="side__link"
+          [routerLink]="item.path"
+          routerLinkActive="side__link--active"
+          (click)="closeMenu()"
+        >
+          <i [class]="'pi ' + item.icon"></i>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="side__foot">
+      <div class="side__user">
+        <span class="side__avatar"><i class="pi pi-user"></i></span>
+        <span class="side__uinfo">
+          Marcelo
+          <small>Proprietário</small>
+        </span>
+      </div>
+      <a class="side__link side__link--muted" routerLink="/">
+        <i class="pi pi-sign-out"></i>
+        <span>Sair</span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div class="top__left">
+        <button class="top__menu" type="button" (click)="toggleMenu()" aria-label="Menu">
+          <i class="pi pi-bars"></i>
+        </button>
+        <div class="top__titles">
+          <h1>{{ pageTitle() }}</h1>
+          <p>{{ pageSub() }}</p>
+        </div>
+      </div>
+      <div class="top__right">
+        <span class="top__date"><i class="pi pi-calendar"></i> 28/06/2026</span>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>
