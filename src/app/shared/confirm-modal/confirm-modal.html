@@ -1,0 +1,14 @@
+@if (open) {
+  <div class="modal-overlay">
+    <div class="modal">
+      <div class="modal__icon modal__icon--warn"><i class="pi pi-trash"></i></div>
+      <h3 class="modal__title">{{ title }}</h3>
+      <p class="modal__text">{{ text }}</p>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
+        <button type="button" class="btn btn--primary" (click)="confirm()">{{ confirmLabel }}</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,46 @@
+@if (open) {
+  <div class="modal-overlay">
+    <div class="modal">
+      <h3 class="modal__title">{{ title }}</h3>
+
+      <div class="crud-form">
+        @for (field of fields; track field.key) {
+          <div class="field" [class.field--checkbox]="field.type === 'checkbox'">
+            @if (field.type === 'checkbox') {
+              <label class="field__checkbox">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="model[field.key]"
+                  [name]="field.key"
+                />
+                {{ field.label }}
+              </label>
+            } @else {
+              <span>{{ field.label }}</span>
+              @if (field.type === 'select') {
+                <select [(ngModel)]="model[field.key]" [name]="field.key">
+                  @for (opt of field.options; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+              } @else {
+                <input
+                  [type]="field.type"
+                  [step]="field.step ?? null"
+                  [(ngModel)]="model[field.key]"
+                  [name]="field.key"
+                  [required]="!!field.required"
+                />
+              }
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
+        <button type="button" class="btn btn--primary" (click)="submit()">Salvar</button>
+      </div>
+    </div>
+  </div>
+}
