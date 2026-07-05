@@ -1,0 +1,116 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--amber kpi--ink-red">
+      <div class="kpi__label">Total de despesas</div>
+      <div class="kpi__value kpi__value--sm">{{ brl(total()) }}</div>
+    </article>
+    <article class="kpi kpi--green">
+      <div class="kpi__label">Pago</div>
+      <div class="kpi__value kpi__value--sm">{{ brl(totalPago()) }}</div>
+    </article>
+    <article class="kpi kpi--amber">
+      <div class="kpi__label">Pendente</div>
+      <div class="kpi__value kpi__value--sm">{{ brl(totalPendente()) }}</div>
+    </article>
+    <article class="kpi kpi--blue">
+      <div class="kpi__label">Contas em aberto</div>
+      <div class="kpi__value">{{ qtdPendente() }}</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Despesas</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar descrição, categoria..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Nova despesa
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 620px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('description')">
+              Descrição
+              @if (sortField() === 'description') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('category')">
+              Categoria
+              @if (sortField() === 'category') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('amount')">
+              Valor
+              @if (sortField() === 'amount') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('paid')">
+              Situação
+              @if (sortField() === 'paid') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of rows(); track e.id) {
+            <tr>
+              <td>{{ ptDate(e.date) }}</td>
+              <td class="strong">{{ e.description }}</td>
+              <td>{{ e.category }}</td>
+              <td class="num strong">{{ brl(e.amount) }}</td>
+              <td>
+                @if (e.paid) {
+                  <span class="badge badge--ok">Pago</span>
+                } @else {
+                  <span class="badge badge--warn">Pendente</span>
+                }
+              </td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(e)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(e)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty">Nenhuma despesa encontrada.</div>
+    }
+    <div class="tbl-foot">{{ rows().length }} despesa(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir a despesa ' + (deleteTarget()?.description ?? '') + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

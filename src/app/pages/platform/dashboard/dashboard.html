@@ -3,47 +3,45 @@
     <article class="kpi kpi--green">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Produção hoje (codornas)</div>
-          <div class="kpi__value">{{ num(resumo.producaoDiariaCodornas) }} <span>ovos</span></div>
+          <div class="kpi__label">Total de ovos coletados</div>
+          <div class="kpi__value">{{ num(totalOvosColetados()) }} <span>ovos</span></div>
         </div>
         <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
       </div>
-      <div class="kpi__foot">Média diária de codornas</div>
+      <div class="kpi__foot">Soma da produção registrada</div>
     </article>
 
     <article class="kpi kpi--blue">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Produção hoje (galinhas)</div>
-          <div class="kpi__value">{{ num(resumo.producaoDiariaGalinhas) }} <span>ovos</span></div>
+          <div class="kpi__label">Prontas para venda hoje</div>
+          <div class="kpi__value">{{ num(bandejasProntas()) }} <span>bandejas</span></div>
         </div>
-        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
+        <span class="kpi__icon"><i class="pi pi-box"></i></span>
       </div>
-      <div class="kpi__foot">Média diária de galinhas</div>
+      <div class="kpi__foot">Disponíveis no estoque mais recente</div>
     </article>
 
     <article class="kpi kpi--purple">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Faturamento (vendas)</div>
-          <div class="kpi__value kpi__value--sm">{{ brl(faturamento) }}</div>
+          <div class="kpi__label">Vendas realizadas</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(faturamento()) }}</div>
         </div>
         <span class="kpi__icon"><i class="pi pi-dollar"></i></span>
       </div>
-      <div class="kpi__foot">{{ vendasPendentes }} venda(s) pendente(s)</div>
+      <div class="kpi__foot">{{ vendasPendentes() }} venda(s) pendente(s)</div>
     </article>
 
     <article class="kpi kpi--amber">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Plantel total</div>
-          <div class="kpi__value">{{ num(totalAves) }} <span>aves</span></div>
+          <div class="kpi__label">Disponível em estoque</div>
+          <div class="kpi__value">{{ num(ovosDisponiveisEstoque()) }} <span>ovos</span></div>
         </div>
-        <span class="kpi__icon"><i class="pi pi-th-large"></i></span>
+        <span class="kpi__icon"><i class="pi pi-database"></i></span>
       </div>
-      <div class="kpi__foot">
-        {{ num(resumo.totalCodornas) }} codornas · {{ num(resumo.totalGalinhas) }} galinhas
-      </div>
+      <div class="kpi__foot">Codorna + galinha</div>
     </article>
   </section>
 
@@ -51,7 +49,9 @@
     <div class="panel">
       <div class="panel__head">
         <h2 class="panel__title">Produção diária</h2>
-        <a class="btn btn--ghost" routerLink="/plataforma/producao">Ver todas</a>
+        <a class="btn btn--primary" routerLink="/platform/production">
+          <i class="pi pi-plus"></i> Adicionar
+        </a>
       </div>
       <div class="tbl-wrap">
         <table class="tbl">
@@ -64,23 +64,86 @@
             </tr>
           </thead>
           <tbody>
-            @for (p of producaoRecente; track p.data) {
+            @for (p of producaoRecente(); track p.date) {
               <tr>
-                <td class="strong">{{ ptDate(p.data) }}</td>
-                <td class="num">{{ num(p.ovosCodorna) }}</td>
-                <td class="num">{{ num(p.ovosGalinha) }}</td>
-                <td class="num strong">{{ num((p.ovosCodorna ?? 0) + (p.ovosGalinha ?? 0)) }}</td>
+                <td class="strong">{{ ptDate(p.date) }}</td>
+                <td class="num">{{ num(p.quailEggs) }}</td>
+                <td class="num">{{ num(p.chickenEggs) }}</td>
+                <td class="num strong">{{ num((p.quailEggs ?? 0) + (p.chickenEggs ?? 0)) }}</td>
               </tr>
             }
           </tbody>
         </table>
       </div>
+      <div class="panel__foot-link">
+        <a routerLink="/platform/production">Ver todas</a>
+      </div>
     </div>
 
     <div class="panel">
       <div class="panel__head">
-        <h2 class="panel__title">Plantel & ração</h2>
-        <a class="btn btn--ghost" routerLink="/plataforma/plantel">Gerenciar</a>
+        <h2 class="panel__title">Resumo de indicadores</h2>
+        <select class="period-select" disabled>
+          <option>Este mês</option>
+        </select>
+      </div>
+
+      <div class="indicator-list">
+        <div class="indicator-row">
+          <span class="indicator-row__icon"><i class="pi pi-shopping-cart"></i></span>
+          <span class="indicator-row__label">Total de ovos vendidos</span>
+          <span class="indicator-row__value">{{ num(totalOvosVendidos()) }}</span>
+        </div>
+        <div class="indicator-row">
+          <span class="indicator-row__icon"><i class="pi pi-dollar"></i></span>
+          <span class="indicator-row__label">Faturamento total</span>
+          <span class="indicator-row__value">{{ brl(faturamento()) }}</span>
+        </div>
+        <div class="indicator-row">
+          <span class="indicator-row__icon"><i class="pi pi-chart-line"></i></span>
+          <span class="indicator-row__label">Ticket médio</span>
+          <span class="indicator-row__value">{{ brl(ticketMedio()) }}</span>
+        </div>
+        <div class="indicator-row">
+          <span class="indicator-row__icon"><i class="pi pi-user"></i></span>
+          <span class="indicator-row__label">Clientes atendidos</span>
+          <span class="indicator-row__value">{{ num(clientesAtendidos()) }}</span>
+        </div>
+      </div>
+
+      <h3 class="donut-title">Vendas por produto</h3>
+      <div class="donut-wrap">
+        <apx-chart
+          class="donut-chart"
+          [series]="donutChart().series"
+          [chart]="donutChart().chart"
+          [labels]="donutChart().labels"
+          [colors]="donutChart().colors"
+          [stroke]="donutChart().stroke"
+          [dataLabels]="donutChart().dataLabels"
+          [legend]="donutChart().legend"
+          [tooltip]="donutChart().tooltip"
+          [plotOptions]="donutChart().plotOptions"
+          [fill]="donutChart().fill"
+        />
+        <div class="legend">
+          @for (v of vendasPorProduto(); track v.name) {
+            <div class="legend__item">
+              <span class="legend__dot" [style.background]="v.color"></span>
+              <span class="legend__name">{{ v.name }}</span>
+              <span class="legend__pct">{{ v.pct }}%</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panels-2">
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Estoque de ração</h2>
+        <a class="btn btn--ghost" routerLink="/platform/plantel">Gerenciar</a>
       </div>
       <div class="tbl-wrap">
         <table class="tbl" style="min-width: 420px">
@@ -93,12 +156,12 @@
             </tr>
           </thead>
           <tbody>
-            @for (item of plantel; track item.especie) {
+            @for (item of plantel(); track item.species) {
               <tr>
-                <td class="strong">{{ item.especie }}</td>
-                <td class="num">{{ num(item.quantidade) }}</td>
-                <td class="num">{{ num(item.sacosRacaoMes) }}</td>
-                <td class="num strong">{{ brl(item.totalMes) }}</td>
+                <td class="strong">{{ item.species }}</td>
+                <td class="num">{{ num(item.quantity) }}</td>
+                <td class="num">{{ num(item.feedBagsPerMonth) }}</td>
+                <td class="num strong">{{ brl(item.monthlyTotal) }}</td>
               </tr>
             }
           </tbody>
@@ -107,13 +170,47 @@
       <div class="dash-summary">
         <div>
           <span class="dash-summary__label">Sacos/mês</span>
-          <span class="dash-summary__value">{{ num(totalSacos) }}</span>
+          <span class="dash-summary__value">{{ num(totalSacos()) }}</span>
         </div>
         <div class="dash-summary__sep"></div>
         <div>
           <span class="dash-summary__label">Investimento mensal</span>
-          <span class="dash-summary__value dash-summary__value--amber">{{ brl(investimentoRacao) }}</span>
+          <span class="dash-summary__value dash-summary__value--amber">{{ brl(investimentoRacao()) }}</span>
         </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Produtos e preços</h2>
+        <a class="btn btn--ghost" routerLink="/platform/products">Gerenciar</a>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 420px">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Unidade</th>
+              <th class="num">Preço</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of produtos(); track p.name) {
+              <tr>
+                <td class="strong">{{ p.name }}</td>
+                <td>{{ p.unit }}</td>
+                <td class="num strong">{{ brl(p.unitPrice) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="dash-summary dash-summary--single">
+        <div>
+          <span class="dash-summary__label">Total de produtos</span>
+          <span class="dash-summary__value">{{ produtos().length }} itens</span>
+        </div>
+        <span class="dash-summary__icon"><i class="pi pi-box"></i></span>
       </div>
     </div>
   </section>
@@ -121,7 +218,7 @@
   <div class="panel">
     <div class="panel__head">
       <h2 class="panel__title">Últimas vendas</h2>
-      <a class="btn btn--ghost" routerLink="/plataforma/vendas">Ver todas</a>
+      <a class="btn btn--ghost" routerLink="/platform/sales">Ver todas</a>
     </div>
     <div class="tbl-wrap">
       <table class="tbl">
@@ -137,16 +234,16 @@
           </tr>
         </thead>
         <tbody>
-          @for (v of ultimasVendas; track $index) {
+          @for (v of ultimasVendas(); track $index) {
             <tr>
-              <td>{{ ptDate(v.data) }}</td>
-              <td class="strong">{{ v.produto }}</td>
-              <td class="num">{{ num(v.quantidade) }}</td>
+              <td>{{ ptDate(v.date) }}</td>
+              <td class="strong">{{ v.product }}</td>
+              <td class="num">{{ num(v.quantity) }}</td>
               <td class="num strong">{{ brl(v.total) }}</td>
-              <td>{{ v.comprador }}</td>
-              <td>{{ v.vendedor }}</td>
+              <td>{{ v.buyer }}</td>
+              <td>{{ v.seller }}</td>
               <td>
-                @if (v.pendentePagamento) {
+                @if (v.paymentPending) {
                   <span class="badge badge--warn">Pendente</span>
                 } @else {
                   <span class="badge badge--ok">Pago</span>

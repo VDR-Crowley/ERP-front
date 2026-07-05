@@ -2,10 +2,10 @@ import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 
 // Source: Mini_ERP_Criacao_Codornas_Galinhas.xlsx, aba "Dashboard"
 export const DASHBOARD_MOCK: DashboardResumo = {
-  totalCodornas: 130,
-  totalGalinhas: 32,
-  producaoDiariaCodornas: 125,
-  producaoDiariaGalinhas: 22,
-  precoPack50OvosCodorna: 15,
-  precoPack30OvosGalinha: 25,
+  totalQuails: 130,
+  totalChickens: 32,
+  dailyQuailProduction: 125,
+  dailyChickenProduction: 22,
+  quailPack50Price: 15,
+  chickenPack30Price: 25,
 };

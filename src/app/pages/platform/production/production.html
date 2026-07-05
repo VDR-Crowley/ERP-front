@@ -1,0 +1,137 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--green">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Total ovos codorna</div>
+          <div class="kpi__value">{{ num(totalCodorna()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
+      </div>
+      <div class="kpi__foot">No período registrado</div>
+    </article>
+    <article class="kpi kpi--blue">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Total ovos galinha</div>
+          <div class="kpi__value">{{ num(totalGalinha()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
+      </div>
+      <div class="kpi__foot">No período registrado</div>
+    </article>
+    <article class="kpi kpi--purple">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Total geral</div>
+          <div class="kpi__value">{{ num(totalGeral()) }} <span>ovos</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-chart-bar"></i></span>
+      </div>
+      <div class="kpi__foot">Codorna + galinha</div>
+    </article>
+    <article class="kpi kpi--amber">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Média diária</div>
+          <div class="kpi__value">{{ num(mediaDia()) }} <span>ovos</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-calendar"></i></span>
+      </div>
+      <div class="kpi__foot">Por dia registrado</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Produção diária</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar por data..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo registro
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 520px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              @if (sortField() === 'date') {
+                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
+              }
+            </th>
+            <th class="num sortable" (click)="sortBy('quailEggs')">
+              Codorna
+              @if (sortField() === 'quailEggs') {
+                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
+              }
+            </th>
+            <th class="num sortable" (click)="sortBy('chickenEggs')">
+              Galinha
+              @if (sortField() === 'chickenEggs') {
+                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
+              }
+            </th>
+            <th class="num sortable" (click)="sortBy('total')">
+              Total
+              @if (sortField() === 'total') {
+                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
+              }
+            </th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of rows(); track p.id) {
+            <tr>
+              <td class="strong">{{ ptDate(p.date) }}</td>
+              <td class="num">{{ num(p.quailEggs) }}</td>
+              <td class="num">{{ num(p.chickenEggs) }}</td>
+              <td class="num strong">{{ num(p.total) }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(p)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(p)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty">Nenhum registro encontrado.</div>
+    }
+    <div class="tbl-foot">{{ rows().length }} registro(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o registro de ' + (ptDate(deleteTarget()?.date ?? '')) + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

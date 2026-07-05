@@ -62,13 +62,14 @@
             <input type="checkbox" name="remember" [(ngModel)]="remember" />
             Lembrar de mim
           </label>
-          <a href="#" class="login__link">Esqueci a senha</a>
+          <a routerLink="/forgot-password" class="login__link">Esqueci a senha</a>
         </div>
 
         <button type="submit" class="btn btn--primary login__submit">Entrar</button>
 
         <p class="login__signup">
-          Não tem conta? <a href="#" class="login__link login__link--strong">Cadastre-se</a>
+          Não tem conta?
+          <a routerLink="/register" class="login__link login__link--strong">Cadastre-se</a>
         </p>
       </form>
     </div>

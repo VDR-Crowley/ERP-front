@@ -6,20 +6,40 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./dashboard/dashboard').then((m) => m.Dashboard),
   },
   {
-    path: 'producao',
-    loadComponent: () => import('./producao/producao').then((m) => m.Producao),
+    path: 'production',
+    loadComponent: () => import('./production/production').then((m) => m.Production),
   },
   {
-    path: 'vendas',
-    loadComponent: () => import('./vendas/vendas').then((m) => m.Vendas),
+    path: 'sales',
+    loadComponent: () => import('./sales/sales').then((m) => m.Sales),
   },
   {
-    path: 'estoque',
-    loadComponent: () => import('./estoque-ovos/estoque-ovos').then((m) => m.EstoqueOvos),
+    path: 'egg-stock',
+    loadComponent: () => import('./egg-stock/egg-stock').then((m) => m.EggStock),
   },
   {
     path: 'plantel',
     loadComponent: () => import('./plantel/plantel').then((m) => m.Plantel),
+  },
+  {
+    path: 'expenses',
+    loadComponent: () => import('./expenses/expenses').then((m) => m.Expenses),
+  },
+  {
+    path: 'cash-flow',
+    loadComponent: () => import('./cash-flow/cash-flow').then((m) => m.CashFlow),
+  },
+  {
+    path: 'reports',
+    loadComponent: () => import('./reports/reports').then((m) => m.Reports),
+  },
+  {
+    path: 'products',
+    loadComponent: () => import('./products/products').then((m) => m.Products),
+  },
+  {
+    path: 'settings',
+    loadComponent: () => import('./settings/settings').then((m) => m.Settings),
   },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 ];

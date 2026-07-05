@@ -1,0 +1,33 @@
+:host {
+  display: block;
+}
+
+.cash-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  &__label {
+    font-size: 0.8rem;
+    color: var(--erp-muted);
+    font-weight: 600;
+  }
+  &__value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+
+    &--green {
+      color: var(--erp-green-ink);
+    }
+    &--red {
+      color: var(--erp-red);
+    }
+  }
+}
+

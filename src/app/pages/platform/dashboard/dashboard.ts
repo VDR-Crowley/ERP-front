@@ -1,14 +1,83 @@
-import { Component } from '@angular/core';
+import { Component, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DASHBOARD_MOCK } from '@core/mocks/dashboard.mock';
-import { PRODUCAO_DIARIA_MOCK } from '@core/mocks/producao-diaria.mock';
-import { VENDAS_MOCK, VENDAS_TOTAL_MOCK } from '@core/mocks/venda.mock';
-import { PLANTEL_MOCK } from '@core/mocks/plantel.mock';
+import {
+  ApexChart,
+  ApexDataLabels,
+  ApexFill,
+  ApexLegend,
+  ApexNonAxisChartSeries,
+  ApexPlotOptions,
+  ApexStroke,
+  ApexTooltip,
+  NgApexchartsModule,
+} from 'ng-apexcharts';
+import { Venda } from '@core/interfaces/venda.interface';
+import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
+import { Plantel } from '@core/interfaces/plantel.interface';
+import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
+import { Product } from '@core/interfaces/product.interface';
+import { DashboardResumo } from '@core/interfaces/dashboard.interface';
+import { createEntityStore } from '@core/idb/entity-store';
+import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
+
+interface DonutChartOptions {
+  series: ApexNonAxisChartSeries;
+  chart: ApexChart;
+  labels: string[];
+  colors: string[];
+  stroke: ApexStroke;
+  dataLabels: ApexDataLabels;
+  legend: ApexLegend;
+  tooltip: ApexTooltip;
+  plotOptions: ApexPlotOptions;
+  fill: ApexFill;
+}
+
+interface VendaPorProduto {
+  name: string;
+  total: number;
+  pct: number;
+  color: string;
+}
+
+const PRODUTO_CORES: Record<string, string> = {
+  '1 Bandeja de ovos de galinha': '#10b981',
+  '50 ovos de codorna': '#3b82f6',
+  '30 ovos galinha': '#a855f7',
+  '5 ovos Galinha + 50 Codorna': '#e0b341',
+};
+const COR_PADRAO = '#64748b';
+
+const RESUMO_VAZIO: DashboardResumo = {
+  totalQuails: 0,
+  totalChickens: 0,
+  dailyQuailProduction: 0,
+  dailyChickenProduction: 0,
+  quailPack50Price: 0,
+  chickenPack30Price: 0,
+};
+
+function calcularVendasPorProduto(vendas: Venda[]): VendaPorProduto[] {
+  const porProduto = new Map<string, number>();
+  for (const venda of vendas) {
+    porProduto.set(venda.product, (porProduto.get(venda.product) ?? 0) + venda.total);
+  }
+  const totalGeral = [...porProduto.values()].reduce((soma, valor) => soma + valor, 0);
+
+  return [...porProduto.entries()]
+    .map(([name, total]) => ({
+      name,
+      total,
+      pct: totalGeral ? Math.round((total / totalGeral) * 100) : 0,
+      color: PRODUTO_CORES[name] ?? COR_PADRAO,
+    }))
+    .sort((a, b) => b.total - a.total);
+}
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink],
+  imports: [RouterLink, NgApexchartsModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -17,16 +86,93 @@ export class Dashboard {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
 
-  protected readonly resumo = DASHBOARD_MOCK;
-  protected readonly faturamento = VENDAS_TOTAL_MOCK;
+  private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
+  private readonly productionStore = createEntityStore<ProducaoDiaria>(
+    IDB_STORES.dailyProduction,
+    [],
+  );
+  private readonly flockStore = createEntityStore<Plantel>(IDB_STORES.flock, []);
+  private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
+  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly dashboardStore = createEntityStore<DashboardResumo>(IDB_STORES.dashboard, []);
 
-  protected readonly producaoRecente = [...PRODUCAO_DIARIA_MOCK].slice(-6).reverse();
-  protected readonly ultimasVendas = [...VENDAS_MOCK].slice(-5).reverse();
-  protected readonly plantel = PLANTEL_MOCK;
+  protected readonly resumo = computed(() => this.dashboardStore.items()[0] ?? RESUMO_VAZIO);
+  protected readonly faturamento = computed(() =>
+    this.salesStore.items().reduce((soma, v) => soma + v.total, 0),
+  );
 
-  protected readonly totalAves =
-    DASHBOARD_MOCK.totalCodornas + DASHBOARD_MOCK.totalGalinhas;
-  protected readonly totalSacos = PLANTEL_MOCK.reduce((soma, p) => soma + p.sacosRacaoMes, 0);
-  protected readonly investimentoRacao = PLANTEL_MOCK.reduce((soma, p) => soma + p.totalMes, 0);
-  protected readonly vendasPendentes = VENDAS_MOCK.filter((v) => v.pendentePagamento).length;
+  protected readonly producaoRecente = computed(() =>
+    [...this.productionStore.items()].slice(-6).reverse(),
+  );
+  protected readonly ultimasVendas = computed(() =>
+    [...this.salesStore.items()].slice(-5).reverse(),
+  );
+  protected readonly plantel = computed(() => this.flockStore.items());
+  protected readonly produtos = computed(() => this.productsStore.items());
+
+  protected readonly totalAves = computed(
+    () => this.resumo().totalQuails + this.resumo().totalChickens,
+  );
+  protected readonly totalSacos = computed(() =>
+    this.flockStore.items().reduce((soma, p) => soma + p.feedBagsPerMonth, 0),
+  );
+  protected readonly investimentoRacao = computed(() =>
+    this.flockStore.items().reduce((soma, p) => soma + p.monthlyTotal, 0),
+  );
+  protected readonly vendasPendentes = computed(
+    () => this.salesStore.items().filter((v) => v.paymentPending).length,
+  );
+
+  protected readonly totalOvosColetados = computed(() =>
+    this.productionStore
+      .items()
+      .reduce((soma, p) => soma + (p.quailEggs ?? 0) + (p.chickenEggs ?? 0), 0),
+  );
+
+  private readonly ultimoEstoque = computed(() => {
+    const items = this.eggStockStore.items();
+    return items[items.length - 1];
+  });
+  protected readonly bandejasProntas = computed(() => {
+    const estoque = this.ultimoEstoque();
+    return estoque ? Math.floor(estoque.quailPacks + estoque.chickenPacks) : 0;
+  });
+  protected readonly ovosDisponiveisEstoque = computed(() => {
+    const estoque = this.ultimoEstoque();
+    return estoque ? (estoque.quailEggs ?? 0) + (estoque.chickenEggs ?? 0) : 0;
+  });
+
+  protected readonly totalOvosVendidos = computed(() =>
+    this.salesStore.items().reduce((soma, venda) => {
+      const produto = this.productsStore.items().find((p) => p.name === venda.product);
+      return soma + (produto?.eggsPerUnit ?? 0) * venda.quantity;
+    }, 0),
+  );
+  protected readonly ticketMedio = computed(() => {
+    const vendas = this.salesStore.items();
+    return vendas.length ? this.faturamento() / vendas.length : 0;
+  });
+  protected readonly clientesAtendidos = computed(
+    () => new Set(this.salesStore.items().map((v) => v.buyer)).size,
+  );
+
+  protected readonly vendasPorProduto = computed(() =>
+    calcularVendasPorProduto(this.salesStore.items()),
+  );
+
+  protected readonly donutChart = computed<DonutChartOptions>(() => {
+    const vendasPorProduto = this.vendasPorProduto();
+    return {
+      series: vendasPorProduto.map((v) => v.total),
+      chart: { type: 'donut', height: 230 },
+      labels: vendasPorProduto.map((v) => v.name),
+      colors: vendasPorProduto.map((v) => v.color),
+      stroke: { width: 0 },
+      dataLabels: { enabled: false },
+      legend: { show: false },
+      tooltip: { y: { formatter: (val: number) => brl(val) } },
+      plotOptions: { pie: { donut: { size: '72%' } } },
+      fill: { type: 'solid' },
+    };
+  });
 }

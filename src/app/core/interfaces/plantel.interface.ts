@@ -1,7 +1,7 @@
 export interface Plantel {
-  especie: string;
-  quantidade: number;
-  sacosRacaoMes: number;
-  precoSaco: number;
-  totalMes: number;
+  species: string;
+  quantity: number;
+  feedBagsPerMonth: number;
+  bagPrice: number;
+  monthlyTotal: number;
 }

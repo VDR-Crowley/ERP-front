@@ -1,0 +1,55 @@
+:host {
+  display: block;
+}
+
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.donut-chart {
+  flex-shrink: 0;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+  }
+  &__dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  &__name {
+    color: var(--erp-text);
+    min-width: 130px;
+  }
+  &__pct {
+    color: var(--erp-muted);
+    font-weight: 700;
+  }
+}
+
+.bar-track {
+  display: inline-block;
+  width: 120px;
+  height: 7px;
+  background: var(--erp-ghost-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--erp-green);
+}

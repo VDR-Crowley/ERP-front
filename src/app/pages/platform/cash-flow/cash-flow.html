@@ -1,0 +1,136 @@
+<div class="page">
+  <section class="panels-2">
+    <div class="panel">
+      <div class="cash-summary">
+        <div>
+          <span class="cash-summary__label">Saldo</span>
+          <span class="cash-summary__value cash-summary__value--green">{{ brl(saldo()) }}</span>
+        </div>
+        <div>
+          <span class="cash-summary__label">Entradas</span>
+          <span class="cash-summary__value">{{ brl(entradas()) }}</span>
+        </div>
+        <div>
+          <span class="cash-summary__label">Saídas</span>
+          <span class="cash-summary__value cash-summary__value--red">{{ brl(saidas()) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Entradas x Saídas</h2>
+        <span style="font-size: 0.78rem; color: var(--erp-dim)">Últimos 6 meses</span>
+      </div>
+      @if (hasLancamentos()) {
+        <apx-chart
+          [series]="chart.series"
+          [chart]="chart.chart"
+          [plotOptions]="chart.plotOptions"
+          [colors]="chart.colors"
+          [dataLabels]="chart.dataLabels"
+          [xaxis]="chart.xaxis"
+          [yaxis]="chart.yaxis"
+          [grid]="chart.grid"
+          [tooltip]="chart.tooltip"
+          [legend]="chart.legend"
+        />
+      } @else {
+        <div class="empty">Sem lançamentos no período.</div>
+      }
+    </div>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Lançamentos</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar lançamento..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo lançamento
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 620px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('description')">
+              Descrição
+              @if (sortField() === 'description') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('inflow')">
+              Tipo
+              @if (sortField() === 'inflow') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('amount')">
+              Valor
+              @if (sortField() === 'amount') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num">Saldo</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of rows(); track c.id) {
+            <tr>
+              <td>{{ ptDate(c.date) }}</td>
+              <td class="strong">{{ c.description }}</td>
+              <td>
+                @if (c.inflow) {
+                  <span class="badge badge--ok">Entrada</span>
+                } @else {
+                  <span class="badge badge--out">Saída</span>
+                }
+              </td>
+              <td class="num strong">{{ brl(c.amount) }}</td>
+              <td class="num">{{ brl(c.saldo) }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(c)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty">Nenhum lançamento encontrado.</div>
+    }
+    <div class="tbl-foot">{{ rows().length }} lançamento(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o lançamento ' + (deleteTarget()?.description ?? '') + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

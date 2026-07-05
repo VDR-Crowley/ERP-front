@@ -1,8 +1,8 @@
 export interface DashboardResumo {
-  totalCodornas: number;
-  totalGalinhas: number;
-  producaoDiariaCodornas: number;
-  producaoDiariaGalinhas: number;
-  precoPack50OvosCodorna: number;
-  precoPack30OvosGalinha: number;
+  totalQuails: number;
+  totalChickens: number;
+  dailyQuailProduction: number;
+  dailyChickenProduction: number;
+  quailPack50Price: number;
+  chickenPack30Price: number;
 }

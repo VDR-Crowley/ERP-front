@@ -9,7 +9,7 @@ export const routes: Routes = [
     children: AUTH_ROUTES,
   },
   {
-    path: 'plataforma',
+    path: 'platform',
     loadComponent: () => import('./layouts/layout-app/layout-app').then((m) => m.LayoutApp),
     children: PLATFORM_ROUTES,
   },

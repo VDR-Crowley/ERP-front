@@ -11,13 +11,45 @@
   --erp-border-2: #1a222c;
   --erp-text: #e9eef3;
   --erp-muted: #8b98a8;
-  --erp-dim: #7e8996;
+  --erp-dim: #6b7684;
   --erp-green: #10b981;
   --erp-green-ink: #34d399;
   --erp-blue: #4f93f7;
   --erp-purple: #a78bfa;
   --erp-amber: #e0b341;
   --erp-red: #f08a6b;
+  --erp-btn-ink: #06120c;
+  --erp-ghost-bg: #161d26;
+  --erp-ghost-border: #232c37;
+  --erp-ghost-hover: #1e2732;
+  --erp-input-bg: #0e131a;
+  --erp-input-border: #263040;
+  --erp-scrollbar-thumb: #28323f;
+  --erp-sidebar-bg: #0c1117;
+  --erp-sidebar-card-bg: #11171f;
+  --erp-sidebar-avatar-bg: #1c2530;
+}
+
+/* Tema claro: aplicado quando <html> não tem a classe .app-dark (ver ThemeService) */
+:root:not(.app-dark) {
+  --erp-bg: #f4f6f8;
+  --erp-surface: #ffffff;
+  --erp-surface-2: #f7f9fb;
+  --erp-border: #e2e8f0;
+  --erp-border-2: #eaeff4;
+  --erp-text: #10151c;
+  --erp-muted: #5b6472;
+  --erp-dim: #8a94a3;
+  --erp-green-ink: #0c8f66;
+  --erp-ghost-bg: #eef1f5;
+  --erp-ghost-border: #dbe1e8;
+  --erp-ghost-hover: #e2e8ee;
+  --erp-input-bg: #ffffff;
+  --erp-input-border: #d7dee6;
+  --erp-scrollbar-thumb: #c7ced6;
+  --erp-sidebar-bg: #ffffff;
+  --erp-sidebar-card-bg: #f4f6f8;
+  --erp-sidebar-avatar-bg: #e2e8f0;
 }
 
 html,
@@ -35,12 +67,17 @@ body {
   box-sizing: border-box;
 }
 
+/* Utilitário usado via styleClass="w-full" nos componentes PrimeNG (p-button, p-password etc.) */
+.w-full {
+  width: 100%;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #28323f;
+  background: var(--erp-scrollbar-thumb);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-track {
@@ -219,15 +256,7 @@ body {
   td.num {
     text-align: right;
   }
-  button.sortable {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.15rem;
-    padding: 0;
-    border: none;
-    background: none;
-    font: inherit;
-    color: inherit;
+  th.sortable {
     cursor: pointer;
     transition: color 0.15s;
 
@@ -294,21 +323,21 @@ body {
 
   &--primary {
     background: var(--erp-green);
-    color: #06120c;
+    color: var(--erp-btn-ink);
     &:hover { filter: brightness(1.08); }
   }
   &--ghost {
-    background: #161d26;
-    border-color: #232c37;
+    background: var(--erp-ghost-bg);
+    border-color: var(--erp-ghost-border);
     color: var(--erp-muted);
-    &:hover { background: #1e2732; }
+    &:hover { background: var(--erp-ghost-hover); }
   }
   &--icon {
     padding: 0.5rem;
-    background: #161d26;
-    border-color: #232c37;
+    background: var(--erp-ghost-bg);
+    border-color: var(--erp-ghost-border);
     color: var(--erp-muted);
-    &:hover { background: #1e2732; color: var(--erp-text); }
+    &:hover { background: var(--erp-ghost-hover); color: var(--erp-text); }
   }
 }
 
@@ -342,8 +371,8 @@ body {
     width: 240px;
     max-width: 60vw;
     padding: 0.55rem 0.8rem 0.55rem 2.2rem;
-    background: #0e131a;
-    border: 1px solid #263040;
+    background: var(--erp-input-bg);
+    border: 1px solid var(--erp-input-border);
     border-radius: 10px;
     color: var(--erp-text);
     font-size: 0.85rem;
@@ -352,5 +381,453 @@ body {
 
     &:focus { border-color: var(--erp-green); }
     &::placeholder { color: var(--erp-dim); }
+  }
+}
+
+/* ---------- Auth (login / esqueci-senha / cadastro) ----------
+   Layout split compartilhado pelas telas de autenticação. As telas novas
+   usam componentes PrimeNG dentro deste shell e seguem o tema claro/escuro
+   do app (o painel de marca à esquerda continua sempre dark). */
+.auth {
+  display: flex;
+  min-height: 100vh;
+
+  &__art {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 3rem;
+    border-right: 1px solid var(--erp-border-2);
+    background: radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.16), transparent 42%),
+      linear-gradient(160deg, #0e1a16, #0b0e13);
+  }
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    &--sm {
+      margin-bottom: 1.6rem;
+    }
+  }
+  &__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--erp-green) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--erp-green) 30%, transparent);
+    color: var(--erp-green);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+  &__brandname {
+    display: flex;
+    flex-direction: column;
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+
+    small {
+      font-weight: 500;
+      font-size: 0.72rem;
+      color: var(--erp-dim);
+    }
+  }
+  &__art &__brandname {
+    color: #eef2f5;
+
+    small {
+      color: #6b7684;
+    }
+  }
+  &__pitch {
+    max-width: 420px;
+
+    h2 {
+      color: #eef2f5;
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+    p {
+      margin: 1.1rem 0 0;
+      color: #9aa7b6;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.6rem 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      color: #c3cdd8;
+      font-size: 0.88rem;
+
+      i {
+        color: var(--erp-green);
+        font-size: 0.8rem;
+        background: color-mix(in srgb, var(--erp-green) 14%, transparent);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+    }
+  }
+  &__copy {
+    font-size: 0.72rem;
+    color: #6b7684;
+  }
+  &__form-wrap {
+    flex: 0 0 46%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+  }
+  &__card {
+    width: 100%;
+    max-width: 400px;
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+  }
+  &__lead {
+    color: var(--erp-muted);
+    font-size: 0.88rem;
+    margin: 0.4rem 0 0;
+    line-height: 1.5;
+  }
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.6rem;
+  }
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.4rem;
+  }
+  &__foot {
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--erp-muted);
+    margin: 0.2rem 0 0;
+  }
+  &__link {
+    color: var(--erp-green);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+
+    &--strong {
+      font-weight: 700;
+    }
+  }
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--erp-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    margin-bottom: 1.1rem;
+
+    &:hover {
+      color: var(--erp-text);
+    }
+  }
+}
+
+/* Campo (label + controle PrimeNG) */
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+
+  > span {
+    font-size: 0.82rem;
+    color: var(--erp-text);
+    font-weight: 600;
+  }
+  /* Faz os controles PrimeNG ocuparem a largura do card */
+  .p-password,
+  .p-inputtext,
+  .p-inputotp {
+    width: 100%;
+  }
+  .p-password .p-inputtext {
+    width: 100%;
+  }
+  &__error {
+    font-size: 0.75rem;
+    color: var(--erp-red);
+  }
+}
+
+.auth-otp {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0;
+}
+
+/* Indicador de etapas do "esqueci a senha" */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.4rem 0 1.6rem;
+
+  &__dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 0.82rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: #161d26;
+    border: 1px solid #232c37;
+    color: var(--erp-muted);
+    transition: all 0.2s;
+
+    &--active {
+      background: var(--erp-green);
+      border-color: var(--erp-green);
+      color: #06120c;
+    }
+    &--done {
+      background: color-mix(in srgb, var(--erp-green) 20%, transparent);
+      border-color: color-mix(in srgb, var(--erp-green) 45%, transparent);
+      color: var(--erp-green-ink);
+    }
+  }
+  &__bar {
+    flex: 1;
+    height: 2px;
+    background: #232c37;
+    border-radius: 2px;
+
+    &--done {
+      background: color-mix(in srgb, var(--erp-green) 55%, transparent);
+    }
+  }
+}
+
+/* ---------- Modal genérico (importação, CRUD, confirmações) ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(4, 7, 11, 0.65);
+  backdrop-filter: blur(2px);
+}
+.modal {
+  width: 100%;
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--erp-surface);
+  border: 1px solid var(--erp-border);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+
+  &--wide {
+    max-width: 620px;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+
+    &--warn {
+      color: var(--erp-amber);
+      background: color-mix(in srgb, var(--erp-amber) 15%, transparent);
+    }
+    &--error {
+      color: var(--erp-red);
+      background: color-mix(in srgb, var(--erp-red) 15%, transparent);
+    }
+    &--ok {
+      color: var(--erp-green);
+      background: color-mix(in srgb, var(--erp-green) 15%, transparent);
+    }
+  }
+  &__title {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+  &__text {
+    margin: 0;
+    color: var(--erp-muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  &__error-list,
+  &__summary-list {
+    margin: 0.9rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  &__error-list li {
+    font-size: 0.82rem;
+    color: var(--erp-red);
+    padding: 0.5rem 0.65rem;
+    background: color-mix(in srgb, var(--erp-red) 8%, transparent);
+    border-radius: 8px;
+  }
+  &__summary-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--erp-muted);
+    padding: 0.5rem 0.65rem;
+    background: var(--erp-ghost-bg);
+    border-radius: 8px;
+
+    strong {
+      color: var(--erp-text);
+    }
+  }
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1.4rem;
+  }
+}
+
+/* ---------- Formulário CRUD (dentro do .modal) ---------- */
+.crud-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.2rem;
+  margin: 1.2rem 0 0.4rem;
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    span {
+      font-size: 0.82rem;
+      color: var(--erp-text);
+      font-weight: 600;
+    }
+    input,
+    select {
+      width: 100%;
+      padding: 0.65rem 0.8rem;
+      background: var(--erp-input-bg);
+      border: 1px solid var(--erp-input-border);
+      border-radius: 10px;
+      color: var(--erp-text);
+      font-size: 0.88rem;
+      outline: none;
+      font-family: inherit;
+
+      &:focus {
+        border-color: var(--erp-green);
+      }
+    }
+
+    &--checkbox {
+      justify-content: center;
+    }
+  }
+  .field__checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.85rem;
+    color: var(--erp-muted);
+    cursor: pointer;
+
+    input {
+      accent-color: var(--erp-green);
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .crud-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Ações de linha nas tabelas CRUD ---------- */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .btn--icon {
+    padding: 0.4rem;
+    font-size: 0.85rem;
+  }
+  .btn--icon.btn--danger {
+    &:hover {
+      color: var(--erp-red);
+      background: color-mix(in srgb, var(--erp-red) 12%, transparent);
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .auth__art {
+    display: none;
+  }
+  .auth__form-wrap {
+    flex: 1;
+    padding: 1.75rem;
   }
 }

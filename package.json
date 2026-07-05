@@ -24,11 +24,15 @@
     "@angular/router": "^21.2.0",
     "@angular/ssr": "^21.2.18",
     "@primeuix/themes": "^2.0.3",
+    "apexcharts": "^5.15.2",
     "express": "^5.1.0",
+    "idb": "^8.0.3",
+    "ng-apexcharts": "^2.4.0",
     "primeicons": "^7.0.0",
     "primeng": "^21.1.9",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@angular/build": "^21.2.18",

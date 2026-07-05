@@ -1,0 +1,55 @@
+<div class="page settings">
+  <div class="panel">
+    <h2 class="panel__title">Perfil</h2>
+    <p class="settings__hint">Informações da conta e do responsável.</p>
+
+    <div class="settings__profile">
+      <span class="settings__avatar"><i class="pi pi-user"></i></span>
+      <div>
+        <div class="settings__name">{{ nome }}</div>
+        <div class="settings__role">Proprietário · {{ email }}</div>
+      </div>
+    </div>
+
+    <div class="settings__grid">
+      <label class="auth-field">
+        <span>Nome</span>
+        <input pInputText type="text" name="nome" [(ngModel)]="nome" />
+      </label>
+      <label class="auth-field">
+        <span>E-mail</span>
+        <input pInputText type="email" name="email" [(ngModel)]="email" />
+      </label>
+      <label class="auth-field">
+        <span>Telefone</span>
+        <input pInputText type="text" name="telefone" [(ngModel)]="telefone" />
+      </label>
+      <label class="auth-field">
+        <span>Granja</span>
+        <input pInputText type="text" name="granja" [(ngModel)]="granja" />
+      </label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel__title" style="margin-bottom: 1rem">Preferências</h2>
+    @for (p of prefsDefs; track p.key) {
+      <div class="settings__pref">
+        <div>
+          <div class="settings__pref-label">{{ p.label }}</div>
+          <div class="settings__pref-desc">{{ p.desc }}</div>
+        </div>
+        <p-toggleswitch
+          [ngModel]="prefs()[p.key]"
+          (ngModelChange)="setPref(p.key, $event)"
+          [name]="p.key"
+        />
+      </div>
+    }
+  </div>
+
+  <div class="settings__actions">
+    <button class="btn btn--ghost" type="button">Cancelar</button>
+    <p-button label="Salvar alterações" icon="pi pi-check" />
+  </div>
+</div>

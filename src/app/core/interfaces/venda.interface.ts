@@ -1,10 +1,12 @@
 export interface Venda {
-  data: string;
-  produto: string;
-  quantidade: number;
-  precoUnitario: number;
+  date: string;
+  product: string;
+  quantity: number;
+  unitPrice: number;
   total: number;
-  pendentePagamento: boolean;
-  comprador: string;
-  vendedor: string;
+  paymentPending: boolean;
+  buyer: string;
+  seller: string;
+  deliveryPending: boolean;
+  deliveryDate: string | null;
 }

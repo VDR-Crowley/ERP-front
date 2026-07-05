@@ -1,10 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
@@ -16,6 +16,6 @@ export class Login {
   protected remember = true;
 
   protected onSubmit(): void {
-    this.router.navigate(['/plataforma/dashboard']);
+    this.router.navigate(['/platform/dashboard']);
   }
 }

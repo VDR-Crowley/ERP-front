@@ -1,0 +1,120 @@
+<div class="page">
+  <section class="kpi-grid kpi-grid--compact">
+    <article class="kpi kpi--green">
+      <div class="kpi__label">Valor total em estoque</div>
+      <div class="kpi__value kpi__value--sm">{{ brl(valorTotal()) }}</div>
+    </article>
+    <article class="kpi kpi--blue kpi--ink-blue">
+      <div class="kpi__label">Ovos codorna</div>
+      <div class="kpi__value">{{ num(totalCodorna()) }}</div>
+    </article>
+    <article class="kpi kpi--amber">
+      <div class="kpi__label">Ovos galinha</div>
+      <div class="kpi__value">{{ num(totalGalinha()) }}</div>
+    </article>
+    <article class="kpi kpi--purple">
+      <div class="kpi__label">Packs equivalentes</div>
+      <div class="kpi__value">{{ num(totalPacks(), 2) }}</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Movimentação de estoque</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar por data..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo registro
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 720px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('quailEggs')">
+              Ovos codorna
+              @if (sortField() === 'quailEggs') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('chickenEggs')">
+              Ovos galinha
+              @if (sortField() === 'chickenEggs') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('quailPacks')">
+              Pack codorna
+              @if (sortField() === 'quailPacks') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('chickenPacks')">
+              Pack galinha
+              @if (sortField() === 'chickenPacks') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('quailStockValue')">
+              Valor codorna
+              @if (sortField() === 'quailStockValue') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('chickenStockValue')">
+              Valor galinha
+              @if (sortField() === 'chickenStockValue') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of rows(); track e.id) {
+            <tr>
+              <td class="strong">{{ ptDate(e.date) }}</td>
+              <td class="num">{{ num(e.quailEggs) }}</td>
+              <td class="num">{{ num(e.chickenEggs) }}</td>
+              <td class="num">{{ num(e.quailPacks, 2) }}</td>
+              <td class="num">{{ num(e.chickenPacks, 2) }}</td>
+              <td class="num strong">{{ brl(e.quailStockValue) }}</td>
+              <td class="num strong">{{ brl(e.chickenStockValue) }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(e)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(e)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty">Nenhum registro encontrado.</div>
+    }
+    <div class="tbl-foot">{{ rows().length }} registro(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o registro de ' + (ptDate(deleteTarget()?.date ?? '')) + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

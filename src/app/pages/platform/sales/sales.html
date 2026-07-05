@@ -1,0 +1,181 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--green">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Faturamento total</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(faturamento()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-dollar"></i></span>
+      </div>
+      <div class="kpi__foot">Somando todas as vendas</div>
+    </article>
+    <article class="kpi kpi--blue">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Vendas realizadas</div>
+          <div class="kpi__value">{{ num(totalVendas()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-shopping-cart"></i></span>
+      </div>
+      <div class="kpi__foot">No período</div>
+    </article>
+    <article class="kpi kpi--purple">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Ticket médio</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(ticketMedio()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-chart-line"></i></span>
+      </div>
+      <div class="kpi__foot">Por venda</div>
+    </article>
+    <article class="kpi kpi--amber kpi--ink-red">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Pendentes</div>
+          <div class="kpi__value">{{ num(pendentes()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-clock"></i></span>
+      </div>
+      <div class="kpi__foot">Aguardando pagamento</div>
+    </article>
+    <article class="kpi kpi--amber kpi--ink-red">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Entregas em falta</div>
+          <div class="kpi__value">{{ num(entregasPendentes()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-truck"></i></span>
+      </div>
+      <div class="kpi__foot">Aguardando entrega</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Vendas</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar produto, comprador..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Nova venda
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 960px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('product')">
+              Produto
+              @if (sortField() === 'product') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('quantity')">
+              Qtd
+              @if (sortField() === 'quantity') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('unitPrice')">
+              Preço Unit.
+              @if (sortField() === 'unitPrice') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('total')">
+              Total
+              @if (sortField() === 'total') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('buyer')">
+              Comprador
+              @if (sortField() === 'buyer') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('seller')">
+              Vendedor
+              @if (sortField() === 'seller') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('paymentPending')">
+              Situação
+              @if (sortField() === 'paymentPending') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('deliveryPending')">
+              Entrega
+              @if (sortField() === 'deliveryPending') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('deliveryDate')">
+              Entrega em
+              @if (sortField() === 'deliveryDate') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of rows(); track v.id) {
+            <tr>
+              <td>{{ ptDate(v.date) }}</td>
+              <td class="strong">{{ v.product }}</td>
+              <td class="num">{{ num(v.quantity) }}</td>
+              <td class="num">{{ brl(v.unitPrice) }}</td>
+              <td class="num strong">{{ brl(v.total) }}</td>
+              <td>{{ v.buyer }}</td>
+              <td>{{ v.seller }}</td>
+              <td>
+                @if (v.paymentPending) {
+                  <span class="badge badge--warn">Pendente</span>
+                } @else {
+                  <span class="badge badge--ok">Pago</span>
+                }
+              </td>
+              <td>
+                @if (v.deliveryPending) {
+                  <span class="badge badge--warn">Falta</span>
+                } @else {
+                  <span class="badge badge--ok">Entregue</span>
+                }
+              </td>
+              <td>{{ v.deliveryDate ? ptDate(v.deliveryDate) : '—' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(v)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(v)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty">Nenhuma venda encontrada.</div>
+    }
+    <div class="tbl-foot">{{ rows().length }} venda(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir a venda de ' + (deleteTarget()?.product ?? '') + ' para ' + (deleteTarget()?.buyer ?? '') + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

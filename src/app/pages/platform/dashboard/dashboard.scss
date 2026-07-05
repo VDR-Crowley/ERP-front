@@ -4,6 +4,7 @@
 
 .dash-summary {
   display: flex;
+  align-items: center;
   gap: 1rem;
   margin-top: 1rem;
   padding: 0.9rem 1rem;
@@ -32,5 +33,129 @@
   &__sep {
     flex: 0 0 1px;
     background: var(--erp-border);
+  }
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    flex-shrink: 0;
+    color: var(--erp-green);
+    background: color-mix(in srgb, var(--erp-green) 15%, transparent);
+  }
+  &--single {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), transparent);
+    border-color: rgba(16, 185, 129, 0.18);
+  }
+}
+
+/* ---------- Link "Ver todas" centralizado no rodapé de um painel ---------- */
+.panel__foot-link {
+  text-align: center;
+  margin-top: 0.9rem;
+
+  a {
+    color: var(--erp-green);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+/* ---------- Dropdown decorativo de período ---------- */
+.period-select {
+  padding: 0.45rem 0.75rem;
+  background: var(--erp-ghost-bg);
+  border: 1px solid var(--erp-ghost-border);
+  border-radius: 10px;
+  color: var(--erp-muted);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: not-allowed;
+}
+
+/* ---------- Lista de indicadores ---------- */
+.indicator-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 1.4rem;
+}
+.indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 11px;
+  background: var(--erp-surface-2);
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    color: var(--erp-green);
+    background: color-mix(in srgb, var(--erp-green) 15%, transparent);
+    font-size: 0.85rem;
+  }
+  &__label {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--erp-muted);
+  }
+  &__value {
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+}
+
+/* ---------- Donut "Vendas por produto" ---------- */
+.donut-title {
+  margin: 0 0 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.donut-chart {
+  flex-shrink: 0;
+}
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+  }
+  &__dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  &__name {
+    color: var(--erp-text);
+    min-width: 130px;
+  }
+  &__pct {
+    color: var(--erp-muted);
+    font-weight: 700;
   }
 }

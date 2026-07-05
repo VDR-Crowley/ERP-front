@@ -1,0 +1,117 @@
+<div class="auth">
+  <aside class="auth__art">
+    <div class="auth__brand">
+      <span class="auth__logo"><i class="pi pi-inbox"></i></span>
+      <span class="auth__brandname">
+        MiniERP
+        <small>Criação de Codornas</small>
+      </span>
+    </div>
+
+    <div class="auth__pitch">
+      <h2>Comece a organizar a sua granja.</h2>
+      <p>
+        Crie a sua conta gratuitamente e tenha produção, vendas, estoque e plantel sob controle em
+        um só lugar.
+      </p>
+      <ul>
+        <li><i class="pi pi-check"></i> Cadastro rápido, em segundos</li>
+        <li><i class="pi pi-check"></i> Dados sempre organizados</li>
+        <li><i class="pi pi-check"></i> Acesse de qualquer dispositivo</li>
+      </ul>
+    </div>
+
+    <span class="auth__copy">© 2026 MiniERP · Todos os direitos reservados</span>
+  </aside>
+
+  <section class="auth__form-wrap">
+    <div class="auth__card">
+      <div class="auth__brand auth__brand--sm">
+        <span class="auth__logo"><i class="pi pi-inbox"></i></span>
+        <span class="auth__brandname">MiniERP</span>
+      </div>
+
+      <button type="button" class="auth__back" routerLink="/login">
+        <i class="pi pi-arrow-left"></i> Voltar
+      </button>
+
+      <h1>Criar conta</h1>
+      <p class="auth__lead">Preencha os dados abaixo para criar o seu acesso.</p>
+
+      <form class="auth__form" (ngSubmit)="cadastrar()">
+        <label class="auth-field">
+          <span>Nome</span>
+          <input
+            pInputText
+            type="text"
+            name="nome"
+            autocomplete="name"
+            placeholder="Seu nome completo"
+            required
+            [(ngModel)]="nome"
+          />
+        </label>
+
+        <label class="auth-field">
+          <span>E-mail</span>
+          <input
+            pInputText
+            type="email"
+            name="email"
+            autocomplete="email"
+            placeholder="voce@exemplo.com"
+            required
+            [(ngModel)]="email"
+          />
+        </label>
+
+        <label class="auth-field">
+          <span>Senha</span>
+          <p-password
+            name="senha"
+            [(ngModel)]="senha"
+            [toggleMask]="true"
+            [feedback]="true"
+            promptLabel="Digite uma senha"
+            weakLabel="Fraca"
+            mediumLabel="Média"
+            strongLabel="Forte"
+            placeholder="Mínimo 6 caracteres"
+            styleClass="w-full"
+            [inputStyle]="{ width: '100%' }"
+          />
+        </label>
+
+        <label class="auth-field">
+          <span>Confirme a senha</span>
+          <p-password
+            name="confirmarSenha"
+            [(ngModel)]="confirmarSenha"
+            [toggleMask]="true"
+            [feedback]="false"
+            placeholder="Repita a senha"
+            styleClass="w-full"
+            [inputStyle]="{ width: '100%' }"
+          />
+          @if (confirmarSenha.length > 0 && senha !== confirmarSenha) {
+            <span class="auth-field__error">As senhas não coincidem.</span>
+          }
+        </label>
+
+        <div class="auth__actions">
+          <p-button
+            type="submit"
+            label="Criar conta"
+            icon="pi pi-user-plus"
+            styleClass="w-full"
+            [disabled]="!formValido()"
+          />
+          <p class="auth__foot">
+            Já tem conta?
+            <a class="auth__link auth__link--strong" routerLink="/login">Entrar</a>
+          </p>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>

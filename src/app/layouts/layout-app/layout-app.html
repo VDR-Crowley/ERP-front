@@ -1,5 +1,5 @@
-<div class="shell" [class.shell--open]="menuOpen()">
-  <button type="button" class="scrim" aria-label="Fechar menu" (click)="closeMenu()"></button>
+<div class="shell" [class.shell--open]="menuOpen()" [class.shell--collapsed]="collapsed()">
+  <div class="scrim" (click)="closeMenu()"></div>
 
   <aside class="side">
     <div class="side__brand">
@@ -16,6 +16,7 @@
           class="side__link"
           [routerLink]="item.path"
           routerLinkActive="side__link--active"
+          [title]="collapsed() ? item.label : ''"
           (click)="closeMenu()"
         >
           <i [class]="'pi ' + item.icon"></i>
@@ -28,7 +29,7 @@
       <div class="side__user">
         <span class="side__avatar"><i class="pi pi-user"></i></span>
         <span class="side__uinfo">
-          Marcelo
+          Vando
           <small>Proprietário</small>
         </span>
       </div>
@@ -42,7 +43,7 @@
   <div class="main">
     <header class="top">
       <div class="top__left">
-        <button class="top__menu" type="button" (click)="toggleMenu()" aria-label="Menu">
+        <button class="top__menu" type="button" (click)="toggleSidebar()" aria-label="Recolher menu">
           <i class="pi pi-bars"></i>
         </button>
         <div class="top__titles">
@@ -52,6 +53,22 @@
       </div>
       <div class="top__right">
         <span class="top__date"><i class="pi pi-calendar"></i> 28/06/2026</span>
+        <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
+          <i class="pi pi-file-excel"></i> Modelo
+        </button>
+        <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
+          <i class="pi pi-upload"></i> Importar
+        </button>
+        <input
+          #fileInput
+          type="file"
+          accept=".xlsx"
+          hidden
+          (change)="onFileSelected($event)"
+        />
+        <button class="btn btn--ghost" type="button" (click)="exportar()">
+          <i class="pi pi-download"></i> Exportar
+        </button>
       </div>
     </header>
 
@@ -59,4 +76,55 @@
       <router-outlet />
     </main>
   </div>
+
+  @if (importState() !== 'idle') {
+    <div class="modal-overlay">
+      <div class="modal">
+        @switch (importState()) {
+          @case ('confirm') {
+            <div class="modal__icon modal__icon--warn"><i class="pi pi-exclamation-triangle"></i></div>
+            <h2 class="modal__title">Substituir dados existentes?</h2>
+            <p class="modal__text">
+              Importar essa planilha vai apagar e substituir os dados atuais das abas presentes no
+              arquivo. Essa ação não pode ser desfeita.
+            </p>
+            <div class="modal__actions">
+              <button class="btn btn--ghost" type="button" (click)="cancelarImportacao()">Cancelar</button>
+              <button class="btn btn--primary" type="button" (click)="confirmarImportacao()">
+                Substituir dados
+              </button>
+            </div>
+          }
+          @case ('errors') {
+            <div class="modal__icon modal__icon--error"><i class="pi pi-times-circle"></i></div>
+            <h2 class="modal__title">Não foi possível importar</h2>
+            <p class="modal__text">Corrija os itens abaixo e tente novamente:</p>
+            <ul class="modal__error-list">
+              @for (err of importErrors(); track err) {
+                <li>{{ err }}</li>
+              }
+            </ul>
+            <div class="modal__actions">
+              <button class="btn btn--primary" type="button" (click)="fecharErros()">Entendi</button>
+            </div>
+          }
+          @case ('success') {
+            <div class="modal__icon modal__icon--ok"><i class="pi pi-check-circle"></i></div>
+            <h2 class="modal__title">Importação concluída</h2>
+            <p class="modal__text">Dados atualizados:</p>
+            <ul class="modal__summary-list">
+              @for (item of importSummary() | keyvalue; track item.key) {
+                <li><span>{{ item.key }}</span><strong>{{ item.value }} registro(s)</strong></li>
+              }
+            </ul>
+            <div class="modal__actions">
+              <button class="btn btn--primary" type="button" (click)="concluirImportacao()">
+                Recarregar página
+              </button>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
 </div>
