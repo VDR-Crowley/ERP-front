@@ -6,14 +6,37 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
+import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 type SortField = keyof Expense;
+
+function toNumberOrUndefined(value: unknown): number | undefined {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 const FIELDS: CrudField[] = [
   { key: 'date', label: 'Data', type: 'date', required: true },
   { key: 'description', label: 'Descrição', type: 'text', required: true },
   { key: 'category', label: 'Categoria', type: 'text', required: true },
-  { key: 'amount', label: 'Valor', type: 'number', step: 0.01, required: true },
+  { key: 'quantity', label: 'Quantidade comprada', type: 'number', step: 1 },
+  { key: 'unitPrice', label: 'Valor da unidade', type: 'number', step: 0.01 },
+  {
+    key: 'amount',
+    label: 'Valor total',
+    type: 'number',
+    step: 0.01,
+    required: true,
+    compute: (m) => {
+      const quantity = toNumberOrUndefined(m['quantity']);
+      const unitPrice = toNumberOrUndefined(m['unitPrice']);
+      if (quantity === undefined || unitPrice === undefined || quantity <= 0 || unitPrice <= 0) {
+        return undefined;
+      }
+      return Math.round(quantity * unitPrice * 100) / 100;
+    },
+  },
   {
     key: 'paid',
     label: 'Situação',
@@ -28,7 +51,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-expenses',
-  imports: [FormsModule, CrudFormModal, ConfirmModal],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
   templateUrl: './expenses.html',
   styleUrl: './expenses.scss',
 })
@@ -40,6 +63,7 @@ export class Expenses {
   private readonly store = createEntityStore<Expense>(IDB_STORES.expenses, []);
 
   protected readonly search = signal('');
+  protected readonly searchKeys: SortField[] = ['date', 'description', 'category'];
   protected readonly sortField = signal<SortField | ''>('');
   protected readonly sortDir = signal<1 | -1>(1);
 
@@ -69,14 +93,7 @@ export class Expenses {
   );
 
   protected readonly rows = computed<WithId<Expense>[]>(() => {
-    const query = this.search().trim().toLowerCase();
     let list: WithId<Expense>[] = this.store.items();
-
-    if (query) {
-      list = list.filter((e) =>
-        [e.description, e.category, ptDate(e.date)].some((v) => v.toLowerCase().includes(query)),
-      );
-    }
 
     const field = this.sortField();
     const dir = this.sortDir();
@@ -107,6 +124,8 @@ export class Expenses {
       date: new Date().toISOString().slice(0, 10),
       description: '',
       category: '',
+      quantity: '',
+      unitPrice: '',
       amount: 0,
       paid: 'false',
     };
@@ -130,6 +149,8 @@ export class Expenses {
       date: String(d['date']),
       description: String(d['description']),
       category: String(d['category']),
+      quantity: toNumberOrUndefined(d['quantity']),
+      unitPrice: toNumberOrUndefined(d['unitPrice']),
       amount: Number(d['amount']),
       paid: d['paid'] === 'true' || d['paid'] === true,
     };
