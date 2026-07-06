@@ -69,6 +69,8 @@
       </button>
     </div>
 
+    @let filtered = rows() | filterBy: search() : searchKeys;
+
     <div class="tbl-wrap">
       <table class="tbl" style="min-width: 960px">
         <thead>
@@ -117,7 +119,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (v of rows(); track v.id) {
+          @for (v of filtered; track v.id) {
             <tr>
               <td>{{ ptDate(v.date) }}</td>
               <td class="strong">{{ v.product }}</td>
@@ -157,10 +159,10 @@
       </table>
     </div>
 
-    @if (rows().length === 0) {
+    @if (filtered.length === 0) {
       <div class="empty">Nenhuma venda encontrada.</div>
     }
-    <div class="tbl-foot">{{ rows().length }} venda(s)</div>
+    <div class="tbl-foot">{{ filtered.length }} venda(s)</div>
   </div>
 </div>
 

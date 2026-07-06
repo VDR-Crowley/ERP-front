@@ -18,6 +18,7 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
+import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 interface CashRow extends WithId<CashEntry> {
   saldo: number;
@@ -58,7 +59,7 @@ interface BarChartOptions {
 
 @Component({
   selector: 'app-cash-flow',
-  imports: [FormsModule, NgApexchartsModule, CrudFormModal, ConfirmModal],
+  imports: [FormsModule, NgApexchartsModule, CrudFormModal, ConfirmModal, FilterByPipe],
   templateUrl: './cash-flow.html',
   styleUrl: './cash-flow.scss',
 })
@@ -70,6 +71,7 @@ export class CashFlow {
   private readonly store = createEntityStore<CashEntry>(IDB_STORES.cashFlow, []);
 
   protected readonly search = signal('');
+  protected readonly searchKeys: SortField[] = ['date', 'description'];
   protected readonly sortField = signal<SortField | ''>('');
   protected readonly sortDir = signal<1 | -1>(1);
 
@@ -122,13 +124,6 @@ export class CashFlow {
       saldo += c.inflow ? c.amount : -c.amount;
       return { ...c, saldo };
     });
-
-    const query = this.search().trim().toLowerCase();
-    if (query) {
-      list = list.filter((c) =>
-        [c.description, ptDate(c.date)].some((v) => v.toLowerCase().includes(query)),
-      );
-    }
 
     const field = this.sortField();
     const dir = this.sortDir();

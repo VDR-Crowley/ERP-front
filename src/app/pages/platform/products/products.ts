@@ -6,6 +6,7 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
+import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 type SortField = keyof Product;
 
@@ -19,7 +20,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-products',
-  imports: [FormsModule, CrudFormModal, ConfirmModal],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
   templateUrl: './products.html',
   styleUrl: './products.scss',
 })
@@ -31,6 +32,7 @@ export class Products {
   private readonly store = createEntityStore<Product>(IDB_STORES.products, []);
 
   protected readonly search = signal('');
+  protected readonly searchKeys: SortField[] = ['name'];
   protected readonly sortField = signal<SortField | ''>('');
   protected readonly sortDir = signal<1 | -1>(1);
 
@@ -50,12 +52,7 @@ export class Products {
   });
 
   protected readonly rows = computed<WithId<Product>[]>(() => {
-    const query = this.search().trim().toLowerCase();
     let list: WithId<Product>[] = this.store.items();
-
-    if (query) {
-      list = list.filter((p) => p.name.toLowerCase().includes(query));
-    }
 
     const field = this.sortField();
     const dir = this.sortDir();

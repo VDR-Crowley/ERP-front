@@ -4,8 +4,101 @@
     {
       "name": "erp-front-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
-      "port": 4200
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4201"
+      ],
+      "port": 4201
+    },
+    {
+      "name": "erp-front-dev-expenses",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4202"
+      ],
+      "port": 4202
+    },
+    {
+      "name": "erp-front-dev-egg-stock",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4203"
+      ],
+      "port": 4203
+    },
+    {
+      "name": "erp-front-dev-products",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4207"
+      ],
+      "port": 4207
+    },
+    {
+      "name": "erp-front-dev-production",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4205"
+      ],
+      "port": 4205
+    },
+    {
+      "name": "erp-front-dev-4208",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4208"
+      ],
+      "port": 4208
+    },
+    {
+      "name": "erp-front-dev-plantel",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4204"
+      ],
+      "port": 4204
+    },
+    {
+      "name": "erp-front-dev-expenses-4209",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4209"
+      ],
+      "port": 4209
+    },
+    {
+      "name": "erp-front-dev-cash-flow",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4206"
+      ],
+      "port": 4206
     }
   ]
 }

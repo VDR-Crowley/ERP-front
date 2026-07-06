@@ -35,8 +35,10 @@
       </button>
     </div>
 
+    @let filtered = rows() | filterBy: search() : searchKeys;
+
     <div class="tbl-wrap">
-      <table class="tbl" style="min-width: 620px">
+      <table class="tbl" style="min-width: 780px">
         <thead>
           <tr>
             <th class="sortable" (click)="sortBy('date')">
@@ -51,8 +53,16 @@
               Categoria
               @if (sortField() === 'category') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
             </th>
+            <th class="num sortable" (click)="sortBy('quantity')">
+              Qtd.
+              @if (sortField() === 'quantity') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="num sortable" (click)="sortBy('unitPrice')">
+              Valor unit.
+              @if (sortField() === 'unitPrice') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
             <th class="num sortable" (click)="sortBy('amount')">
-              Valor
+              Valor total
               @if (sortField() === 'amount') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
             </th>
             <th class="sortable" (click)="sortBy('paid')">
@@ -63,11 +73,13 @@
           </tr>
         </thead>
         <tbody>
-          @for (e of rows(); track e.id) {
+          @for (e of filtered; track e.id) {
             <tr>
               <td>{{ ptDate(e.date) }}</td>
               <td class="strong">{{ e.description }}</td>
               <td>{{ e.category }}</td>
+              <td class="num">{{ e.quantity ?? '—' }}</td>
+              <td class="num">{{ e.unitPrice !== undefined ? brl(e.unitPrice) : '—' }}</td>
               <td class="num strong">{{ brl(e.amount) }}</td>
               <td>
                 @if (e.paid) {
@@ -92,10 +104,10 @@
       </table>
     </div>
 
-    @if (rows().length === 0) {
+    @if (filtered.length === 0) {
       <div class="empty">Nenhuma despesa encontrada.</div>
     }
-    <div class="tbl-foot">{{ rows().length }} despesa(s)</div>
+    <div class="tbl-foot">{{ filtered.length }} despesa(s)</div>
   </div>
 </div>
 

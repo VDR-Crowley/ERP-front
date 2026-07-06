@@ -6,6 +6,7 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
+import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 type SortField = keyof EstoqueOvosModel;
 
@@ -21,7 +22,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-egg-stock',
-  imports: [FormsModule, CrudFormModal, ConfirmModal],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
   templateUrl: './egg-stock.html',
   styleUrl: './egg-stock.scss',
 })
@@ -34,6 +35,7 @@ export class EggStock {
   private readonly store = createEntityStore<EstoqueOvosModel>(IDB_STORES.eggStock, []);
 
   protected readonly search = signal('');
+  protected readonly searchKeys: SortField[] = ['date'];
   protected readonly sortField = signal<SortField | ''>('');
   protected readonly sortDir = signal<1 | -1>(1);
 
@@ -43,26 +45,33 @@ export class EggStock {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<EstoqueOvosModel> | null>(null);
 
-  protected readonly totalCodorna = computed(() =>
-    this.store.items().reduce((soma, e) => soma + (e.quailEggs ?? 0), 0),
-  );
-  protected readonly totalGalinha = computed(() =>
-    this.store.items().reduce((soma, e) => soma + (e.chickenEggs ?? 0), 0),
-  );
-  protected readonly totalPacks = computed(() =>
-    this.store.items().reduce((soma, e) => soma + e.quailPacks + e.chickenPacks, 0),
-  );
-  protected readonly valorTotal = computed(() =>
-    this.store.items().reduce((soma, e) => soma + e.quailStockValue + e.chickenStockValue, 0),
-  );
+  // Cada linha é um snapshot do saldo naquele dia, não um delta — os cards do
+  // topo devem refletir só a linha mais recente até hoje (carry-forward),
+  // nunca a soma de todas as linhas (isso somaria saldos de dias diferentes).
+  protected readonly estoqueAtual = computed<EstoqueOvosModel | undefined>(() => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return this.store
+      .items()
+      .filter((e) => e.date <= hoje)
+      .reduce<EstoqueOvosModel | undefined>(
+        (maisRecente, e) => (!maisRecente || e.date > maisRecente.date ? e : maisRecente),
+        undefined,
+      );
+  });
+
+  protected readonly totalCodorna = computed(() => this.estoqueAtual()?.quailEggs ?? 0);
+  protected readonly totalGalinha = computed(() => this.estoqueAtual()?.chickenEggs ?? 0);
+  protected readonly totalPacks = computed(() => {
+    const e = this.estoqueAtual();
+    return e ? e.quailPacks + e.chickenPacks : 0;
+  });
+  protected readonly valorTotal = computed(() => {
+    const e = this.estoqueAtual();
+    return e ? e.quailStockValue + e.chickenStockValue : 0;
+  });
 
   protected readonly rows = computed<WithId<EstoqueOvosModel>[]>(() => {
-    const query = this.search().trim().toLowerCase();
     let list: WithId<EstoqueOvosModel>[] = this.store.items();
-
-    if (query) {
-      list = list.filter((e) => ptDate(e.date).toLowerCase().includes(query));
-    }
 
     const field = this.sortField();
     const dir = this.sortDir();

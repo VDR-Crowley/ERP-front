@@ -6,6 +6,7 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
+import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 type SortField = keyof Venda;
 
@@ -41,7 +42,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-sales',
-  imports: [FormsModule, CrudFormModal, ConfirmModal],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
   templateUrl: './sales.html',
   styleUrl: './sales.scss',
 })
@@ -54,6 +55,7 @@ export class Sales {
   private readonly store = createEntityStore<Venda>(IDB_STORES.sales, []);
 
   protected readonly search = signal('');
+  protected readonly searchKeys: SortField[] = ['date', 'product', 'buyer', 'seller'];
   protected readonly sortField = signal<SortField | ''>('');
   protected readonly sortDir = signal<1 | -1>(1);
 
@@ -79,16 +81,7 @@ export class Sales {
   });
 
   protected readonly rows = computed<WithId<Venda>[]>(() => {
-    const query = this.search().trim().toLowerCase();
     let list: WithId<Venda>[] = this.store.items();
-
-    if (query) {
-      list = list.filter((v) =>
-        [v.product, v.buyer, v.seller, ptDate(v.date)].some((value) =>
-          value.toLowerCase().includes(query),
-        ),
-      );
-    }
 
     const field = this.sortField();
     const dir = this.sortDir();
