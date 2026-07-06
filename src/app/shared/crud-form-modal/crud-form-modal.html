@@ -27,9 +27,11 @@
                 <input
                   [type]="field.type"
                   [step]="field.step ?? null"
-                  [(ngModel)]="model[field.key]"
+                  [ngModel]="model[field.key]"
+                  (ngModelChange)="onFieldChange(field, $event)"
                   [name]="field.key"
                   [required]="!!field.required"
+                  [readonly]="isReadonly(field)"
                 />
               }
             }

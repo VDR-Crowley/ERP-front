@@ -6,6 +6,7 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
+import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 type Row = WithId<ProducaoDiaria> & { total: number };
 type SortField = keyof Row;
@@ -18,7 +19,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-production',
-  imports: [FormsModule, CrudFormModal, ConfirmModal],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
   templateUrl: './production.html',
   styleUrl: './production.scss',
 })
@@ -30,6 +31,7 @@ export class Production {
   private readonly store = createEntityStore<ProducaoDiaria>(IDB_STORES.dailyProduction, []);
 
   protected readonly search = signal('');
+  protected readonly searchKeys: (keyof Row)[] = ['date'];
   protected readonly sortField = signal<SortField | ''>('');
   protected readonly sortDir = signal<1 | -1>(1);
 
@@ -52,15 +54,10 @@ export class Production {
   });
 
   protected readonly rows = computed<Row[]>(() => {
-    const query = this.search().trim().toLowerCase();
     let list: Row[] = this.store.items().map((p) => ({
       ...p,
       total: (p.quailEggs ?? 0) + (p.chickenEggs ?? 0),
     }));
-
-    if (query) {
-      list = list.filter((p) => ptDate(p.date).toLowerCase().includes(query));
-    }
 
     const field = this.sortField();
     const dir = this.sortDir();
