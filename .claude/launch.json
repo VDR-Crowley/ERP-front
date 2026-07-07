@@ -99,6 +99,72 @@
         "4206"
       ],
       "port": 4206
+    },
+    {
+      "name": "erp-front-dev-4212",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4212"
+      ],
+      "port": 4212
+    },
+    {
+      "name": "erp-front-dev-4211",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4211"
+      ],
+      "port": 4211
+    },
+    {
+      "name": "erp-front-dev-4215",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4215"
+      ],
+      "port": 4215
+    },
+    {
+      "name": "erp-front-dev-4214",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4214"
+      ],
+      "port": 4214
+    },
+    {
+      "name": "erp-front-dev-4213",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4213"
+      ],
+      "port": 4213
+    },
+    {
+      "name": "erp-front-dev-4210",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4210"
+      ],
+      "port": 4210
     }
   ]
 }

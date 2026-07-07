@@ -32,15 +32,15 @@
       </div>
       @if (hasVendas()) {
         <apx-chart
-          [series]="revenueChart.series"
-          [chart]="revenueChart.chart"
-          [plotOptions]="revenueChart.plotOptions"
-          [colors]="revenueChart.colors"
-          [dataLabels]="revenueChart.dataLabels"
-          [xaxis]="revenueChart.xaxis"
-          [yaxis]="revenueChart.yaxis"
-          [grid]="revenueChart.grid"
-          [tooltip]="revenueChart.tooltip"
+          [series]="revenueChart().series"
+          [chart]="revenueChart().chart"
+          [plotOptions]="revenueChart().plotOptions"
+          [colors]="revenueChart().colors"
+          [dataLabels]="revenueChart().dataLabels"
+          [xaxis]="revenueChart().xaxis"
+          [yaxis]="revenueChart().yaxis"
+          [grid]="revenueChart().grid"
+          [tooltip]="revenueChart().tooltip"
         />
       } @else {
         <div class="empty">Sem vendas no período.</div>

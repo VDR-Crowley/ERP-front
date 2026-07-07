@@ -1,6 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
+import { Product } from '@core/interfaces/product.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
@@ -10,9 +11,22 @@ import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 
 type SortField = keyof Venda;
 
-const FIELDS: CrudField[] = [
+function buildFields(productOptions: { value: string; label: string }[], products: WithId<Product>[]): CrudField[] {
+  return [
   { key: 'date', label: 'Data', type: 'date', required: true },
-  { key: 'product', label: 'Produto', type: 'text', required: true },
+  {
+    key: 'product',
+    label: 'Produto',
+    type: 'autocomplete',
+    options: productOptions,
+    required: true,
+    onSelect: (option, model) => {
+      const product = products.find((p) => p.name === option.value);
+      if (product) {
+        model['unitPrice'] = product.unitPrice;
+      }
+    },
+  },
   { key: 'quantity', label: 'Quantidade', type: 'number', step: 1, required: true },
   { key: 'unitPrice', label: 'Preço unitário', type: 'number', step: 0.01, required: true },
   { key: 'buyer', label: 'Comprador', type: 'text', required: true },
@@ -38,7 +52,8 @@ const FIELDS: CrudField[] = [
     required: true,
   },
   { key: 'deliveryDate', label: 'Data de entrega', type: 'date' },
-];
+  ];
+}
 
 @Component({
   selector: 'app-sales',
@@ -50,9 +65,15 @@ export class Sales {
   protected readonly brl = brl;
   protected readonly num = num;
   protected readonly ptDate = ptDate;
-  protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<Venda>(IDB_STORES.sales, []);
+  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+
+  protected readonly fields = computed<CrudField[]>(() => {
+    const products = this.productsStore.items();
+    const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
+    return buildFields(productOptions, products);
+  });
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'product', 'buyer', 'seller'];

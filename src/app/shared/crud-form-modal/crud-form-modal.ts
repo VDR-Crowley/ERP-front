@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-export type CrudFieldType = 'text' | 'number' | 'date' | 'checkbox' | 'select';
+export type CrudFieldType = 'text' | 'number' | 'date' | 'checkbox' | 'select' | 'autocomplete';
 
 export interface CrudField {
   key: string;
@@ -19,6 +19,14 @@ export interface CrudField {
    * não usam esse cálculo.
    */
   compute?: (model: Record<string, unknown>) => number | undefined;
+  /**
+   * Só para type 'autocomplete': disparado quando o valor digitado bate
+   * exatamente com uma das `options` (ex.: usuário escolheu um produto
+   * cadastrado). Permite preencher outros campos do model (ex.: preço
+   * unitário) a partir da opção escolhida. Texto que não bate com nenhuma
+   * opção é mantido como está (fallback livre) e o callback não dispara.
+   */
+  onSelect?: (option: { value: string; label: string }, model: Record<string, unknown>) => void;
 }
 
 /**
@@ -55,6 +63,12 @@ export class CrudFormModal implements OnChanges {
 
   protected onFieldChange(field: CrudField, value: unknown): void {
     this.model[field.key] = value;
+    if (field.type === 'autocomplete' && field.onSelect) {
+      const match = field.options?.find((opt) => opt.label === value);
+      if (match) {
+        field.onSelect(match, this.model);
+      }
+    }
     this.recomputeAll();
   }
 

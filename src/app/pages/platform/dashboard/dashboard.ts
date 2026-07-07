@@ -130,17 +130,21 @@ export class Dashboard {
   );
 
   private readonly ultimoEstoque = computed(() => {
-    const items = this.eggStockStore.items();
-    return items[items.length - 1];
+    const hoje = new Date().toISOString().slice(0, 10);
+    return this.eggStockStore
+      .items()
+      .filter((e) => e.date <= hoje)
+      .reduce<EstoqueOvos | undefined>(
+        (maisRecente, e) => (!maisRecente || e.date > maisRecente.date ? e : maisRecente),
+        undefined,
+      );
   });
   protected readonly bandejasProntas = computed(() => {
     const estoque = this.ultimoEstoque();
     return estoque ? Math.floor(estoque.quailPacks + estoque.chickenPacks) : 0;
   });
-  protected readonly ovosDisponiveisEstoque = computed(() => {
-    const estoque = this.ultimoEstoque();
-    return estoque ? (estoque.quailEggs ?? 0) + (estoque.chickenEggs ?? 0) : 0;
-  });
+  protected readonly ovosCodornaEstoque = computed(() => this.ultimoEstoque()?.quailEggs ?? 0);
+  protected readonly ovosGalinhaEstoque = computed(() => this.ultimoEstoque()?.chickenEggs ?? 0);
 
   protected readonly totalOvosVendidos = computed(() =>
     this.salesStore.items().reduce((soma, venda) => {

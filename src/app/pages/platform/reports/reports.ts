@@ -60,7 +60,33 @@ const PRODUTO_CORES: Record<string, string> = {
   '5 ovos Galinha + 50 Codorna': '#e0b341',
 };
 const COR_PADRAO = '#64748b';
-const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
+const MESES_ABREV = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+];
+
+function calcularFaturamentoPorMes(vendas: Venda[]): { categories: string[]; data: number[] } {
+  const porMes = new Map<string, number>();
+  for (const venda of vendas) {
+    const chave = venda.date.slice(0, 7);
+    porMes.set(chave, (porMes.get(chave) ?? 0) + venda.total);
+  }
+  const chaves = [...porMes.keys()].sort();
+  return {
+    categories: chaves.map((chave) => MESES_ABREV[Number(chave.slice(5, 7)) - 1]),
+    data: chaves.map((chave) => porMes.get(chave)!),
+  };
+}
 
 function calcularTopBuyers(vendas: Venda[]): TopBuyer[] {
   const porComprador = new Map<string, { orders: number; total: number }>();
@@ -140,23 +166,26 @@ export class Reports {
     calcularDistribuicaoOvos(this.salesStore.items(), this.productsStore.items()),
   );
 
-  // Sem série histórica real por mês ainda — fica zerado até existir essa base.
-  protected readonly revenueChart: BarChartOptions = {
-    series: [{ name: 'Faturamento', data: MESES.map(() => 0) }],
-    chart: { type: 'bar', height: 220, toolbar: { show: false } },
-    plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
-    colors: ['#10b981'],
-    dataLabels: { enabled: false },
-    xaxis: {
-      categories: MESES,
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-      labels: { style: { colors: '#6b7684' } },
-    },
-    yaxis: { labels: { style: { colors: '#6b7684' }, formatter: (v: number) => `${v}%` } },
-    grid: { borderColor: '#1e2732', strokeDashArray: 4 },
-    tooltip: { y: { formatter: (v: number) => `${v}%` } },
-  };
+  // Série vem só dos meses com venda real no IDB — nenhum mês é inventado.
+  protected readonly revenueChart = computed<BarChartOptions>(() => {
+    const { categories, data } = calcularFaturamentoPorMes(this.salesStore.items());
+    return {
+      series: [{ name: 'Faturamento', data }],
+      chart: { type: 'bar', height: 220, toolbar: { show: false } },
+      plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
+      colors: ['#10b981'],
+      dataLabels: { enabled: false },
+      xaxis: {
+        categories,
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+        labels: { style: { colors: '#6b7684' } },
+      },
+      yaxis: { labels: { style: { colors: '#6b7684' }, formatter: (v: number) => brl(v) } },
+      grid: { borderColor: '#1e2732', strokeDashArray: 4 },
+      tooltip: { y: { formatter: (v: number) => brl(v) } },
+    };
+  });
 
   protected readonly donutChart = computed<DonutChartOptions>(() => {
     const distribuicaoOvos = this.distribuicaoOvos();

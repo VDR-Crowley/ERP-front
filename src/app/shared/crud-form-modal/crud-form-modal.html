@@ -23,6 +23,21 @@
                     <option [value]="opt.value">{{ opt.label }}</option>
                   }
                 </select>
+              } @else if (field.type === 'autocomplete') {
+                <input
+                  type="text"
+                  [attr.list]="field.key + '-list'"
+                  [ngModel]="model[field.key]"
+                  (ngModelChange)="onFieldChange(field, $event)"
+                  [name]="field.key"
+                  [required]="!!field.required"
+                  autocomplete="off"
+                />
+                <datalist [id]="field.key + '-list'">
+                  @for (opt of field.options; track opt.value) {
+                    <option [value]="opt.label"></option>
+                  }
+                </datalist>
               } @else {
                 <input
                   [type]="field.type"

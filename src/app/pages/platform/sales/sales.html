@@ -169,7 +169,7 @@
 <app-crud-form-modal
   [open]="formOpen()"
   [title]="formTitle()"
-  [fields]="fields"
+  [fields]="fields()"
   [model]="draft"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"

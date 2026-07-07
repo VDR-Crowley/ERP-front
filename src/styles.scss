@@ -230,7 +230,8 @@ body {
 
 /* ---------- Table ---------- */
 .tbl-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 70vh;
   margin: 0 -0.35rem;
 }
 .tbl {
@@ -246,6 +247,10 @@ body {
     font-size: 0.85rem;
   }
   th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--erp-surface);
     color: var(--erp-dim);
     font-size: 0.75rem;
     font-weight: 700;

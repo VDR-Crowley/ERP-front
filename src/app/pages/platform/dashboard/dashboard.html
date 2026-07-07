@@ -33,15 +33,26 @@
       <div class="kpi__foot">{{ vendasPendentes() }} venda(s) pendente(s)</div>
     </article>
 
-    <article class="kpi kpi--amber">
+    <article class="kpi kpi--blue kpi--ink-blue">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Disponível em estoque</div>
-          <div class="kpi__value">{{ num(ovosDisponiveisEstoque()) }} <span>ovos</span></div>
+          <div class="kpi__label">Ovos codorna em estoque</div>
+          <div class="kpi__value">{{ num(ovosCodornaEstoque()) }} <span>ovos</span></div>
         </div>
         <span class="kpi__icon"><i class="pi pi-database"></i></span>
       </div>
-      <div class="kpi__foot">Codorna + galinha</div>
+      <div class="kpi__foot">Disponíveis no estoque mais recente</div>
+    </article>
+
+    <article class="kpi kpi--amber">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Ovos galinha em estoque</div>
+          <div class="kpi__value">{{ num(ovosGalinhaEstoque()) }} <span>ovos</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-database"></i></span>
+      </div>
+      <div class="kpi__foot">Disponíveis no estoque mais recente</div>
     </article>
   </section>
 
