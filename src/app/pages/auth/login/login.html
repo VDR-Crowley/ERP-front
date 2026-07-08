@@ -48,13 +48,23 @@
 
         <label class="field">
           <span>Senha</span>
-          <input
-            type="password"
-            name="password"
-            autocomplete="current-password"
-            required
-            [(ngModel)]="password"
-          />
+          <div class="field__password">
+            <input
+              [type]="mostrarSenha() ? 'text' : 'password'"
+              name="password"
+              autocomplete="current-password"
+              required
+              [(ngModel)]="password"
+            />
+            <button
+              type="button"
+              class="field__toggle"
+              [attr.aria-label]="mostrarSenha() ? 'Ocultar senha' : 'Mostrar senha'"
+              (click)="toggleSenha()"
+            >
+              <i class="pi" [class.pi-eye]="!mostrarSenha()" [class.pi-eye-slash]="mostrarSenha()"></i>
+            </button>
+          </div>
         </label>
 
         <div class="login__row">
@@ -65,7 +75,13 @@
           <a routerLink="/forgot-password" class="login__link">Esqueci a senha</a>
         </div>
 
-        <button type="submit" class="btn btn--primary login__submit">Entrar</button>
+        @if (erro()) {
+          <span class="login__error">{{ erro() }}</span>
+        }
+
+        <button type="submit" class="btn btn--primary login__submit" [disabled]="entrando()">
+          Entrar
+        </button>
 
         <p class="login__signup">
           Não tem conta?

@@ -29,14 +29,14 @@
       <div class="side__user">
         <span class="side__avatar"><i class="pi pi-user"></i></span>
         <span class="side__uinfo">
-          Vando
+          {{ user()?.name || 'Usuário' }}
           <small>Proprietário</small>
         </span>
       </div>
-      <a class="side__link side__link--muted" routerLink="/">
+      <button type="button" class="side__link side__link--muted" (click)="sair()">
         <i class="pi pi-sign-out"></i>
         <span>Sair</span>
-      </a>
+      </button>
     </div>
   </aside>
 

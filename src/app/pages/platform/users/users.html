@@ -1,0 +1,85 @@
+<div class="page">
+  <section class="kpi-grid kpi-grid--compact">
+    <article class="kpi kpi--green">
+      <div class="kpi__label">Total de usuários</div>
+      <div class="kpi__value">{{ num(totalUsuarios()) }}</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Usuários do sistema</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar por nome ou e-mail..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo usuário
+      </button>
+    </div>
+
+    @let filtered = rows() | filterBy: search() : searchKeys;
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 480px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('name')">
+              Nome
+              @if (sortField() === 'name') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th class="sortable" (click)="sortBy('email')">
+              E-mail
+              @if (sortField() === 'email') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+            </th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of filtered; track u.id) {
+            <tr>
+              <td class="strong">{{ u.name }}</td>
+              <td>{{ u.email }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(u)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(u)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (filtered.length === 0) {
+      <div class="empty">Nenhum usuário encontrado.</div>
+    }
+    <div class="tbl-foot">{{ filtered.length }} usuário(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o usuário ' + (deleteTarget()?.name ?? '') + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

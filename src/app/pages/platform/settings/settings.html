@@ -1,4 +1,5 @@
 <div class="page settings">
+  <!-- perfil do usuário logado (AuthSession) -->
   <div class="panel">
     <h2 class="panel__title">Perfil</h2>
     <p class="settings__hint">Informações da conta e do responsável.</p>
@@ -6,7 +7,7 @@
     <div class="settings__profile">
       <span class="settings__avatar"><i class="pi pi-user"></i></span>
       <div>
-        <div class="settings__name">{{ nome }}</div>
+        <div class="settings__name">{{ nome || '—' }}</div>
         <div class="settings__role">Proprietário · {{ email }}</div>
       </div>
     </div>
@@ -18,7 +19,14 @@
       </label>
       <label class="auth-field">
         <span>E-mail</span>
-        <input pInputText type="email" name="email" [(ngModel)]="email" />
+        <input
+          pInputText
+          type="email"
+          name="email"
+          [ngModel]="email"
+          readonly
+          title="O e-mail não pode ser alterado"
+        />
       </label>
       <label class="auth-field">
         <span>Telefone</span>
@@ -49,7 +57,15 @@
   </div>
 
   <div class="settings__actions">
-    <button class="btn btn--ghost" type="button">Cancelar</button>
-    <p-button label="Salvar alterações" icon="pi pi-check" />
+    @if (salvo()) {
+      <span class="settings__saved"><i class="pi pi-check-circle"></i> Alterações salvas.</span>
+    }
+    <button class="btn btn--ghost" type="button" (click)="cancelar()">Cancelar</button>
+    <p-button
+      label="Salvar alterações"
+      icon="pi pi-check"
+      [disabled]="salvando()"
+      (onClick)="salvar()"
+    />
   </div>
 </div>

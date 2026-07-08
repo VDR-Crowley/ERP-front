@@ -68,7 +68,16 @@
   }
   &__actions {
     display: flex;
+    align-items: center;
     gap: 0.65rem;
     justify-content: flex-end;
+  }
+  &__saved {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-right: auto;
+    font-size: 0.82rem;
+    color: var(--erp-green);
   }
 }

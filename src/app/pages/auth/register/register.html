@@ -98,13 +98,17 @@
           }
         </label>
 
+        @if (erro()) {
+          <span class="auth-field__error">{{ erro() }}</span>
+        }
+
         <div class="auth__actions">
           <p-button
             type="submit"
             label="Criar conta"
             icon="pi pi-user-plus"
             styleClass="w-full"
-            [disabled]="!formValido()"
+            [disabled]="!formValido() || salvando()"
           />
           <p class="auth__foot">
             Já tem conta?

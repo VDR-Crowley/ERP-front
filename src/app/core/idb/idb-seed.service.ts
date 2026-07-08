@@ -15,6 +15,7 @@ export const IDB_STORES = {
   expenses: 'expenses',
   cashFlow: 'cashFlow',
   dashboard: 'dashboard',
+  users: 'users',
 } as const;
 
 /**

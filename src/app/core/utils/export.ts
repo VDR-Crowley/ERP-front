@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { firstValueFrom } from 'rxjs';
 import { VENDAS_MOCK } from '@core/mocks/venda.mock';
 import { PRODUCAO_DIARIA_MOCK } from '@core/mocks/producao-diaria.mock';
 import { ESTOQUE_OVOS_MOCK } from '@core/mocks/estoque-ovos.mock';
@@ -8,9 +9,12 @@ import { EXPENSES_MOCK } from '@core/mocks/expense.mock';
 import { CASHFLOW_MOCK } from '@core/mocks/cash-entry.mock';
 import { DASHBOARD_MOCK } from '@core/mocks/dashboard.mock';
 import { ptDate } from '@core/utils/format';
+import { IndexedDbService } from '@core/idb/idb.service';
+import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { User } from '@core/interfaces/user.interface';
 
-/** Exporta todos os dados do app (mocks) para um único arquivo .xlsx com uma aba por entidade. */
-export function exportWorkbook(filename: string): void {
+/** Exporta todos os dados do app para um único arquivo .xlsx com uma aba por entidade. */
+export async function exportWorkbook(filename: string, idb: IndexedDbService): Promise<void> {
   const wb = XLSX.utils.book_new();
 
   const vendasSheet = XLSX.utils.json_to_sheet(
@@ -103,6 +107,17 @@ export function exportWorkbook(filename: string): void {
     { Indicador: 'Preço pack 30 ovos galinha', Valor: DASHBOARD_MOCK.chickenPack30Price },
   ]);
   XLSX.utils.book_append_sheet(wb, dashboardSheet, 'Dashboard');
+
+  const users = await firstValueFrom(idb.getAll<User>(IDB_STORES.users));
+  const usuariosSheet = XLSX.utils.json_to_sheet(
+    users.map((u) => ({
+      Nome: u.name,
+      'E-mail': u.email,
+      Senha: u.password,
+      Telefone: u.phone ?? '',
+    })),
+  );
+  XLSX.utils.book_append_sheet(wb, usuariosSheet, 'Usuários');
 
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

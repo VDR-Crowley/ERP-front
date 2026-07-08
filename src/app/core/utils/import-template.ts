@@ -120,5 +120,14 @@ export function downloadImportTemplate(filename: string): void {
     'Dashboard',
   );
 
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet([
+      { Nome: 'Karol', 'E-mail': 'karol@minierp.com', Senha: '123456', Telefone: '(11) 90000-0001' },
+      { Nome: 'Jailson', 'E-mail': 'jailson@minierp.com', Senha: '123456', Telefone: '(11) 90000-0002' },
+    ]),
+    'Usuários',
+  );
+
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

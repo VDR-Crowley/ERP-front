@@ -6,6 +6,11 @@
   display: flex;
   min-height: 100vh;
 
+  &__error {
+    font-size: 0.8rem;
+    color: var(--erp-red);
+  }
+
   &__art {
     flex: 1;
     display: flex;
@@ -209,6 +214,36 @@
     }
     &::placeholder {
       color: var(--erp-dim);
+    }
+  }
+
+  &__password {
+    position: relative;
+    display: flex;
+
+    input {
+      padding-right: 2.75rem;
+    }
+  }
+
+  &__toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.5rem;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--erp-dim);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--erp-text);
     }
   }
 }

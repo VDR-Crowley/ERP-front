@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IndexedDbService } from '@core/idb/idb.service';
+import { AuthSession } from '@core/services/auth-session.service';
 
 interface NavItem {
   path: string;
@@ -23,6 +24,15 @@ const COLLAPSE_KEY = 'erp-nav-collapsed';
 export class LayoutApp {
   private readonly router = inject(Router);
   private readonly idb = inject(IndexedDbService);
+  private readonly session = inject(AuthSession);
+
+  /** Usuário logado, pra exibir no rodapé da sidebar. */
+  protected readonly user = this.session.user;
+
+  protected sair(): void {
+    this.session.clear();
+    this.router.navigate(['/login']);
+  }
 
   /** Gaveta no mobile */
   protected readonly menuOpen = signal(false);
@@ -90,6 +100,12 @@ export class LayoutApp {
       sub: 'Catálogo e preços',
     },
     {
+      path: '/platform/users',
+      icon: 'pi-user',
+      label: 'Usuários',
+      sub: 'Contas de acesso ao sistema',
+    },
+    {
       path: '/platform/settings',
       icon: 'pi-cog',
       label: 'Configurações',
@@ -141,7 +157,7 @@ export class LayoutApp {
 
   protected async exportar(): Promise<void> {
     const { exportWorkbook } = await import('@core/utils/export');
-    exportWorkbook('MiniERP');
+    await exportWorkbook('MiniERP', this.idb);
   }
 
   protected async baixarModelo(): Promise<void> {

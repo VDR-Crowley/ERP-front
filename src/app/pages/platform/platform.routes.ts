@@ -38,6 +38,10 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./products/products').then((m) => m.Products),
   },
   {
+    path: 'users',
+    loadComponent: () => import('./users/users').then((m) => m.Users),
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./settings/settings').then((m) => m.Settings),
   },

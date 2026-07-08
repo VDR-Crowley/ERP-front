@@ -10,6 +10,7 @@ import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
+import { User } from '@core/interfaces/user.interface';
 
 export interface ImportResult {
   success: boolean;
@@ -26,6 +27,7 @@ interface ParsedData {
   expenses?: Expense[];
   cashFlow?: CashEntry[];
   dashboard?: DashboardResumo;
+  users?: User[];
 }
 
 const SHEET_NAMES: Record<keyof ParsedData, string> = {
@@ -37,6 +39,7 @@ const SHEET_NAMES: Record<keyof ParsedData, string> = {
   expenses: 'Despesas',
   cashFlow: 'Fluxo de Caixa',
   dashboard: 'Dashboard',
+  users: 'Usuários',
 };
 
 /** Lê e valida o arquivo; se houver qualquer erro, nenhum store é escrito. */
@@ -76,6 +79,9 @@ export async function importWorkbookFile(idb: IndexedDbService, file: File): Pro
 
   const dashboardSheet = getSheet(workbook, SHEET_NAMES.dashboard);
   if (dashboardSheet) data.dashboard = parseDashboard(dashboardSheet, errors);
+
+  const usersSheet = getSheet(workbook, SHEET_NAMES.users);
+  if (usersSheet) data.users = parseUsers(usersSheet, errors);
 
   if (Object.keys(data).length === 0) {
     errors.push('Nenhuma aba reconhecida no arquivo. Baixe o modelo de exemplo pra conferir o formato.');
@@ -507,4 +513,29 @@ function parseDashboard(ws: XLSX.WorkSheet, errors: string[]): DashboardResumo |
   }
 
   return partial as DashboardResumo;
+}
+
+function parseUsers(ws: XLSX.WorkSheet, errors: string[]): User[] | undefined {
+  const label = SHEET_NAMES.users;
+  const header = readHeader(ws);
+  if (!requireColumns(header, label, ['Nome', 'E-mail', 'Senha'], errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: User[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const name = toRequiredString(row['Nome']);
+    const email = toRequiredString(row['E-mail']);
+    const password = toRequiredString(row['Senha']);
+    const phone = toRequiredString(row['Telefone']);
+
+    if (!name) errors.push(`${label} linha ${r}: "Nome" vazio.`);
+    if (!email) errors.push(`${label} linha ${r}: "E-mail" vazio.`);
+    if (!password) errors.push(`${label} linha ${r}: "Senha" vazia.`);
+
+    if (name && email && password) {
+      result.push({ name, email, password, ...(phone ? { phone } : {}) });
+    }
+  });
+  return result;
 }
