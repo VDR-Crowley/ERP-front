@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import {
   ApexAxisChartSeries,
   ApexChart,
@@ -19,6 +19,7 @@ import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num } from '@core/utils/format';
 
 interface ProdutoDistribuicao {
@@ -137,6 +138,12 @@ export class Reports {
 
   private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly periodFilter = inject(PeriodFilterService);
+
+  /** Vendas do store restritas ao período selecionado no DatePicker da topbar. */
+  protected readonly vendasFiltradas = computed(() =>
+    this.salesStore.items().filter((v) => this.periodFilter.includes(v.date)),
+  );
 
   // Comparativos "vs. período anterior" exigiriam série histórica por período,
   // que o app não modela — ficam neutros até essa base existir. `eggsSold` já
@@ -150,25 +157,25 @@ export class Reports {
     avgTicketChange: '—',
   }));
 
-  protected readonly hasVendas = computed(() => this.salesStore.items().length > 0);
+  protected readonly hasVendas = computed(() => this.vendasFiltradas().length > 0);
   protected readonly faturamentoTotal = computed(() =>
-    this.salesStore.items().reduce((soma, v) => soma + v.total, 0),
+    this.vendasFiltradas().reduce((soma, v) => soma + v.total, 0),
   );
   protected readonly ticketMedio = computed(() => {
-    const vendas = this.salesStore.items();
+    const vendas = this.vendasFiltradas();
     return vendas.length ? this.faturamentoTotal() / vendas.length : 0;
   });
 
   protected readonly topBuyers = computed<TopBuyer[]>(() =>
-    calcularTopBuyers(this.salesStore.items()),
+    calcularTopBuyers(this.vendasFiltradas()),
   );
   protected readonly distribuicaoOvos = computed<ProdutoDistribuicao[]>(() =>
-    calcularDistribuicaoOvos(this.salesStore.items(), this.productsStore.items()),
+    calcularDistribuicaoOvos(this.vendasFiltradas(), this.productsStore.items()),
   );
 
   // Série vem só dos meses com venda real no IDB — nenhum mês é inventado.
   protected readonly revenueChart = computed<BarChartOptions>(() => {
-    const { categories, data } = calcularFaturamentoPorMes(this.salesStore.items());
+    const { categories, data } = calcularFaturamentoPorMes(this.vendasFiltradas());
     return {
       series: [{ name: 'Faturamento', data }],
       chart: { type: 'bar', height: 220, toolbar: { show: false } },

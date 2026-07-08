@@ -296,7 +296,7 @@ $sidebar: 240px;
 }
 
 @media (max-width: 640px) {
-  .top__date {
+  app-date-picker {
     display: none;
   }
   .content {

@@ -3,6 +3,8 @@ import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IndexedDbService } from '@core/idb/idb.service';
 import { AuthSession } from '@core/services/auth-session.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
+import { DatePicker, DateRange } from '@shared/components-ds/date-picker/date-picker';
 
 interface NavItem {
   path: string;
@@ -17,7 +19,7 @@ const COLLAPSE_KEY = 'erp-nav-collapsed';
 
 @Component({
   selector: 'app-layout-app',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, KeyValuePipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, KeyValuePipe, DatePicker],
   templateUrl: './layout-app.html',
   styleUrl: './layout-app.scss',
 })
@@ -25,6 +27,14 @@ export class LayoutApp {
   private readonly router = inject(Router);
   private readonly idb = inject(IndexedDbService);
   private readonly session = inject(AuthSession);
+  protected readonly periodFilter = inject(PeriodFilterService);
+
+  /** Ignora `null` (clique em "Limpar") — mantém o último período válido. */
+  protected onPeriodChange(range: Date | DateRange | null): void {
+    if (Array.isArray(range)) {
+      this.periodFilter.setRange(range);
+    }
+  }
 
   /** Usuário logado, pra exibir no rodapé da sidebar. */
   protected readonly user = this.session.user;

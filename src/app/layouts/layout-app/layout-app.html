@@ -52,7 +52,12 @@
         </div>
       </div>
       <div class="top__right">
-        <span class="top__date"><i class="pi pi-calendar"></i> 28/06/2026</span>
+        <app-date-picker
+          ngSkipHydration
+          mode="range"
+          [value]="periodFilter.range()"
+          (valueChange)="onPeriodChange($event)"
+        />
         <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
           <i class="pi pi-file-excel"></i> Modelo
         </button>

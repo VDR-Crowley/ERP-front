@@ -44,6 +44,25 @@ export const appConfig: ApplicationConfig = {
           darkModeSelector: '.app-dark',
         },
       },
+      translation: {
+        today: 'Hoje',
+        clear: 'Limpar',
+        dayNames: [
+          'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
+          'quinta-feira', 'sexta-feira', 'sábado',
+        ],
+        dayNamesShort: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'],
+        dayNamesMin: ['Do', 'Se', 'Te', 'Qu', 'Qu', 'Se', 'Sa'],
+        monthNames: [
+          'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+        ],
+        monthNamesShort: [
+          'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+          'jul', 'ago', 'set', 'out', 'nov', 'dez',
+        ],
+        firstDayOfWeek: 0,
+      },
     }),
     provideAppInitializer(() => firstValueFrom(inject(IdbSeedService).seed())),
   ],
