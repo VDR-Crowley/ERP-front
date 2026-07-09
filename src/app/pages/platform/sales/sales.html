@@ -77,43 +77,43 @@
           <tr>
             <th class="sortable" (click)="sortBy('date')">
               Data
-              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('product')">
               Produto
-              @if (sortField() === 'product') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'product'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quantity')">
               Qtd
-              @if (sortField() === 'quantity') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('unitPrice')">
               Preço Unit.
-              @if (sortField() === 'unitPrice') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'unitPrice'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('total')">
               Total
-              @if (sortField() === 'total') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'total'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('buyer')">
               Comprador
-              @if (sortField() === 'buyer') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'buyer'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('seller')">
               Vendedor
-              @if (sortField() === 'seller') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'seller'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('paymentPending')">
               Situação
-              @if (sortField() === 'paymentPending') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'paymentPending'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('deliveryPending')">
               Entrega
-              @if (sortField() === 'deliveryPending') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'deliveryPending'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('deliveryDate')">
               Entrega em
-              @if (sortField() === 'deliveryDate') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'deliveryDate'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>

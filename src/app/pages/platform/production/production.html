@@ -67,27 +67,19 @@
           <tr>
             <th class="sortable" (click)="sortBy('date')">
               Data
-              @if (sortField() === 'date') {
-                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
-              }
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quailEggs')">
               Codorna
-              @if (sortField() === 'quailEggs') {
-                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
-              }
+              <app-sort-icon [active]="sortField() === 'quailEggs'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('chickenEggs')">
               Galinha
-              @if (sortField() === 'chickenEggs') {
-                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
-              }
+              <app-sort-icon [active]="sortField() === 'chickenEggs'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('total')">
               Total
-              @if (sortField() === 'total') {
-                <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span>
-              }
+              <app-sort-icon [active]="sortField() === 'total'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>

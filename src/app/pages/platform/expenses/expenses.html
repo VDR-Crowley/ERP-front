@@ -43,31 +43,31 @@
           <tr>
             <th class="sortable" (click)="sortBy('date')">
               Data
-              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('description')">
               Descrição
-              @if (sortField() === 'description') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'description'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('category')">
               Categoria
-              @if (sortField() === 'category') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'category'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quantity')">
               Qtd.
-              @if (sortField() === 'quantity') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('unitPrice')">
               Valor unit.
-              @if (sortField() === 'unitPrice') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'unitPrice'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('amount')">
               Valor total
-              @if (sortField() === 'amount') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'amount'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('paid')">
               Situação
-              @if (sortField() === 'paid') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'paid'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>

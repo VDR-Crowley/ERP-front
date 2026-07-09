@@ -39,19 +39,19 @@
           <tr>
             <th class="sortable" (click)="sortBy('name')">
               Produto
-              @if (sortField() === 'name') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'name'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('unit')">
               Unidade
-              @if (sortField() === 'unit') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'unit'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('unitPrice')">
               Preço
-              @if (sortField() === 'unitPrice') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'unitPrice'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('stock')">
               Estoque
-              @if (sortField() === 'stock') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'stock'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>

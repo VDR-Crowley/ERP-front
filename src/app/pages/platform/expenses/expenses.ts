@@ -7,6 +7,8 @@ import { brl, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
+import { createSortState, sortRows } from '@shared/table-sort/table-sort';
+import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof Expense;
 
@@ -51,7 +53,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-expenses',
-  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
   templateUrl: './expenses.html',
   styleUrl: './expenses.scss',
 })
@@ -64,8 +66,10 @@ export class Expenses {
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description', 'category'];
-  protected readonly sortField = signal<SortField | ''>('');
-  protected readonly sortDir = signal<1 | -1>(1);
+  private readonly sortState = createSortState<SortField>('date', 1);
+  protected readonly sortField = this.sortState.sortField;
+  protected readonly sortDir = this.sortState.sortDir;
+  protected readonly sortBy = this.sortState.sortBy;
 
   protected readonly formOpen = signal(false);
   protected readonly formTitle = signal('Nova despesa');
@@ -92,30 +96,9 @@ export class Expenses {
     () => this.store.items().filter((e) => !e.paid).length,
   );
 
-  protected readonly rows = computed<WithId<Expense>[]>(() => {
-    let list: WithId<Expense>[] = this.store.items();
-
-    const field = this.sortField();
-    const dir = this.sortDir();
-    if (field) {
-      list = [...list].sort((a, b) => {
-        const x = a[field];
-        const y = b[field];
-        if (typeof x === 'number' && typeof y === 'number') return (x - y) * dir;
-        return String(x).localeCompare(String(y)) * dir;
-      });
-    }
-    return list;
-  });
-
-  protected sortBy(field: SortField): void {
-    if (this.sortField() === field) {
-      this.sortDir.update((d) => (d === 1 ? -1 : 1));
-    } else {
-      this.sortField.set(field);
-      this.sortDir.set(1);
-    }
-  }
+  protected readonly rows = computed<WithId<Expense>[]>(() =>
+    sortRows(this.store.items(), this.sortField(), this.sortDir()),
+  );
 
   protected openNew(): void {
     this.editingId = null;

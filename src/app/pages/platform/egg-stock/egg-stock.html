@@ -43,31 +43,31 @@
           <tr>
             <th class="sortable" (click)="sortBy('date')">
               Data
-              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quailEggs')">
               Ovos codorna
-              @if (sortField() === 'quailEggs') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'quailEggs'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('chickenEggs')">
               Ovos galinha
-              @if (sortField() === 'chickenEggs') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'chickenEggs'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quailPacks')">
               Pack codorna
-              @if (sortField() === 'quailPacks') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'quailPacks'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('chickenPacks')">
               Pack galinha
-              @if (sortField() === 'chickenPacks') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'chickenPacks'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quailStockValue')">
               Valor codorna
-              @if (sortField() === 'quailStockValue') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'quailStockValue'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('chickenStockValue')">
               Valor galinha
-              @if (sortField() === 'chickenStockValue') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'chickenStockValue'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>

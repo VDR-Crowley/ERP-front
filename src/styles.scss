@@ -272,6 +272,12 @@ body {
   &__arrow {
     color: var(--erp-green-ink);
     margin-left: 0.15rem;
+
+    &--muted {
+      color: var(--erp-dim);
+      opacity: 0.55;
+      font-size: 0.7rem;
+    }
   }
   tbody tr {
     border-top: 1px solid var(--erp-border-2);

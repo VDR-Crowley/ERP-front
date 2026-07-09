@@ -7,6 +7,8 @@ import { brl, num } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
+import { createSortState, sortRows } from '@shared/table-sort/table-sort';
+import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof PlantelModel;
 
@@ -19,7 +21,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-plantel',
-  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
   templateUrl: './plantel.html',
   styleUrl: './plantel.scss',
 })
@@ -32,8 +34,10 @@ export class Plantel {
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['species'];
-  protected readonly sortField = signal<SortField | ''>('');
-  protected readonly sortDir = signal<1 | -1>(1);
+  private readonly sortState = createSortState<SortField>('species', 1);
+  protected readonly sortField = this.sortState.sortField;
+  protected readonly sortDir = this.sortState.sortDir;
+  protected readonly sortBy = this.sortState.sortBy;
 
   protected readonly formOpen = signal(false);
   protected readonly formTitle = signal('Nova espécie');
@@ -52,30 +56,9 @@ export class Plantel {
     this.store.items().reduce((soma, p) => soma + p.monthlyTotal, 0),
   );
 
-  protected readonly rows = computed<WithId<PlantelModel>[]>(() => {
-    let list: WithId<PlantelModel>[] = this.store.items();
-
-    const field = this.sortField();
-    const dir = this.sortDir();
-    if (field) {
-      list = [...list].sort((a, b) => {
-        const x = a[field];
-        const y = b[field];
-        if (typeof x === 'number' && typeof y === 'number') return (x - y) * dir;
-        return String(x).localeCompare(String(y)) * dir;
-      });
-    }
-    return list;
-  });
-
-  protected sortBy(field: SortField): void {
-    if (this.sortField() === field) {
-      this.sortDir.update((d) => (d === 1 ? -1 : 1));
-    } else {
-      this.sortField.set(field);
-      this.sortDir.set(1);
-    }
-  }
+  protected readonly rows = computed<WithId<PlantelModel>[]>(() =>
+    sortRows(this.store.items(), this.sortField(), this.sortDir()),
+  );
 
   protected openNew(): void {
     this.editingId = null;

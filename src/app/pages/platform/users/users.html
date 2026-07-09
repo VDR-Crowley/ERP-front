@@ -31,11 +31,11 @@
           <tr>
             <th class="sortable" (click)="sortBy('name')">
               Nome
-              @if (sortField() === 'name') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'name'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('email')">
               E-mail
-              @if (sortField() === 'email') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'email'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>

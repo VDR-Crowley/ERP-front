@@ -19,6 +19,8 @@ import { brl, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
+import { createSortState, sortRows } from '@shared/table-sort/table-sort';
+import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 interface CashRow extends WithId<CashEntry> {
   saldo: number;
@@ -59,7 +61,7 @@ interface BarChartOptions {
 
 @Component({
   selector: 'app-cash-flow',
-  imports: [FormsModule, NgApexchartsModule, CrudFormModal, ConfirmModal, FilterByPipe],
+  imports: [FormsModule, NgApexchartsModule, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
   templateUrl: './cash-flow.html',
   styleUrl: './cash-flow.scss',
 })
@@ -72,8 +74,10 @@ export class CashFlow {
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description'];
-  protected readonly sortField = signal<SortField | ''>('');
-  protected readonly sortDir = signal<1 | -1>(1);
+  private readonly sortState = createSortState<SortField>('date', 1);
+  protected readonly sortField = this.sortState.sortField;
+  protected readonly sortDir = this.sortState.sortDir;
+  protected readonly sortBy = this.sortState.sortBy;
 
   protected readonly formOpen = signal(false);
   protected readonly formTitle = signal('Novo lançamento');
@@ -119,33 +123,14 @@ export class CashFlow {
   };
 
   protected readonly rows = computed<CashRow[]>(() => {
+    const chronological = sortRows(this.store.items(), 'date', 1);
     let saldo = 0;
-    let list: CashRow[] = this.store.items().map((c) => {
+    const withSaldo: CashRow[] = chronological.map((c) => {
       saldo += c.inflow ? c.amount : -c.amount;
       return { ...c, saldo };
     });
-
-    const field = this.sortField();
-    const dir = this.sortDir();
-    if (field) {
-      list = [...list].sort((a, b) => {
-        const x = a[field];
-        const y = b[field];
-        if (typeof x === 'number' && typeof y === 'number') return (x - y) * dir;
-        return String(x).localeCompare(String(y)) * dir;
-      });
-    }
-    return list;
+    return sortRows(withSaldo, this.sortField(), this.sortDir());
   });
-
-  protected sortBy(field: SortField): void {
-    if (this.sortField() === field) {
-      this.sortDir.update((d) => (d === 1 ? -1 : 1));
-    } else {
-      this.sortField.set(field);
-      this.sortDir.set(1);
-    }
-  }
 
   protected openNew(): void {
     this.editingId = null;

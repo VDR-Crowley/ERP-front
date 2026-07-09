@@ -7,6 +7,8 @@ import { num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
+import { createSortState, sortRows } from '@shared/table-sort/table-sort';
+import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type Row = WithId<ProducaoDiaria> & { total: number };
 type SortField = keyof Row;
@@ -19,7 +21,7 @@ const FIELDS: CrudField[] = [
 
 @Component({
   selector: 'app-production',
-  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe],
+  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
   templateUrl: './production.html',
   styleUrl: './production.scss',
 })
@@ -32,8 +34,10 @@ export class Production {
 
   protected readonly search = signal('');
   protected readonly searchKeys: (keyof Row)[] = ['date'];
-  protected readonly sortField = signal<SortField | ''>('');
-  protected readonly sortDir = signal<1 | -1>(1);
+  private readonly sortState = createSortState<SortField>('date', 1);
+  protected readonly sortField = this.sortState.sortField;
+  protected readonly sortDir = this.sortState.sortDir;
+  protected readonly sortBy = this.sortState.sortBy;
 
   protected readonly formOpen = signal(false);
   protected readonly formTitle = signal('Novo registro');
@@ -54,34 +58,12 @@ export class Production {
   });
 
   protected readonly rows = computed<Row[]>(() => {
-    let list: Row[] = this.store.items().map((p) => ({
+    const list: Row[] = this.store.items().map((p) => ({
       ...p,
       total: (p.quailEggs ?? 0) + (p.chickenEggs ?? 0),
     }));
-
-    const field = this.sortField();
-    const dir = this.sortDir();
-    if (field) {
-      list = [...list].sort((a, b) => {
-        const x = a[field];
-        const y = b[field];
-        if (x === null) return 1;
-        if (y === null) return -1;
-        if (typeof x === 'number' && typeof y === 'number') return (x - y) * dir;
-        return String(x).localeCompare(String(y)) * dir;
-      });
-    }
-    return list;
+    return sortRows(list, this.sortField(), this.sortDir());
   });
-
-  protected sortBy(field: SortField): void {
-    if (this.sortField() === field) {
-      this.sortDir.update((d) => (d === 1 ? -1 : 1));
-    } else {
-      this.sortField.set(field);
-      this.sortDir.set(1);
-    }
-  }
 
   protected openNew(): void {
     this.editingId = null;

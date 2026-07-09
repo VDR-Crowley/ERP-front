@@ -20,6 +20,7 @@ import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
+import { sortRows } from '@shared/table-sort/table-sort';
 
 interface DonutChartOptions {
   series: ApexNonAxisChartSeries;
@@ -105,7 +106,7 @@ export class Dashboard {
     [...this.productionStore.items()].slice(-6).reverse(),
   );
   protected readonly ultimasVendas = computed(() =>
-    [...this.salesStore.items()].slice(-5).reverse(),
+    sortRows(this.salesStore.items(), 'date', -1).slice(0, 5),
   );
   protected readonly plantel = computed(() => this.flockStore.items());
   protected readonly produtos = computed(() => this.productsStore.items());

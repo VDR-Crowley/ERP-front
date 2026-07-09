@@ -66,19 +66,19 @@
           <tr>
             <th class="sortable" (click)="sortBy('date')">
               Data
-              @if (sortField() === 'date') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('description')">
               Descrição
-              @if (sortField() === 'description') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'description'" [dir]="sortDir()" />
             </th>
             <th class="sortable" (click)="sortBy('inflow')">
               Tipo
-              @if (sortField() === 'inflow') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'inflow'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('amount')">
               Valor
-              @if (sortField() === 'amount') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'amount'" [dir]="sortDir()" />
             </th>
             <th class="num">Saldo</th>
             <th>Ações</th>

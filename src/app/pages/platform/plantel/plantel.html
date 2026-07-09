@@ -43,23 +43,23 @@
           <tr>
             <th class="sortable" (click)="sortBy('species')">
               Espécie
-              @if (sortField() === 'species') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'species'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('quantity')">
               Quantidade
-              @if (sortField() === 'quantity') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('feedBagsPerMonth')">
               Sacos/mês
-              @if (sortField() === 'feedBagsPerMonth') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'feedBagsPerMonth'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('bagPrice')">
               Preço saco
-              @if (sortField() === 'bagPrice') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'bagPrice'" [dir]="sortDir()" />
             </th>
             <th class="num sortable" (click)="sortBy('monthlyTotal')">
               Custo/mês
-              @if (sortField() === 'monthlyTotal') { <span class="tbl__arrow">{{ sortDir() === 1 ? '↑' : '↓' }}</span> }
+              <app-sort-icon [active]="sortField() === 'monthlyTotal'" [dir]="sortDir()" />
             </th>
             <th>Ações</th>
           </tr>
