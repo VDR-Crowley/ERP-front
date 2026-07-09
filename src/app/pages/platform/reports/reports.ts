@@ -20,6 +20,7 @@ import { Product } from '@core/interfaces/product.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
+import { ThemeService } from '@core/utils/theme.service';
 import { brl, num } from '@core/utils/format';
 
 interface ProdutoDistribuicao {
@@ -139,6 +140,7 @@ export class Reports {
   private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
   private readonly periodFilter = inject(PeriodFilterService);
+  private readonly themeService = inject(ThemeService);
 
   /** Vendas do store restritas ao período selecionado no DatePicker da topbar. */
   protected readonly vendasFiltradas = computed(() =>
@@ -196,6 +198,7 @@ export class Reports {
 
   protected readonly donutChart = computed<DonutChartOptions>(() => {
     const distribuicaoOvos = this.distribuicaoOvos();
+    const textColor = this.themeService.isDark() ? '#e9eef3' : '#10151c';
     return {
       series: distribuicaoOvos.map((d) => d.eggs),
       chart: { type: 'donut', height: 190 },
@@ -211,8 +214,14 @@ export class Reports {
             size: '72%',
             labels: {
               show: true,
-              value: { formatter: (v: string) => num(Number(v)) },
-              total: { show: true, label: 'Ovos', formatter: () => num(this.resumo().eggsSold) },
+              name: { color: textColor },
+              value: { color: textColor, formatter: (v: string) => num(Number(v)) },
+              total: {
+                show: true,
+                label: 'Ovos',
+                color: textColor,
+                formatter: () => num(this.resumo().eggsSold),
+              },
             },
           },
         },
