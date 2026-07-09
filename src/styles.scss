@@ -198,6 +198,8 @@ body {
 
 /* ---------- Panel ---------- */
 .panel {
+  display: flex;
+  flex-direction: column;
   background: var(--erp-surface);
   border: 1px solid var(--erp-border);
   border-radius: 16px;
