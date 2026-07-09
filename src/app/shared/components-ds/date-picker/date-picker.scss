@@ -63,19 +63,36 @@
     }
 
     .p-datepicker-calendar {
+      // Especificidade baixa de propósito (uma classe só): as regras de
+      // dia selecionado/intervalo abaixo têm que conseguir sobrescrever a
+      // cor sem precisar de seletor mais específico que este.
       th,
-      td span {
+      .p-datepicker-day {
         color: var(--erp-muted) !important;
       }
 
-      td.p-datepicker-today > span {
+      td.p-datepicker-today > span.p-datepicker-day {
         border: 1px solid var(--erp-green) !important;
       }
 
-      td span.p-highlight,
-      td span.p-datepicker-range-selected {
+      // Banda que conecta visualmente o início e o fim do intervalo (dias
+      // "no meio" só ganham a classe `-range`, não `-selected`; usamos
+      // `:has()` porque o PrimeNG marca a seleção no <span>, não na <td>).
+      td.p-datepicker-day-cell:has(> span.p-datepicker-day-selected),
+      td.p-datepicker-day-cell:has(> span.p-datepicker-day-selected-range) {
+        background: color-mix(in srgb, var(--erp-green) 16%, transparent) !important;
+      }
+
+      span.p-datepicker-day-selected {
         background: var(--erp-green) !important;
         color: var(--erp-btn-ink) !important;
+        border-radius: 50% !important;
+      }
+
+      span.p-datepicker-day-selected-range {
+        background: transparent !important;
+        color: var(--erp-text) !important;
+        border-radius: 0 !important;
       }
     }
 
