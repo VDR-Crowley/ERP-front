@@ -14,20 +14,19 @@
     // !important needed: PrimeNG's Aura preset ships its own filled-input
     // background/border tokens (`.p-filled`) at higher precedence than a
     // plain global stylesheet rule, so it wins over var(--erp-*) otherwise.
+    // Mesmas bordas/fundo/radius dos inputs padrão do app (.crud-form .field
+    // input em styles.scss), pra ficar visualmente consistente com o resto
+    // dos formulários em vez de parecer um botão à parte.
     .p-datepicker-input {
       height: 2.25rem;
       padding: 0 2rem 0 0.9rem;
-      border-radius: 999px;
-      background: var(--erp-ghost-bg) !important;
-      border: 1px solid var(--erp-ghost-border) !important;
+      border-radius: 10px;
+      background: var(--erp-input-bg) !important;
+      border: 1px solid var(--erp-input-border) !important;
       color: var(--erp-text) !important;
       font-size: 0.85rem;
       font-family: inherit;
       cursor: pointer;
-
-      &:hover {
-        background: var(--erp-ghost-hover) !important;
-      }
 
       &:focus {
         outline: none;

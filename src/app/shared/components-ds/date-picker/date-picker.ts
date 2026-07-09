@@ -41,7 +41,13 @@ export class DatePicker {
   protected onModelChange(next: Date | Date[] | null): void {
     if (this.mode() === 'range') {
       const [start, end] = Array.isArray(next) ? next : [null, null];
-      this.valueChange.emit(start ? ([start, end ?? start] as DateRange) : null);
+      if (!start || !end) {
+        // Só o primeiro clique aconteceu (início escolhido, fim ainda não) —
+        // não emite ainda, senão o período fecha com início=fim antes do
+        // usuário clicar a segunda data.
+        return;
+      }
+      this.valueChange.emit([start, end] as DateRange);
       return;
     }
     this.valueChange.emit(Array.isArray(next) ? null : next);
