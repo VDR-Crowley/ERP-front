@@ -290,6 +290,18 @@ body {
     color: var(--erp-text);
     font-weight: 700;
   }
+  th:last-child,
+  td:last-child {
+    position: sticky;
+    right: 0;
+    background: var(--erp-surface);
+  }
+  th:last-child {
+    z-index: 2;
+  }
+  td:last-child {
+    z-index: 1;
+  }
 }
 
 /* ---------- Badge ---------- */
