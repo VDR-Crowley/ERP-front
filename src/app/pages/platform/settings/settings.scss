@@ -16,6 +16,11 @@
     gap: 1rem;
     margin-bottom: 1.35rem;
   }
+  &__profile-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
   &__avatar {
     display: flex;
     align-items: center;

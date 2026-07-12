@@ -4,39 +4,58 @@
     <h2 class="panel__title">Perfil</h2>
     <p class="settings__hint">Informações da conta e do responsável.</p>
 
-    <div class="settings__profile">
-      <span class="settings__avatar"><i class="pi pi-user"></i></span>
-      <div>
-        <div class="settings__name">{{ nome || '—' }}</div>
-        <div class="settings__role">Proprietário · {{ email }}</div>
+    @if (carregando()) {
+      <div class="settings__profile">
+        <p-skeleton shape="circle" size="60px" />
+        <div class="settings__profile-text">
+          <p-skeleton width="10rem" height="1rem" />
+          <p-skeleton width="14rem" height="0.82rem" />
+        </div>
       </div>
-    </div>
 
-    <div class="settings__grid">
-      <label class="auth-field">
-        <span>Nome</span>
-        <input pInputText type="text" name="nome" [(ngModel)]="nome" />
-      </label>
-      <label class="auth-field">
-        <span>E-mail</span>
-        <input
-          pInputText
-          type="email"
-          name="email"
-          [ngModel]="email"
-          readonly
-          title="O e-mail não pode ser alterado"
-        />
-      </label>
-      <label class="auth-field">
-        <span>Telefone</span>
-        <input pInputText type="text" name="telefone" [(ngModel)]="telefone" />
-      </label>
-      <label class="auth-field">
-        <span>Granja</span>
-        <input pInputText type="text" name="granja" [(ngModel)]="granja" />
-      </label>
-    </div>
+      <div class="settings__grid">
+        @for (i of [0, 1, 2, 3]; track i) {
+          <div class="auth-field">
+            <p-skeleton width="4rem" height="0.75rem" />
+            <p-skeleton height="2.5rem" borderRadius="8px" />
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="settings__profile">
+        <span class="settings__avatar"><i class="pi pi-user"></i></span>
+        <div>
+          <div class="settings__name">{{ nome || '—' }}</div>
+          <div class="settings__role">Proprietário · {{ email }}</div>
+        </div>
+      </div>
+
+      <div class="settings__grid">
+        <label class="auth-field">
+          <span>Nome</span>
+          <input pInputText type="text" name="nome" [(ngModel)]="nome" />
+        </label>
+        <label class="auth-field">
+          <span>E-mail</span>
+          <input
+            pInputText
+            type="email"
+            name="email"
+            [ngModel]="email"
+            readonly
+            title="O e-mail não pode ser alterado"
+          />
+        </label>
+        <label class="auth-field">
+          <span>Telefone</span>
+          <input pInputText type="text" name="telefone" [(ngModel)]="telefone" />
+        </label>
+        <label class="auth-field">
+          <span>Granja</span>
+          <input pInputText type="text" name="granja" [(ngModel)]="granja" />
+        </label>
+      </div>
+    }
   </div>
 
   <div class="panel">

@@ -165,6 +165,17 @@
         "4210"
       ],
       "port": 4210
+    },
+    {
+      "name": "erp-front-dev-4299",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4299"
+      ],
+      "port": 4299
     }
   ]
 }

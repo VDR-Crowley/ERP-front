@@ -14,6 +14,7 @@ import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { IdbSeedService } from '@core/idb/idb-seed.service';
+import { OwnerBootstrapService } from '@core/services/owner-bootstrap.service';
 
 // Aura's default light primary.color ({primary.500}) fails WCAG AA contrast
 // (2.53:1) against its white contrastColor. Bumped to {primary.700} (5.48:1).
@@ -64,6 +65,10 @@ export const appConfig: ApplicationConfig = {
         firstDayOfWeek: 0,
       },
     }),
-    provideAppInitializer(() => firstValueFrom(inject(IdbSeedService).seed())),
+    provideAppInitializer(() => {
+      const idbSeed = inject(IdbSeedService);
+      const ownerBootstrap = inject(OwnerBootstrapService);
+      return firstValueFrom(idbSeed.seed()).then(() => ownerBootstrap.run());
+    }),
   ],
 };

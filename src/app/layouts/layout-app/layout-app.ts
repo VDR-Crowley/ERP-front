@@ -39,6 +39,11 @@ export class LayoutApp {
   /** Usuário logado, pra exibir no rodapé da sidebar. */
   protected readonly user = this.session.user;
 
+  /** Só o primeiro nome, pra não estourar o rodapé da sidebar. */
+  protected firstName(): string {
+    return (this.user()?.name ?? 'Usuário').trim().split(/\s+/)[0];
+  }
+
   protected sair(): void {
     this.session.clear();
     this.router.navigate(['/login']);

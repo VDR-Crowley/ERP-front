@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { SkeletonModule } from 'primeng/skeleton';
 import { firstValueFrom } from 'rxjs';
 import { ThemeService } from '@core/utils/theme.service';
 import { AuthSession } from '@core/services/auth-session.service';
@@ -18,7 +19,7 @@ interface Pref {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, InputTextModule, ButtonModule, ToggleSwitchModule],
+  imports: [FormsModule, InputTextModule, ButtonModule, ToggleSwitchModule, SkeletonModule],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
@@ -37,36 +38,43 @@ export class Settings implements OnInit {
 
   protected readonly salvando = signal(false);
   protected readonly salvo = signal(false);
+  /** Enquanto true, mostra skeleton no lugar dos campos (evita "—"/vazio piscando). */
+  protected readonly carregando = signal(true);
 
   ngOnInit(): void {
     this.carregarPerfil();
   }
 
   private async carregarPerfil(): Promise<void> {
-    const cached = this.user();
-    if (!cached) return;
-
-    // Fonte autoritativa: relê o registro do IDB pelo uuid (localStorage pode
-    // estar de uma sessão antiga/incompleta). Cai pro cache se o IDB falhar.
-    let user = cached;
+    this.carregando.set(true);
     try {
-      const fresh = await firstValueFrom(
-        this.idb.get<User & { id: string }>(IDB_STORES.users, cached.id),
-      );
-      if (fresh) {
-        user = fresh;
-        if (fresh.email !== cached.email || fresh.name !== cached.name) {
-          this.session.setCurrent(fresh);
-        }
-      }
-    } catch {
-      // IDB indisponível (SSR) — usa o cache do localStorage.
-    }
+      const cached = this.user();
+      if (!cached) return;
 
-    this.nome = user.name;
-    this.email = user.email;
-    this.telefone = user.phone ?? '';
-    this.granja = user.farm ?? '';
+      // Fonte autoritativa: relê o registro do IDB pelo uuid (localStorage pode
+      // estar de uma sessão antiga/incompleta). Cai pro cache se o IDB falhar.
+      let user = cached;
+      try {
+        const fresh = await firstValueFrom(
+          this.idb.get<User & { id: string }>(IDB_STORES.users, cached.id),
+        );
+        if (fresh) {
+          user = fresh;
+          if (fresh.email !== cached.email || fresh.name !== cached.name) {
+            this.session.setCurrent(fresh);
+          }
+        }
+      } catch {
+        // IDB indisponível (SSR) — usa o cache do localStorage.
+      }
+
+      this.nome = user.name;
+      this.email = user.email;
+      this.telefone = user.phone ?? '';
+      this.granja = user.farm ?? '';
+    } finally {
+      this.carregando.set(false);
+    }
   }
 
   protected async salvar(): Promise<void> {
