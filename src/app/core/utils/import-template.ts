@@ -92,8 +92,24 @@ export function downloadImportTemplate(filename: string): void {
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet([
-      { Data: '01/07/2026', Descrição: 'Ração codornas', Categoria: 'Ração', Valor: 106, Pago: 'Sim' },
-      { Data: '02/07/2026', Descrição: 'Conta de energia', Categoria: 'Energia', Valor: 187.5, Pago: 'Não' },
+      {
+        Data: '01/07/2026',
+        Descrição: 'Ração codornas',
+        Categoria: 'Ração',
+        'Qtd.': 1,
+        'Valor unit.': 106,
+        Valor: 106,
+        Pago: 'Sim',
+      },
+      {
+        Data: '02/07/2026',
+        Descrição: 'Conta de energia',
+        Categoria: 'Energia',
+        'Qtd.': '',
+        'Valor unit.': '',
+        Valor: 187.5,
+        Pago: 'Não',
+      },
     ]),
     'Despesas',
   );

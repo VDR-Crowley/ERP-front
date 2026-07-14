@@ -82,6 +82,8 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
       Data: ptDate(e.date),
       Descrição: e.description,
       Categoria: e.category,
+      'Qtd.': e.quantity ?? '',
+      'Valor unit.': e.unitPrice ?? '',
       Valor: e.amount,
       Pago: e.paid ? 'Sim' : 'Não',
     })),

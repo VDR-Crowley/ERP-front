@@ -422,6 +422,8 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): Expense[] | undefi
     const date = parseDate(row['Data']);
     const description = toRequiredString(row['Descrição']);
     const category = toRequiredString(row['Categoria']);
+    const quantity = toOptionalNumber(row['Qtd.']);
+    const unitPrice = toOptionalNumber(row['Valor unit.']);
     const amount = toNumber(row['Valor']);
     const paidRaw = toRequiredString(row['Pago']);
     const paidNorm = paidRaw.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -429,13 +431,34 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): Expense[] | undefi
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
     if (!description) errors.push(`${label} linha ${r}: "Descrição" vazia.`);
     if (!category) errors.push(`${label} linha ${r}: "Categoria" vazia.`);
+    if (quantity === undefined) errors.push(`${label} linha ${r}: "Qtd." inválida.`);
+    if (unitPrice === undefined) errors.push(`${label} linha ${r}: "Valor unit." inválido.`);
     if (amount === undefined) errors.push(`${label} linha ${r}: "Valor" inválido.`);
     if (paidNorm !== 'sim' && paidNorm !== 'nao') {
       errors.push(`${label} linha ${r}: "Pago" deve ser Sim ou Não (veio "${row['Pago']}").`);
     }
 
-    if (date && description && category && amount !== undefined) {
-      result.push({ date, description, category, amount, paid: paidNorm === 'sim' });
+    if (
+      date &&
+      description &&
+      category &&
+      quantity !== undefined &&
+      unitPrice !== undefined &&
+      amount !== undefined
+    ) {
+      const computedAmount =
+        quantity !== null && unitPrice !== null && quantity > 0 && unitPrice > 0
+          ? Math.round(quantity * unitPrice * 100) / 100
+          : amount;
+      result.push({
+        date,
+        description,
+        category,
+        ...(quantity !== null ? { quantity } : {}),
+        ...(unitPrice !== null ? { unitPrice } : {}),
+        amount: computedAmount,
+        paid: paidNorm === 'sim',
+      });
     }
   });
   return result;
