@@ -16,6 +16,7 @@ import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Product } from '@core/interfaces/product.interface';
+import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
@@ -95,12 +96,19 @@ export class Dashboard {
   private readonly flockStore = createEntityStore<Plantel>(IDB_STORES.flock, []);
   private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
   private readonly dashboardStore = createEntityStore<DashboardResumo>(IDB_STORES.dashboard, []);
 
   protected readonly resumo = computed(() => this.dashboardStore.items()[0] ?? RESUMO_VAZIO);
   protected readonly faturamento = computed(() =>
     this.salesStore.items().reduce((soma, v) => soma + v.total, 0),
   );
+  protected readonly totalDespesas = computed(() =>
+    this.expensesStore.items().reduce((soma, e) => soma + e.amount, 0),
+  );
+  // Vendas - Despesas, mesma base "total geral" já usada pelos outros cards
+  // do Dashboard (o DatePicker da topbar ainda não filtra esta tela).
+  protected readonly saldo = computed(() => this.faturamento() - this.totalDespesas());
 
   protected readonly producaoRecente = computed(() =>
     [...this.productionStore.items()].slice(-6).reverse(),

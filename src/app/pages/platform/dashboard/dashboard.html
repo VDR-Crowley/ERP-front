@@ -33,6 +33,24 @@
       <div class="kpi__foot">{{ vendasPendentes() }} venda(s) pendente(s)</div>
     </article>
 
+    <article
+      class="kpi"
+      [class.kpi--red]="saldo() < 0"
+      [class.kpi--ink-green]="saldo() >= 0"
+      [class.kpi--ink-red]="saldo() < 0"
+    >
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Saldo (Vendas - Despesas)</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(saldo()) }}</div>
+        </div>
+        <span class="kpi__icon">
+          <i class="pi" [class.pi-arrow-up]="saldo() >= 0" [class.pi-arrow-down]="saldo() < 0"></i>
+        </span>
+      </div>
+      <div class="kpi__foot">{{ saldo() >= 0 ? 'Lucro no período' : 'Prejuízo no período' }}</div>
+    </article>
+
     <article class="kpi kpi--blue kpi--ink-blue">
       <div class="kpi__row">
         <div>
