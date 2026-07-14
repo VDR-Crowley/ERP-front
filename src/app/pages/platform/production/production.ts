@@ -52,9 +52,14 @@ export class Production {
     this.store.items().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
   protected readonly totalGeral = computed(() => this.totalCodorna() + this.totalGalinha());
+  // Conta dias únicos (não linhas) — se houver mais de um registro na mesma
+  // data, isso não deve inflar o denominador e diluir a média.
+  protected readonly diasRegistrados = computed(
+    () => new Set(this.store.items().map((p) => p.date)).size,
+  );
   protected readonly mediaDia = computed(() => {
-    const items = this.store.items();
-    return items.length ? Math.round(this.totalGeral() / items.length) : 0;
+    const dias = this.diasRegistrados();
+    return dias ? Math.round(this.totalGeral() / dias) : 0;
   });
 
   protected readonly rows = computed<Row[]>(() => {
