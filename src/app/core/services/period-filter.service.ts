@@ -1,8 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 import { DateRange } from '@shared/components-ds/date-picker/date-picker';
 
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+function daysAgo(date: Date, days: number): Date {
+  const start = new Date(date);
+  start.setDate(start.getDate() - days);
+  start.setHours(0, 0, 0, 0);
+  return start;
 }
 
 function endOfToday(date: Date): Date {
@@ -12,7 +15,11 @@ function endOfToday(date: Date): Date {
 }
 
 const now = new Date();
-const DEFAULT_RANGE: DateRange = [startOfMonth(now), endOfToday(now)];
+// Janela móvel de 30 dias (não "1º dia do mês até hoje"): no início de cada
+// mês, "mês atual" cobre poucos dias e mistura despesas do mês novo com
+// receita do mês anterior que ainda não caiu aqui — isso já derrubou a Margem
+// de Relatórios pra negativo mesmo com o negócio saudável no acumulado.
+const DEFAULT_RANGE: DateRange = [daysAgo(now, 29), endOfToday(now)];
 
 /**
  * Período selecionado no DatePicker da topbar (`layout-app`), compartilhado
