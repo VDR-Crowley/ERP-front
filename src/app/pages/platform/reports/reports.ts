@@ -17,6 +17,7 @@ import {
 import { TopBuyer } from '@core/interfaces/report.interface';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
+import { Expense } from '@core/interfaces/expense.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
@@ -139,6 +140,7 @@ export class Reports {
 
   private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
 
@@ -146,18 +148,31 @@ export class Reports {
   protected readonly vendasFiltradas = computed(() =>
     this.salesStore.items().filter((v) => this.periodFilter.includes(v.date)),
   );
-
+  /** Despesas do store restritas ao mesmo período selecionado no DatePicker. */
+  protected readonly despesasFiltradas = computed(() =>
+    this.expensesStore
+      .items()
+      .filter((e) => this.periodFilter.includes(e.date))
+      .reduce((soma, e) => soma + e.amount, 0),
+  );
+  // Margem = (faturamento - despesas) / faturamento, no período selecionado.
   // Comparativos "vs. período anterior" exigiriam série histórica por período,
   // que o app não modela — ficam neutros até essa base existir. `eggsSold` já
   // vem de dado real (soma de distribuicaoOvos).
-  protected readonly resumo = computed(() => ({
-    eggsSold: this.distribuicaoOvos().reduce((soma, d) => soma + d.eggs, 0),
-    eggsSoldChange: '—',
-    marginPct: 0,
-    marginChange: '—',
-    revenueChange: '—',
-    avgTicketChange: '—',
-  }));
+  protected readonly resumo = computed(() => {
+    const faturamento = this.faturamentoTotal();
+    const marginPct = faturamento
+      ? Math.round(((faturamento - this.despesasFiltradas()) / faturamento) * 100)
+      : 0;
+    return {
+      eggsSold: this.distribuicaoOvos().reduce((soma, d) => soma + d.eggs, 0),
+      eggsSoldChange: '—',
+      marginPct,
+      marginChange: '—',
+      revenueChange: '—',
+      avgTicketChange: '—',
+    };
+  });
 
   protected readonly hasVendas = computed(() => this.vendasFiltradas().length > 0);
   protected readonly faturamentoTotal = computed(() =>
