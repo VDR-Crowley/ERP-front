@@ -111,8 +111,12 @@ export class Dashboard {
   // do Dashboard (o DatePicker da topbar ainda não filtra esta tela).
   protected readonly saldo = computed(() => this.faturamento() - this.totalDespesas());
 
+  // IndexedDB getAll() retorna na ordem da keyPath (id, um uuid aleatório),
+  // não por data nem por ordem de inserção — .slice(-6) sem ordenar pegava
+  // 6 linhas arbitrárias, não os 6 dias mais recentes. Ordena por data (desc)
+  // antes de cortar, mesmo padrão já usado em ultimasVendas.
   protected readonly producaoRecente = computed(() =>
-    [...this.productionStore.items()].slice(-6).reverse(),
+    sortRows(this.productionStore.items(), 'date', -1).slice(0, 6),
   );
   protected readonly ultimasVendas = computed(() =>
     sortRows(this.salesStore.items(), 'date', -1).slice(0, 5),
