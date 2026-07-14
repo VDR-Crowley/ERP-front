@@ -21,6 +21,7 @@ import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
+import { latestByDate } from '@core/utils/latest-by-date';
 import { sortRows } from '@shared/table-sort/table-sort';
 
 interface DonutChartOptions {
@@ -138,31 +139,16 @@ export class Dashboard {
       .reduce((soma, p) => soma + (p.quailEggs ?? 0) + (p.chickenEggs ?? 0), 0),
   );
 
-  private readonly ultimoEstoque = computed(() => {
-    const hoje = new Date().toISOString().slice(0, 10);
-    return this.eggStockStore
-      .items()
-      .filter((e) => e.date <= hoje)
-      .reduce<EstoqueOvos | undefined>(
-        (maisRecente, e) => (!maisRecente || e.date > maisRecente.date ? e : maisRecente),
-        undefined,
-      );
-  });
+  // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
+  // um snapshot com data futura por erro de digitação não pode esconder o
+  // estoque real e zerar os cards. Ver latestByDate.
+  private readonly ultimoEstoque = computed(() => latestByDate(this.eggStockStore.items()));
 
   // Estoque de Ovos é preenchido à parte da Produção Diária — enquanto não
   // houver nenhum snapshot lá, cai pra converter a produção mais recente em
   // pacotes usando o tamanho de pacote dos próprios produtos cadastrados
   // ("50 ovos de codorna" / "30 ovos galinha"), em vez de ficar sempre 0.
-  private readonly ultimaProducao = computed(() => {
-    const hoje = new Date().toISOString().slice(0, 10);
-    return this.productionStore
-      .items()
-      .filter((p) => p.date <= hoje)
-      .reduce<ProducaoDiaria | undefined>(
-        (maisRecente, p) => (!maisRecente || p.date > maisRecente.date ? p : maisRecente),
-        undefined,
-      );
-  });
+  private readonly ultimaProducao = computed(() => latestByDate(this.productionStore.items()));
   private readonly quailPackSize = computed(
     () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.eggsPerUnit ?? 50,
   );
