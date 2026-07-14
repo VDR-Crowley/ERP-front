@@ -1,8 +1,9 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -31,6 +32,7 @@ export class Production {
   protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<ProducaoDiaria>(IDB_STORES.dailyProduction, []);
+  private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');
   protected readonly searchKeys: (keyof Row)[] = ['date'];
@@ -45,17 +47,24 @@ export class Production {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<ProducaoDiaria> | null>(null);
 
+  // Restrito ao período selecionado no DatePicker da topbar (mesmo já usado
+  // por Relatórios) — sem isso, os cards somavam a produção inteira desde o
+  // primeiro registro, diluindo a média com dias antigos fora do período que
+  // o usuário está vendo no seletor.
+  protected readonly rowsPeriodo = computed(() =>
+    this.store.items().filter((p) => this.periodFilter.includes(p.date)),
+  );
   protected readonly totalCodorna = computed(() =>
-    this.store.items().reduce((soma, p) => soma + (p.quailEggs ?? 0), 0),
+    this.rowsPeriodo().reduce((soma, p) => soma + (p.quailEggs ?? 0), 0),
   );
   protected readonly totalGalinha = computed(() =>
-    this.store.items().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
+    this.rowsPeriodo().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
   protected readonly totalGeral = computed(() => this.totalCodorna() + this.totalGalinha());
   // Conta dias únicos (não linhas) — se houver mais de um registro na mesma
   // data, isso não deve inflar o denominador e diluir a média.
   protected readonly diasRegistrados = computed(
-    () => new Set(this.store.items().map((p) => p.date)).size,
+    () => new Set(this.rowsPeriodo().map((p) => p.date)).size,
   );
   protected readonly mediaDia = computed(() => {
     const dias = this.diasRegistrados();
