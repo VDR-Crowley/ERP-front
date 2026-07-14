@@ -319,26 +319,16 @@ function parseEggStock(ws: XLSX.WorkSheet, errors: string[]): EstoqueOvos[] | un
     const chickenStockValue = toNumber(row['Valor Estoque Galinha']);
 
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
-    if (quailPacks === undefined) errors.push(`${label} linha ${r}: "Pack Codorna" inválido.`);
-    if (chickenPacks === undefined) errors.push(`${label} linha ${r}: "Pack Galinha" inválido.`);
-    if (quailStockValue === undefined) errors.push(`${label} linha ${r}: "Valor Estoque Codorna" inválido.`);
-    if (chickenStockValue === undefined) errors.push(`${label} linha ${r}: "Valor Estoque Galinha" inválido.`);
 
-    if (
-      date &&
-      quailPacks !== undefined &&
-      chickenPacks !== undefined &&
-      quailStockValue !== undefined &&
-      chickenStockValue !== undefined
-    ) {
+    if (date) {
       result.push({
         date,
         quailEggs: quailEggs ?? null,
         chickenEggs: chickenEggs ?? null,
-        quailPacks,
-        chickenPacks,
-        quailStockValue,
-        chickenStockValue,
+        quailPacks: quailPacks ?? 0,
+        chickenPacks: chickenPacks ?? 0,
+        quailStockValue: quailStockValue ?? 0,
+        chickenStockValue: chickenStockValue ?? 0,
       });
     }
   });

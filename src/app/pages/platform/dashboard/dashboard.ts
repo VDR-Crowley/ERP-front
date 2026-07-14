@@ -140,9 +140,38 @@ export class Dashboard {
         undefined,
       );
   });
+
+  // Estoque de Ovos é preenchido à parte da Produção Diária — enquanto não
+  // houver nenhum snapshot lá, cai pra converter a produção mais recente em
+  // pacotes usando o tamanho de pacote dos próprios produtos cadastrados
+  // ("50 ovos de codorna" / "30 ovos galinha"), em vez de ficar sempre 0.
+  private readonly ultimaProducao = computed(() => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return this.productionStore
+      .items()
+      .filter((p) => p.date <= hoje)
+      .reduce<ProducaoDiaria | undefined>(
+        (maisRecente, p) => (!maisRecente || p.date > maisRecente.date ? p : maisRecente),
+        undefined,
+      );
+  });
+  private readonly quailPackSize = computed(
+    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.eggsPerUnit ?? 50,
+  );
+  private readonly chickenPackSize = computed(
+    () => this.productsStore.items().find((p) => p.name === '30 ovos galinha')?.eggsPerUnit ?? 30,
+  );
+
   protected readonly bandejasProntas = computed(() => {
     const estoque = this.ultimoEstoque();
-    return estoque ? Math.floor(estoque.quailPacks + estoque.chickenPacks) : 0;
+    if (estoque) return Math.floor(estoque.quailPacks + estoque.chickenPacks);
+
+    const producao = this.ultimaProducao();
+    if (!producao) return 0;
+    return (
+      Math.floor((producao.quailEggs ?? 0) / this.quailPackSize()) +
+      Math.floor((producao.chickenEggs ?? 0) / this.chickenPackSize())
+    );
   });
   protected readonly ovosCodornaEstoque = computed(() => this.ultimoEstoque()?.quailEggs ?? 0);
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoEstoque()?.chickenEggs ?? 0);
