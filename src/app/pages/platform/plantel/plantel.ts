@@ -60,6 +60,12 @@ export class Plantel {
     sortRows(this.store.items(), this.sortField(), this.sortDir()),
   );
 
+  /** Custo/mês dividido pela Quantidade — deixa explícito que é esse valor
+   * (não a Quantidade em si) que se relaciona com o Custo/mês. */
+  protected custoPorAve(item: PlantelModel): number {
+    return item.quantity ? item.monthlyTotal / item.quantity : 0;
+  }
+
   protected openNew(): void {
     this.editingId = null;
     this.formTitle.set('Nova espécie');

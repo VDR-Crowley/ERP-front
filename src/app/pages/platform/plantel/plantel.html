@@ -7,6 +7,7 @@
     <article class="kpi kpi--blue">
       <div class="kpi__label">Total de aves</div>
       <div class="kpi__value">{{ num(totalAves()) }}</div>
+      <div class="kpi__foot">Não é o multiplicador do Custo/mês — veja Custo/ave na tabela</div>
     </article>
     <article class="kpi kpi--purple">
       <div class="kpi__label">Sacos de ração/mês</div>
@@ -57,10 +58,15 @@
               Preço saco
               <app-sort-icon [active]="sortField() === 'bagPrice'" [dir]="sortDir()" />
             </th>
-            <th class="num sortable" (click)="sortBy('monthlyTotal')">
+            <th
+              class="num sortable"
+              title="Valor gasto no mês com ração dessa espécie. Pode diferir de Sacos/mês × Preço/saco quando sobra ração do mês anterior ou há desconto na compra."
+              (click)="sortBy('monthlyTotal')"
+            >
               Custo/mês
               <app-sort-icon [active]="sortField() === 'monthlyTotal'" [dir]="sortDir()" />
             </th>
+            <th class="num" title="Custo/mês dividido pela Quantidade de aves">Custo/ave</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -72,6 +78,7 @@
               <td class="num">{{ num(item.feedBagsPerMonth) }}</td>
               <td class="num">{{ brl(item.bagPrice) }}</td>
               <td class="num strong">{{ brl(item.monthlyTotal) }}</td>
+              <td class="num">{{ brl(custoPorAve(item)) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(item)">
