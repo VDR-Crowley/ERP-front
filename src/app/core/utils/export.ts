@@ -1,24 +1,63 @@
 import * as XLSX from 'xlsx';
 import { firstValueFrom } from 'rxjs';
-import { VENDAS_MOCK } from '@core/mocks/venda.mock';
-import { PRODUCAO_DIARIA_MOCK } from '@core/mocks/producao-diaria.mock';
-import { ESTOQUE_OVOS_MOCK } from '@core/mocks/estoque-ovos.mock';
-import { PLANTEL_MOCK } from '@core/mocks/plantel.mock';
-import { PRODUCTS_MOCK } from '@core/mocks/product.mock';
-import { EXPENSES_MOCK } from '@core/mocks/expense.mock';
-import { CASHFLOW_MOCK } from '@core/mocks/cash-entry.mock';
-import { DASHBOARD_MOCK } from '@core/mocks/dashboard.mock';
+import { Venda } from '@core/interfaces/venda.interface';
+import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
+import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
+import { Plantel } from '@core/interfaces/plantel.interface';
+import { Product } from '@core/interfaces/product.interface';
+import { Expense } from '@core/interfaces/expense.interface';
+import { CashEntry } from '@core/interfaces/cash-entry.interface';
+import { DashboardResumo } from '@core/interfaces/dashboard.interface';
+import { User } from '@core/interfaces/user.interface';
 import { ptDate } from '@core/utils/format';
 import { IndexedDbService } from '@core/idb/idb.service';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
-import { User } from '@core/interfaces/user.interface';
 
-/** Exporta todos os dados do app para um único arquivo .xlsx com uma aba por entidade. */
+const DASHBOARD_VAZIO: DashboardResumo = {
+  totalQuails: 0,
+  totalChickens: 0,
+  dailyQuailProduction: 0,
+  dailyChickenProduction: 0,
+  quailPack50Price: 0,
+  chickenPack30Price: 0,
+};
+
+/** Exporta os dados reais do IndexedDB (mesma fonte que as telas leem) para um único arquivo .xlsx com uma aba por entidade. */
 export async function exportWorkbook(filename: string, idb: IndexedDbService): Promise<void> {
+  const [vendas, producao, estoque, plantel, produtos, despesas, fluxoCaixa, dashboardRows, users] =
+    await Promise.all([
+      firstValueFrom(idb.getAll<Venda>(IDB_STORES.sales)),
+      firstValueFrom(idb.getAll<ProducaoDiaria>(IDB_STORES.dailyProduction)),
+      firstValueFrom(idb.getAll<EstoqueOvos>(IDB_STORES.eggStock)),
+      firstValueFrom(idb.getAll<Plantel>(IDB_STORES.flock)),
+      firstValueFrom(idb.getAll<Product>(IDB_STORES.products)),
+      firstValueFrom(idb.getAll<Expense>(IDB_STORES.expenses)),
+      firstValueFrom(idb.getAll<CashEntry>(IDB_STORES.cashFlow)),
+      firstValueFrom(idb.getAll<DashboardResumo>(IDB_STORES.dashboard)),
+      firstValueFrom(idb.getAll<User>(IDB_STORES.users)),
+    ]);
+  const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
+
   const wb = XLSX.utils.book_new();
 
+  // `header` explícito em todo json_to_sheet abaixo: sem ele, uma lista vazia
+  // (conta nova, categoria ainda sem nenhum registro) gera aba sem nem a
+  // linha de cabeçalho — reimportar esse .xlsx falhava com "coluna(s)
+  // faltando" pra qualquer aba que estivesse zerada no momento do export.
+  const vendasHeader = [
+    'Data',
+    'Produto',
+    'Quantidade',
+    'Preço Unitário',
+    'Total',
+    'Status Pagamento',
+    'Comprador',
+    'Vendedor',
+    'Status da entrega',
+    'Data da Entrega',
+  ];
   const vendasSheet = XLSX.utils.json_to_sheet(
-    VENDAS_MOCK.map((v) => ({
+    vendas.map((v) => ({
       Data: ptDate(v.date),
       Produto: v.product,
       Quantidade: v.quantity,
@@ -30,20 +69,32 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
       'Status da entrega': v.deliveryPending ? 'FALTA' : 'ENTREGUE',
       'Data da Entrega': v.deliveryDate ? ptDate(v.deliveryDate) : '',
     })),
+    { header: vendasHeader },
   );
   XLSX.utils.book_append_sheet(wb, vendasSheet, 'Vendas');
 
+  const producaoHeader = ['Data', 'Ovos Codorna', 'Ovos Galinha'];
   const producaoSheet = XLSX.utils.json_to_sheet(
-    PRODUCAO_DIARIA_MOCK.map((p) => ({
+    producao.map((p) => ({
       Data: ptDate(p.date),
       'Ovos Codorna': p.quailEggs ?? '',
       'Ovos Galinha': p.chickenEggs ?? '',
     })),
+    { header: producaoHeader },
   );
   XLSX.utils.book_append_sheet(wb, producaoSheet, 'Produção');
 
+  const estoqueHeader = [
+    'Data',
+    'Ovos Codorna',
+    'Ovos Galinha',
+    'Pack Codorna',
+    'Pack Galinha',
+    'Valor Estoque Codorna',
+    'Valor Estoque Galinha',
+  ];
   const estoqueSheet = XLSX.utils.json_to_sheet(
-    ESTOQUE_OVOS_MOCK.map((e) => ({
+    estoque.map((e) => ({
       Data: ptDate(e.date),
       'Ovos Codorna': e.quailEggs ?? '',
       'Ovos Galinha': e.chickenEggs ?? '',
@@ -52,33 +103,39 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
       'Valor Estoque Codorna': e.quailStockValue,
       'Valor Estoque Galinha': e.chickenStockValue,
     })),
+    { header: estoqueHeader },
   );
   XLSX.utils.book_append_sheet(wb, estoqueSheet, 'Estoque de Ovos');
 
+  const plantelHeader = ['Espécie', 'Quantidade', 'Sacos Ração/Mês', 'Preço Saco', 'Total Mês'];
   const plantelSheet = XLSX.utils.json_to_sheet(
-    PLANTEL_MOCK.map((p) => ({
+    plantel.map((p) => ({
       Espécie: p.species,
       Quantidade: p.quantity,
       'Sacos Ração/Mês': p.feedBagsPerMonth,
       'Preço Saco': p.bagPrice,
       'Total Mês': p.monthlyTotal,
     })),
+    { header: plantelHeader },
   );
   XLSX.utils.book_append_sheet(wb, plantelSheet, 'Plantel');
 
+  const produtosHeader = ['Produto', 'Unidade', 'Preço Unitário', 'Estoque', 'Ovos por Unidade'];
   const produtosSheet = XLSX.utils.json_to_sheet(
-    PRODUCTS_MOCK.map((p) => ({
+    produtos.map((p) => ({
       Produto: p.name,
       Unidade: p.unit,
       'Preço Unitário': p.unitPrice,
       Estoque: p.stock,
       'Ovos por Unidade': p.eggsPerUnit,
     })),
+    { header: produtosHeader },
   );
   XLSX.utils.book_append_sheet(wb, produtosSheet, 'Produtos');
 
+  const despesasHeader = ['Data', 'Descrição', 'Categoria', 'Qtd.', 'Valor unit.', 'Valor', 'Pago'];
   const despesasSheet = XLSX.utils.json_to_sheet(
-    EXPENSES_MOCK.map((e) => ({
+    despesas.map((e) => ({
       Data: ptDate(e.date),
       Descrição: e.description,
       Categoria: e.category,
@@ -87,30 +144,33 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
       Valor: e.amount,
       Pago: e.paid ? 'Sim' : 'Não',
     })),
+    { header: despesasHeader },
   );
   XLSX.utils.book_append_sheet(wb, despesasSheet, 'Despesas');
 
+  const fluxoCaixaHeader = ['Data', 'Descrição', 'Tipo', 'Valor'];
   const fluxoCaixaSheet = XLSX.utils.json_to_sheet(
-    CASHFLOW_MOCK.map((c) => ({
+    fluxoCaixa.map((c) => ({
       Data: ptDate(c.date),
       Descrição: c.description,
       Tipo: c.inflow ? 'Entrada' : 'Saída',
       Valor: c.amount,
     })),
+    { header: fluxoCaixaHeader },
   );
   XLSX.utils.book_append_sheet(wb, fluxoCaixaSheet, 'Fluxo de Caixa');
 
   const dashboardSheet = XLSX.utils.json_to_sheet([
-    { Indicador: 'Total de codornas', Valor: DASHBOARD_MOCK.totalQuails },
-    { Indicador: 'Total de galinhas', Valor: DASHBOARD_MOCK.totalChickens },
-    { Indicador: 'Produção diária codornas', Valor: DASHBOARD_MOCK.dailyQuailProduction },
-    { Indicador: 'Produção diária galinhas', Valor: DASHBOARD_MOCK.dailyChickenProduction },
-    { Indicador: 'Preço pack 50 ovos codorna', Valor: DASHBOARD_MOCK.quailPack50Price },
-    { Indicador: 'Preço pack 30 ovos galinha', Valor: DASHBOARD_MOCK.chickenPack30Price },
+    { Indicador: 'Total de codornas', Valor: dashboard.totalQuails },
+    { Indicador: 'Total de galinhas', Valor: dashboard.totalChickens },
+    { Indicador: 'Produção diária codornas', Valor: dashboard.dailyQuailProduction },
+    { Indicador: 'Produção diária galinhas', Valor: dashboard.dailyChickenProduction },
+    { Indicador: 'Preço pack 50 ovos codorna', Valor: dashboard.quailPack50Price },
+    { Indicador: 'Preço pack 30 ovos galinha', Valor: dashboard.chickenPack30Price },
   ]);
   XLSX.utils.book_append_sheet(wb, dashboardSheet, 'Dashboard');
 
-  const users = await firstValueFrom(idb.getAll<User>(IDB_STORES.users));
+  const usuariosHeader = ['Nome', 'E-mail', 'Senha', 'Telefone'];
   const usuariosSheet = XLSX.utils.json_to_sheet(
     users.map((u) => ({
       Nome: u.name,
@@ -118,6 +178,7 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
       Senha: u.password,
       Telefone: u.phone ?? '',
     })),
+    { header: usuariosHeader },
   );
   XLSX.utils.book_append_sheet(wb, usuariosSheet, 'Usuários');
 
