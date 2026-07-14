@@ -4,6 +4,7 @@ import { EstoqueOvos as EstoqueOvosModel } from '@core/interfaces/estoque-ovos.i
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
+import { latestByDate } from '@core/utils/latest-by-date';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -50,18 +51,14 @@ export class EggStock {
   protected readonly deleteTarget = signal<WithId<EstoqueOvosModel> | null>(null);
 
   // Cada linha é um snapshot do saldo naquele dia, não um delta — os cards do
-  // topo devem refletir só a linha mais recente até hoje (carry-forward),
-  // nunca a soma de todas as linhas (isso somaria saldos de dias diferentes).
-  protected readonly estoqueAtual = computed<EstoqueOvosModel | undefined>(() => {
-    const hoje = new Date().toISOString().slice(0, 10);
-    return this.store
-      .items()
-      .filter((e) => e.date <= hoje)
-      .reduce<EstoqueOvosModel | undefined>(
-        (maisRecente, e) => (!maisRecente || e.date > maisRecente.date ? e : maisRecente),
-        undefined,
-      );
-  });
+  // topo devem refletir só a linha mais recente (carry-forward), nunca a soma
+  // de todas as linhas (isso somaria saldos de dias diferentes). Usa sempre a
+  // data mais recente do array, mesmo que seja futura em relação ao relógio
+  // do sistema — restringir a "<= hoje" fazia um registro com data futura por
+  // erro de digitação (ex: ano errado) esconder o snapshot real e zerar tudo.
+  protected readonly estoqueAtual = computed<EstoqueOvosModel | undefined>(() =>
+    latestByDate(this.store.items()),
+  );
 
   protected readonly totalCodorna = computed(() => this.estoqueAtual()?.quailEggs ?? 0);
   protected readonly totalGalinha = computed(() => this.estoqueAtual()?.chickenEggs ?? 0);
