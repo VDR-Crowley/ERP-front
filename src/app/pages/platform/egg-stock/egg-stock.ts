@@ -56,8 +56,13 @@ export class EggStock {
   // data mais recente do array, mesmo que seja futura em relação ao relógio
   // do sistema — restringir a "<= hoje" fazia um registro com data futura por
   // erro de digitação (ex: ano errado) esconder o snapshot real e zerar tudo.
+  // Ignora linhas "molde" (planilha com o mês inteiro pré-preenchido, dias
+  // futuros ainda sem lançamento) onde os dois campos de ovos vêm em branco —
+  // senão uma dessas, por ter a maior data, vira "o snapshot mais recente" e
+  // zera os cards de novo, só que por causa de uma data futura legítima em
+  // vez de erro de digitação.
   protected readonly estoqueAtual = computed<EstoqueOvosModel | undefined>(() =>
-    latestByDate(this.store.items()),
+    latestByDate(this.store.items().filter((e) => e.quailEggs !== null || e.chickenEggs !== null)),
   );
 
   protected readonly totalCodorna = computed(() => this.estoqueAtual()?.quailEggs ?? 0);

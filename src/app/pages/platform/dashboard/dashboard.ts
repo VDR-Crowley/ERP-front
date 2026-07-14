@@ -141,14 +141,21 @@ export class Dashboard {
 
   // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
   // um snapshot com data futura por erro de digitação não pode esconder o
-  // estoque real e zerar os cards. Ver latestByDate.
-  private readonly ultimoEstoque = computed(() => latestByDate(this.eggStockStore.items()));
+  // estoque real e zerar os cards. Ver latestByDate. Ignora linhas "molde"
+  // (dias futuros da planilha ainda sem lançamento, com os dois campos em
+  // branco) — senão uma delas vira "a mais recente" só por ter a maior data
+  // e zera os cards de novo.
+  private readonly ultimoEstoque = computed(() =>
+    latestByDate(this.eggStockStore.items().filter((e) => e.quailEggs !== null || e.chickenEggs !== null)),
+  );
 
   // Estoque de Ovos é preenchido à parte da Produção Diária — enquanto não
   // houver nenhum snapshot lá, cai pra converter a produção mais recente em
   // pacotes usando o tamanho de pacote dos próprios produtos cadastrados
   // ("50 ovos de codorna" / "30 ovos galinha"), em vez de ficar sempre 0.
-  private readonly ultimaProducao = computed(() => latestByDate(this.productionStore.items()));
+  private readonly ultimaProducao = computed(() =>
+    latestByDate(this.productionStore.items().filter((p) => p.quailEggs !== null || p.chickenEggs !== null)),
+  );
   private readonly quailPackSize = computed(
     () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.eggsPerUnit ?? 50,
   );

@@ -54,17 +54,26 @@ export class Production {
   protected readonly rowsPeriodo = computed(() =>
     this.store.items().filter((p) => this.periodFilter.includes(p.date)),
   );
+  // A planilha do usuário vem com o mês inteiro pré-preenchido (linhas de
+  // dias futuros ainda sem lançamento, com os dois campos em branco) — se
+  // isso for importado, essas linhas "molde" entram no store com data válida
+  // mas sem produção nenhuma. Sem esse filtro elas contam como "dia
+  // registrado" no Set abaixo e diluem a média com dias que não têm produção
+  // de verdade.
+  protected readonly rowsComProducao = computed(() =>
+    this.rowsPeriodo().filter((p) => p.quailEggs !== null || p.chickenEggs !== null),
+  );
   protected readonly totalCodorna = computed(() =>
-    this.rowsPeriodo().reduce((soma, p) => soma + (p.quailEggs ?? 0), 0),
+    this.rowsComProducao().reduce((soma, p) => soma + (p.quailEggs ?? 0), 0),
   );
   protected readonly totalGalinha = computed(() =>
-    this.rowsPeriodo().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
+    this.rowsComProducao().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
   protected readonly totalGeral = computed(() => this.totalCodorna() + this.totalGalinha());
   // Conta dias únicos (não linhas) — se houver mais de um registro na mesma
   // data, isso não deve inflar o denominador e diluir a média.
   protected readonly diasRegistrados = computed(
-    () => new Set(this.rowsPeriodo().map((p) => p.date)).size,
+    () => new Set(this.rowsComProducao().map((p) => p.date)).size,
   );
   protected readonly mediaDia = computed(() => {
     const dias = this.diasRegistrados();
