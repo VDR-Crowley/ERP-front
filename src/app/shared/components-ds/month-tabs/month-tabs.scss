@@ -33,4 +33,11 @@
     border-color: color-mix(in srgb, var(--erp-green) 40%, transparent);
     color: var(--erp-green-ink);
   }
+
+  &--clear {
+    margin-left: 0.15rem;
+    padding-left: 0.6rem;
+    border-left: 1px solid var(--erp-ghost-border);
+    border-radius: 0 8px 8px 0;
+  }
 }

@@ -9,4 +9,13 @@
       {{ chip.label }}
     </button>
   }
+  <button
+    type="button"
+    class="month-tabs__chip month-tabs__chip--clear"
+    [class.month-tabs__chip--active]="allActive()"
+    title="Limpar filtro de período"
+    (click)="clear()"
+  >
+    Tudo
+  </button>
 </div>

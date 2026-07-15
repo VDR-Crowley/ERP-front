@@ -30,10 +30,14 @@ export class LayoutApp {
   private readonly session = inject(AuthSession);
   protected readonly periodFilter = inject(PeriodFilterService);
 
-  /** Ignora `null` (clique em "Limpar") — mantém o último período válido. */
+  /** `null` = clique em "Limpar" no calendário — remove o filtro (mostra tudo). */
   protected onPeriodChange(range: Date | DateRange | null): void {
     if (Array.isArray(range)) {
       this.periodFilter.setRange(range);
+      return;
+    }
+    if (range === null) {
+      this.periodFilter.clear();
     }
   }
 

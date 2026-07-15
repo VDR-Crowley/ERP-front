@@ -1,8 +1,9 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Expense } from '@core/interfaces/expense.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -63,6 +64,7 @@ export class Expenses {
   protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<Expense>(IDB_STORES.expenses, []);
+  private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description', 'category'];
@@ -77,27 +79,30 @@ export class Expenses {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<Expense> | null>(null);
 
+  /** Despesas do store restritas ao período selecionado no DatePicker/chips da topbar. */
+  protected readonly despesasNoPeriodo = computed(() =>
+    this.store.items().filter((e) => this.periodFilter.includes(e.date)),
+  );
+
   protected readonly total = computed(() =>
-    this.store.items().reduce((s, e) => s + e.amount, 0),
+    this.despesasNoPeriodo().reduce((s, e) => s + e.amount, 0),
   );
   protected readonly totalPago = computed(() =>
-    this.store
-      .items()
+    this.despesasNoPeriodo()
       .filter((e) => e.paid)
       .reduce((s, e) => s + e.amount, 0),
   );
   protected readonly totalPendente = computed(() =>
-    this.store
-      .items()
+    this.despesasNoPeriodo()
       .filter((e) => !e.paid)
       .reduce((s, e) => s + e.amount, 0),
   );
   protected readonly qtdPendente = computed(
-    () => this.store.items().filter((e) => !e.paid).length,
+    () => this.despesasNoPeriodo().filter((e) => !e.paid).length,
   );
 
   protected readonly rows = computed<WithId<Expense>[]>(() =>
-    sortRows(this.store.items(), this.sortField(), this.sortDir()),
+    sortRows(this.despesasNoPeriodo(), this.sortField(), this.sortDir()),
   );
 
   protected openNew(): void {

@@ -40,6 +40,13 @@ export class DatePicker {
 
   protected onModelChange(next: Date | Date[] | null): void {
     if (this.mode() === 'range') {
+      if (next === null) {
+        // Botão "Limpar" do calendário — emite null pra quem usa o componente
+        // saber que o usuário pediu pra remover o filtro (não é "1º clique
+        // pendente", que chega como array parcial, tratado abaixo).
+        this.valueChange.emit(null);
+        return;
+      }
       const [start, end] = Array.isArray(next) ? next : [null, null];
       if (!start || !end) {
         // Só o primeiro clique aconteceu (início escolhido, fim ainda não) —

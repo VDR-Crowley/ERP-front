@@ -29,13 +29,22 @@ const DEFAULT_RANGE: DateRange = [daysAgo(now, 29), endOfToday(now)];
 @Injectable({ providedIn: 'root' })
 export class PeriodFilterService {
   readonly range = signal<DateRange>(DEFAULT_RANGE);
+  /** `false` = filtro limpo ("Tudo"/"Limpar") — telas mostram os dados completos. */
+  readonly active = signal<boolean>(true);
 
   setRange(range: DateRange): void {
     this.range.set(range);
+    this.active.set(true);
   }
 
-  /** `true` se a data ISO (`YYYY-MM-DD`) cair dentro do período selecionado. */
+  /** Remove o filtro sem precisar recarregar a página — telas voltam a mostrar tudo. */
+  clear(): void {
+    this.active.set(false);
+  }
+
+  /** `true` se a data ISO (`YYYY-MM-DD`) cair dentro do período selecionado, ou sempre `true` com o filtro limpo. */
   includes(isoDate: string): boolean {
+    if (!this.active()) return true;
     const [start, end] = this.range();
     const date = new Date(`${isoDate}T00:00:00`);
     return date >= start && date <= end;

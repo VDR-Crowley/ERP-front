@@ -56,7 +56,7 @@
         <app-date-picker
           ngSkipHydration
           mode="range"
-          [value]="periodFilter.range()"
+          [value]="periodFilter.active() ? periodFilter.range() : null"
           (valueChange)="onPeriodChange($event)"
         />
         <button class="btn btn--ghost" type="button" (click)="baixarModelo()">

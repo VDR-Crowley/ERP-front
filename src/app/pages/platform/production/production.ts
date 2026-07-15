@@ -92,7 +92,7 @@ export class Production {
   });
 
   protected readonly rows = computed<Row[]>(() => {
-    const list: Row[] = this.store.items().map((p) => ({
+    const list: Row[] = this.rowsPeriodo().map((p) => ({
       ...p,
       total: (p.quailEggs ?? 0) + (p.chickenEggs ?? 0),
     }));

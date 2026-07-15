@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   ApexChart,
@@ -20,6 +20,7 @@ import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { latestByDate } from '@core/utils/latest-by-date';
 import { sortRows } from '@shared/table-sort/table-sort';
@@ -99,16 +100,31 @@ export class Dashboard {
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
   private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
   private readonly dashboardStore = createEntityStore<DashboardResumo>(IDB_STORES.dashboard, []);
+  private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly resumo = computed(() => this.dashboardStore.items()[0] ?? RESUMO_VAZIO);
+
+  // Cards de produção/vendas/saldo respeitam o período selecionado no
+  // DatePicker/chips da topbar — diferente dos cards de estoque
+  // (ovosCodornaEstoque/ovosGalinhaEstoque/bandejasProntas), que são
+  // snapshot do saldo mais recente e continuam intencionalmente fora do
+  // filtro (ver comentário em ultimoEstoque/ultimaProducao).
+  protected readonly producaoNoPeriodo = computed(() =>
+    this.productionStore.items().filter((p) => this.periodFilter.includes(p.date)),
+  );
+  protected readonly vendasNoPeriodo = computed(() =>
+    this.salesStore.items().filter((v) => this.periodFilter.includes(v.date)),
+  );
+  protected readonly despesasNoPeriodo = computed(() =>
+    this.expensesStore.items().filter((e) => this.periodFilter.includes(e.date)),
+  );
+
   protected readonly faturamento = computed(() =>
-    this.salesStore.items().reduce((soma, v) => soma + v.total, 0),
+    this.vendasNoPeriodo().reduce((soma, v) => soma + v.total, 0),
   );
   protected readonly totalDespesas = computed(() =>
-    this.expensesStore.items().reduce((soma, e) => soma + e.amount, 0),
+    this.despesasNoPeriodo().reduce((soma, e) => soma + e.amount, 0),
   );
-  // Vendas - Despesas, mesma base "total geral" já usada pelos outros cards
-  // do Dashboard (o DatePicker da topbar ainda não filtra esta tela).
   protected readonly saldo = computed(() => this.faturamento() - this.totalDespesas());
 
   // IndexedDB getAll() retorna na ordem da keyPath (id, um uuid aleatório),
@@ -141,13 +157,11 @@ export class Dashboard {
     this.flockStore.items().reduce((soma, p) => soma + p.monthlyTotal, 0),
   );
   protected readonly vendasPendentes = computed(
-    () => this.salesStore.items().filter((v) => v.paymentPending).length,
+    () => this.vendasNoPeriodo().filter((v) => v.paymentPending).length,
   );
 
   protected readonly totalOvosColetados = computed(() =>
-    this.productionStore
-      .items()
-      .reduce((soma, p) => soma + (p.quailEggs ?? 0) + (p.chickenEggs ?? 0), 0),
+    this.producaoNoPeriodo().reduce((soma, p) => soma + (p.quailEggs ?? 0) + (p.chickenEggs ?? 0), 0),
   );
 
   // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
@@ -189,21 +203,21 @@ export class Dashboard {
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoEstoque()?.chickenEggs ?? 0);
 
   protected readonly totalOvosVendidos = computed(() =>
-    this.salesStore.items().reduce((soma, venda) => {
+    this.vendasNoPeriodo().reduce((soma, venda) => {
       const produto = this.productsStore.items().find((p) => p.name === venda.product);
       return soma + (produto?.eggsPerUnit ?? 0) * venda.quantity;
     }, 0),
   );
   protected readonly ticketMedio = computed(() => {
-    const vendas = this.salesStore.items();
+    const vendas = this.vendasNoPeriodo();
     return vendas.length ? this.faturamento() / vendas.length : 0;
   });
   protected readonly clientesAtendidos = computed(
-    () => new Set(this.salesStore.items().map((v) => v.buyer)).size,
+    () => new Set(this.vendasNoPeriodo().map((v) => v.buyer)).size,
   );
 
   protected readonly vendasPorProduto = computed(() =>
-    calcularVendasPorProduto(this.salesStore.items()),
+    calcularVendasPorProduto(this.vendasNoPeriodo()),
   );
 
   protected readonly donutChart = computed<DonutChartOptions>(() => {

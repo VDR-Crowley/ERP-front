@@ -47,16 +47,27 @@ export class MonthTabs {
     return { label: monthLabel(ref), range: [startOfMonth(ref), endOfMonth(ref)] as DateRange };
   });
 
-  /** Nenhum chip fica ativo quando o período atual (ex.: custom do DatePicker) não bate com nenhum dos 3 meses. */
+  /** Nenhum chip de mês fica ativo quando o filtro está limpo, ou quando o período atual (ex.: custom do DatePicker) não bate com nenhum dos 3 meses. */
   protected readonly chips = computed(() => {
+    const active = this.periodFilter.active();
     const [start, end] = this.periodFilter.range();
     return this.months.map((chip) => ({
       ...chip,
-      active: start.getTime() === chip.range[0].getTime() && end.getTime() === chip.range[1].getTime(),
+      active:
+        active &&
+        start.getTime() === chip.range[0].getTime() &&
+        end.getTime() === chip.range[1].getTime(),
     }));
   });
 
+  /** "Tudo" fica ativo quando o filtro de período está limpo (mostrando todos os dados). */
+  protected readonly allActive = computed(() => !this.periodFilter.active());
+
   protected select(chip: MonthChip): void {
     this.periodFilter.setRange(chip.range);
+  }
+
+  protected clear(): void {
+    this.periodFilter.clear();
   }
 }
