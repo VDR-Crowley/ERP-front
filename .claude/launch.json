@@ -176,6 +176,17 @@
         "4299"
       ],
       "port": 4299
+    },
+    {
+      "name": "erp-front-dev-month-tabs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4216"
+      ],
+      "port": 4216
     }
   ]
 }

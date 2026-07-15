@@ -5,6 +5,7 @@ import { IndexedDbService } from '@core/idb/idb.service';
 import { AuthSession } from '@core/services/auth-session.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { DatePicker, DateRange } from '@shared/components-ds/date-picker/date-picker';
+import { MonthTabs } from '@shared/components-ds/month-tabs/month-tabs';
 
 interface NavItem {
   path: string;
@@ -19,7 +20,7 @@ const COLLAPSE_KEY = 'erp-nav-collapsed';
 
 @Component({
   selector: 'app-layout-app',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, KeyValuePipe, DatePicker],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, KeyValuePipe, DatePicker, MonthTabs],
   templateUrl: './layout-app.html',
   styleUrl: './layout-app.scss',
 })

@@ -1,0 +1,12 @@
+<div class="month-tabs">
+  @for (chip of chips(); track chip.label) {
+    <button
+      type="button"
+      class="month-tabs__chip"
+      [class.month-tabs__chip--active]="chip.active"
+      (click)="select(chip)"
+    >
+      {{ chip.label }}
+    </button>
+  }
+</div>
