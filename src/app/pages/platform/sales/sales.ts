@@ -1,9 +1,10 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -70,6 +71,7 @@ export class Sales {
 
   private readonly store = createEntityStore<Venda>(IDB_STORES.sales, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
@@ -90,10 +92,15 @@ export class Sales {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<Venda> | null>(null);
 
+  /** Vendas do store restritas ao período selecionado no DatePicker/chips da topbar. */
+  protected readonly vendasNoPeriodo = computed(() =>
+    this.store.items().filter((v) => this.periodFilter.includes(v.date)),
+  );
+
   protected readonly faturamento = computed(() =>
     this.store.items().reduce((soma, v) => soma + v.total, 0),
   );
-  protected readonly totalVendas = computed(() => this.store.items().length);
+  protected readonly totalVendas = computed(() => this.vendasNoPeriodo().length);
   protected readonly pendentes = computed(
     () => this.store.items().filter((v) => v.paymentPending).length,
   );
@@ -106,7 +113,7 @@ export class Sales {
   });
 
   protected readonly rows = computed<WithId<Venda>[]>(() =>
-    sortRows(this.store.items(), this.sortField(), this.sortDir()),
+    sortRows(this.vendasNoPeriodo(), this.sortField(), this.sortDir()),
   );
 
   protected openNew(): void {
