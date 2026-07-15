@@ -1,9 +1,11 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '@core/interfaces/product.interface';
+import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num } from '@core/utils/format';
+import { latestByDate } from '@core/utils/latest-by-date';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -32,6 +34,7 @@ export class Products {
   protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name'];
@@ -46,9 +49,36 @@ export class Products {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<Product> | null>(null);
 
+  // Carry-forward igual Estoque de Ovos/Dashboard: sempre a linha mais
+  // recente por data, ignorando linhas "molde" sem produção nenhuma.
+  private readonly ultimoEstoqueOvos = computed(() =>
+    latestByDate(
+      this.eggStockStore.items().filter((e) => e.quailEggs !== null || e.chickenEggs !== null),
+    ),
+  );
+
+  // "Estoque" cadastrado no produto é um número solto (digitado à mão ou
+  // vindo do import) — pra produto de uma espécie só, dá pra calcular quantas
+  // unidades cabem no estoque real de ovos. Kit misto (mistura codorna +
+  // galinha numa proporção que o modelo de Produto não guarda) e produtos que
+  // não são ovo (ex: carne de codorna abatida, que não tem tela de estoque
+  // própria ainda) continuam usando o campo cadastrado, sem dado real pra
+  // puxar.
+  protected estoqueReal(p: Product): number {
+    const estoque = this.ultimoEstoqueOvos();
+    if (!estoque || !p.eggsPerUnit) return p.stock;
+    if (p.name === '50 ovos de codorna' && estoque.quailEggs !== null) {
+      return Math.floor(estoque.quailEggs / p.eggsPerUnit);
+    }
+    if (p.name === '1 Bandeja de ovos de galinha' && estoque.chickenEggs !== null) {
+      return Math.floor(estoque.chickenEggs / p.eggsPerUnit);
+    }
+    return p.stock;
+  }
+
   protected readonly totalProdutos = computed(() => this.store.items().length);
   protected readonly valorEstoque = computed(() =>
-    this.store.items().reduce((s, p) => s + p.unitPrice * p.stock, 0),
+    this.store.items().reduce((s, p) => s + p.unitPrice * this.estoqueReal(p), 0),
   );
   protected readonly precoMedio = computed(() => {
     const items = this.store.items();

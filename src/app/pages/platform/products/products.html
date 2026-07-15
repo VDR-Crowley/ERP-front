@@ -49,7 +49,11 @@
               Preço
               <app-sort-icon [active]="sortField() === 'unitPrice'" [dir]="sortDir()" />
             </th>
-            <th class="num sortable" (click)="sortBy('stock')">
+            <th
+              class="num sortable"
+              title="Pra produto de ovo de uma espécie só, calculado a partir do Estoque de Ovos mais recente. Kit misto e produtos que não são ovo usam o valor cadastrado."
+              (click)="sortBy('stock')"
+            >
               Estoque
               <app-sort-icon [active]="sortField() === 'stock'" [dir]="sortDir()" />
             </th>
@@ -62,7 +66,7 @@
               <td class="strong">{{ p.name }}</td>
               <td>{{ p.unit }}</td>
               <td class="num strong">{{ brl(p.unitPrice) }}</td>
-              <td class="num">{{ num(p.stock) }}</td>
+              <td class="num">{{ num(estoqueReal(p)) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(p)">
