@@ -13,9 +13,5 @@ export const REVENUE_BARS_MOCK: RevenueBar[] = [
 // Indicadores complementares que ainda não têm série histórica própria nos mocks
 export const REPORT_RESUMO_MOCK: ReportResumo = {
   eggsSold: 14200,
-  eggsSoldChange: '+8,1%',
   marginPct: 38,
-  marginChange: '+3,0%',
-  revenueChange: '+12,4%',
-  avgTicketChange: '-1,2%',
 };

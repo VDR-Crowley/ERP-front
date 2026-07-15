@@ -12,9 +12,5 @@ export interface TopBuyer {
 
 export interface ReportResumo {
   eggsSold: number;
-  eggsSoldChange: string;
   marginPct: number;
-  marginChange: string;
-  revenueChange: string;
-  avgTicketChange: string;
 }

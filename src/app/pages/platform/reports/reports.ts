@@ -156,9 +156,11 @@ export class Reports {
       .reduce((soma, e) => soma + e.amount, 0),
   );
   // Margem = (faturamento - despesas) / faturamento, no período selecionado.
-  // Comparativos "vs. período anterior" exigiriam série histórica por período,
-  // que o app não modela — ficam neutros até essa base existir. `eggsSold` já
-  // vem de dado real (soma de distribuicaoOvos).
+  // `eggsSold` já vem de dado real (soma de distribuicaoOvos). Comparativos
+  // "vs. período anterior" exigiriam série histórica por período, que o app
+  // não modela — em vez de mostrar um "—" sem explicação (confundia o
+  // usuário, que marcou "que?" perto da Margem), os cards não prometem mais
+  // nenhuma comparação até essa base existir de verdade.
   protected readonly resumo = computed(() => {
     const faturamento = this.faturamentoTotal();
     const marginPct = faturamento
@@ -166,11 +168,7 @@ export class Reports {
       : 0;
     return {
       eggsSold: this.distribuicaoOvos().reduce((soma, d) => soma + d.eggs, 0),
-      eggsSoldChange: '—',
       marginPct,
-      marginChange: '—',
-      revenueChange: '—',
-      avgTicketChange: '—',
     };
   });
 
@@ -193,12 +191,20 @@ export class Reports {
   // Série vem só dos meses com venda real no IDB — nenhum mês é inventado.
   protected readonly revenueChart = computed<BarChartOptions>(() => {
     const { categories, data } = calcularFaturamentoPorMes(this.vendasFiltradas());
+    const textColor = this.themeService.isDark() ? '#e9eef3' : '#10151c';
     return {
       series: [{ name: 'Faturamento', data }],
       chart: { type: 'bar', height: 220, toolbar: { show: false } },
       plotOptions: { bar: { borderRadius: 6, columnWidth: '45%' } },
       colors: ['#10b981'],
-      dataLabels: { enabled: false },
+      // Valor de cada mês em cima da barra — sem isso só dava pra estimar
+      // olhando a régua do eixo Y, o que confundia o usuário.
+      dataLabels: {
+        enabled: true,
+        offsetY: -20,
+        style: { fontSize: '12px', colors: [textColor] },
+        formatter: (v: number) => brl(v),
+      },
       xaxis: {
         categories,
         axisBorder: { show: false },
