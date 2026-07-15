@@ -114,9 +114,16 @@ export class Dashboard {
   // IndexedDB getAll() retorna na ordem da keyPath (id, um uuid aleatório),
   // não por data nem por ordem de inserção — .slice(-6) sem ordenar pegava
   // 6 linhas arbitrárias, não os 6 dias mais recentes. Ordena por data (desc)
-  // antes de cortar, mesmo padrão já usado em ultimasVendas.
+  // antes de cortar, mesmo padrão já usado em ultimasVendas. Ignora linhas
+  // "molde" (dias futuros do template ainda sem lançamento, com os dois
+  // campos em branco) — senão as 10 mais recentes por data eram só linhas
+  // vazias. Mostra as últimas 10 com produção de verdade, não 6.
   protected readonly producaoRecente = computed(() =>
-    sortRows(this.productionStore.items(), 'date', -1).slice(0, 6),
+    sortRows(
+      this.productionStore.items().filter((p) => p.quailEggs !== null || p.chickenEggs !== null),
+      'date',
+      -1,
+    ).slice(0, 10),
   );
   protected readonly ultimasVendas = computed(() =>
     sortRows(this.salesStore.items(), 'date', -1).slice(0, 5),
