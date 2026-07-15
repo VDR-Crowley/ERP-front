@@ -8,7 +8,7 @@
         </div>
         <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
       </div>
-      <div class="kpi__foot">No período selecionado</div>
+      <div class="kpi__foot">Média {{ num(mediaDiaCodorna()) }} ovos/dia no período selecionado</div>
     </article>
     <article class="kpi kpi--blue">
       <div class="kpi__row">
@@ -18,7 +18,7 @@
         </div>
         <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
       </div>
-      <div class="kpi__foot">No período selecionado</div>
+      <div class="kpi__foot">Média {{ num(mediaDiaGalinha()) }} ovos/dia no período selecionado</div>
     </article>
     <article class="kpi kpi--purple">
       <div class="kpi__row">
@@ -33,12 +33,15 @@
     <article class="kpi kpi--amber">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Média diária (total)</div>
-          <div class="kpi__value">{{ num(mediaDia()) }} <span>ovos/dia</span></div>
+          <div class="kpi__label">Média diária por espécie</div>
+          <div class="kpi__value kpi__value--sm">
+            {{ num(mediaDiaCodorna()) }} <span>codorna</span> · {{ num(mediaDiaGalinha()) }}
+            <span>galinha</span>
+          </div>
         </div>
         <span class="kpi__icon"><i class="pi pi-calendar"></i></span>
       </div>
-      <div class="kpi__foot">Codorna + galinha, por dia com produção no período selecionado</div>
+      <div class="kpi__foot">Ovos/dia, por dia com produção no período selecionado</div>
     </article>
   </section>
 

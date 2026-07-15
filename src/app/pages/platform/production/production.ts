@@ -70,14 +70,25 @@ export class Production {
     this.rowsComProducao().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
   protected readonly totalGeral = computed(() => this.totalCodorna() + this.totalGalinha());
-  // Conta dias únicos (não linhas) — se houver mais de um registro na mesma
-  // data, isso não deve inflar o denominador e diluir a média.
-  protected readonly diasRegistrados = computed(
-    () => new Set(this.rowsComProducao().map((p) => p.date)).size,
+  // Média por espécie, não combinada — codorna e galinha têm ritmos de
+  // postura bem diferentes, então uma média "no total" (soma das duas
+  // dividida pelos dias) não corresponde a nenhuma das duas de verdade.
+  // Cada espécie usa seu próprio contador de dias (dias únicos, não linhas)
+  // — um dia com só codorna lançada não deve contar no denominador da
+  // galinha, e vice-versa.
+  protected readonly diasCodorna = computed(
+    () => new Set(this.rowsComProducao().filter((p) => p.quailEggs !== null).map((p) => p.date)).size,
   );
-  protected readonly mediaDia = computed(() => {
-    const dias = this.diasRegistrados();
-    return dias ? Math.round(this.totalGeral() / dias) : 0;
+  protected readonly diasGalinha = computed(
+    () => new Set(this.rowsComProducao().filter((p) => p.chickenEggs !== null).map((p) => p.date)).size,
+  );
+  protected readonly mediaDiaCodorna = computed(() => {
+    const dias = this.diasCodorna();
+    return dias ? Math.round(this.totalCodorna() / dias) : 0;
+  });
+  protected readonly mediaDiaGalinha = computed(() => {
+    const dias = this.diasGalinha();
+    return dias ? Math.round(this.totalGalinha() / dias) : 0;
   });
 
   protected readonly rows = computed<Row[]>(() => {
