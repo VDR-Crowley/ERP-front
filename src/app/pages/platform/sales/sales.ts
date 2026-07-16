@@ -98,7 +98,7 @@ export class Sales {
   );
 
   protected readonly faturamento = computed(() =>
-    this.store.items().reduce((soma, v) => soma + v.total, 0),
+    this.vendasNoPeriodo().reduce((soma, v) => soma + v.total, 0),
   );
   protected readonly totalVendas = computed(() => this.vendasNoPeriodo().length);
   protected readonly pendentes = computed(
@@ -108,7 +108,7 @@ export class Sales {
     () => this.store.items().filter((v) => v.deliveryPending).length,
   );
   protected readonly ticketMedio = computed(() => {
-    const items = this.store.items();
+    const items = this.vendasNoPeriodo();
     return items.length ? this.faturamento() / items.length : 0;
   });
 
