@@ -6,6 +6,7 @@ import { Venda } from '@core/interfaces/venda.interface';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
+import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
@@ -28,6 +29,7 @@ interface ParsedData {
   cashFlow?: CashEntry[];
   dashboard?: DashboardResumo;
   users?: User[];
+  flockIncubation?: NovoLotePlantel[];
 }
 
 const SHEET_NAMES: Record<keyof ParsedData, string> = {
@@ -40,6 +42,7 @@ const SHEET_NAMES: Record<keyof ParsedData, string> = {
   cashFlow: 'Fluxo de Caixa',
   dashboard: 'Dashboard',
   users: 'Usuários',
+  flockIncubation: 'Novo Plantel',
 };
 
 /** Lê e valida o arquivo; se houver qualquer erro, nenhum store é escrito. */
@@ -82,6 +85,9 @@ export async function importWorkbookFile(idb: IndexedDbService, file: File): Pro
 
   const usersSheet = getSheet(workbook, SHEET_NAMES.users);
   if (usersSheet) data.users = parseUsers(usersSheet, errors);
+
+  const flockIncubationSheet = getSheet(workbook, SHEET_NAMES.flockIncubation);
+  if (flockIncubationSheet) data.flockIncubation = parseFlockIncubation(flockIncubationSheet, errors);
 
   if (Object.keys(data).length === 0) {
     errors.push('Nenhuma aba reconhecida no arquivo. Baixe o modelo de exemplo pra conferir o formato.');
@@ -548,6 +554,88 @@ function parseUsers(ws: XLSX.WorkSheet, errors: string[]): User[] | undefined {
 
     if (name && email && password) {
       result.push({ name, email, password, ...(phone ? { phone } : {}) });
+    }
+  });
+  return result;
+}
+
+function parseSpecies(value: unknown): Species | undefined {
+  const norm = toRequiredString(value)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+  if (norm === 'codorna' || norm === 'codornas' || norm === 'quail') return 'quail';
+  if (norm === 'galinha' || norm === 'galinhas' || norm === 'chicken') return 'chicken';
+  return undefined;
+}
+
+function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): NovoLotePlantel[] | undefined {
+  const label = SHEET_NAMES.flockIncubation;
+  const header = readHeader(ws);
+  const required = [
+    'Data Incubadora',
+    'Espécie',
+    'Qtd. Ovos',
+    'Eclosão Prevista',
+    'Data Eclosão',
+    'Qtd. Nascida',
+    'Status',
+    'Custo Ovos',
+    'Custo Ração',
+    'Observações',
+  ];
+  if (!requireColumns(header, label, required, errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: NovoLotePlantel[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const startDate = parseDate(row['Data Incubadora']);
+    const species = parseSpecies(row['Espécie']);
+    const eggCount = toNumber(row['Qtd. Ovos']);
+    const expectedHatchDate = parseDate(row['Eclosão Prevista']);
+    const actualHatchDate = parseDate(row['Data Eclosão']);
+    const hatchedCount = toOptionalNumber(row['Qtd. Nascida']);
+    const statusRaw = toRequiredString(row['Status']).toLowerCase();
+    const eggCost = toOptionalNumber(row['Custo Ovos']);
+    const feedCost = toOptionalNumber(row['Custo Ração']);
+    const notes = toRequiredString(row['Observações']);
+
+    if (!startDate) errors.push(`${label} linha ${r}: "Data Incubadora" inválida ou vazia.`);
+    if (!species) errors.push(`${label} linha ${r}: "Espécie" deve ser Codorna ou Galinha (veio "${row['Espécie']}").`);
+    if (eggCount === undefined) errors.push(`${label} linha ${r}: "Qtd. Ovos" inválido.`);
+    if (!expectedHatchDate) errors.push(`${label} linha ${r}: "Eclosão Prevista" inválida ou vazia.`);
+    if (actualHatchDate === undefined) errors.push(`${label} linha ${r}: "Data Eclosão" em formato inválido.`);
+    if (hatchedCount === undefined) errors.push(`${label} linha ${r}: "Qtd. Nascida" inválida.`);
+    if (statusRaw !== 'incubando' && statusRaw !== 'eclodido') {
+      errors.push(`${label} linha ${r}: "Status" deve ser incubando ou eclodido (veio "${row['Status']}").`);
+    }
+    if (eggCost === undefined) errors.push(`${label} linha ${r}: "Custo Ovos" inválido.`);
+    if (feedCost === undefined) errors.push(`${label} linha ${r}: "Custo Ração" inválido.`);
+
+    if (
+      startDate &&
+      species &&
+      eggCount !== undefined &&
+      expectedHatchDate &&
+      actualHatchDate !== undefined &&
+      hatchedCount !== undefined &&
+      (statusRaw === 'incubando' || statusRaw === 'eclodido') &&
+      eggCost !== undefined &&
+      feedCost !== undefined
+    ) {
+      result.push({
+        startDate,
+        species,
+        eggCount,
+        expectedHatchDate,
+        actualHatchDate,
+        hatchedCount,
+        status: statusRaw,
+        eggCost,
+        feedCost,
+        ...(notes ? { notes } : {}),
+      });
     }
   });
   return result;

@@ -18,11 +18,13 @@ import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
+import { NovoLotePlantel } from '@core/interfaces/novo-lote-plantel.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { latestByDate } from '@core/utils/latest-by-date';
+import { daysUntil } from '@core/utils/date-diff';
 import { sortRows } from '@shared/table-sort/table-sort';
 
 interface DonutChartOptions {
@@ -100,6 +102,10 @@ export class Dashboard {
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
   private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
   private readonly dashboardStore = createEntityStore<DashboardResumo>(IDB_STORES.dashboard, []);
+  private readonly flockIncubationStore = createEntityStore<NovoLotePlantel>(
+    IDB_STORES.flockIncubation,
+    [],
+  );
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly resumo = computed(() => this.dashboardStore.items()[0] ?? RESUMO_VAZIO);
@@ -159,6 +165,19 @@ export class Dashboard {
   protected readonly vendasPendentes = computed(
     () => this.vendasNoPeriodo().filter((v) => v.paymentPending).length,
   );
+
+  protected readonly lotesIncubando = computed(
+    () => this.flockIncubationStore.items().filter((i) => i.status === 'incubando').length,
+  );
+  private readonly proximaEclosao = computed(() => {
+    const pendentes = this.flockIncubationStore.items().filter((i) => i.status === 'incubando');
+    return pendentes.length ? sortRows(pendentes, 'expectedHatchDate', 1)[0] : null;
+  });
+  protected readonly proximaEclosaoData = computed(() => this.proximaEclosao()?.expectedHatchDate ?? null);
+  protected readonly diasProximaEclosao = computed(() => {
+    const p = this.proximaEclosao();
+    return p ? daysUntil(p.expectedHatchDate) : null;
+  });
 
   protected readonly totalOvosColetados = computed(() =>
     this.producaoNoPeriodo().reduce((soma, p) => soma + (p.quailEggs ?? 0) + (p.chickenEggs ?? 0), 0),

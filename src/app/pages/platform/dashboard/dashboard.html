@@ -72,6 +72,40 @@
       </div>
       <div class="kpi__foot">Disponíveis no estoque mais recente</div>
     </article>
+
+    <article class="kpi kpi--purple">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Lotes incubando agora</div>
+          <div class="kpi__value">{{ num(lotesIncubando()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-clock"></i></span>
+      </div>
+      <div class="kpi__foot">
+        <a routerLink="/platform/gestao-plantel">Ver Gestão de novo Plantel</a>
+      </div>
+    </article>
+
+    <article class="kpi kpi--green">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Próxima eclosão</div>
+          @if (proximaEclosaoData(); as data) {
+            <div class="kpi__value kpi__value--sm">{{ ptDate(data) }}</div>
+          } @else {
+            <div class="kpi__value kpi__value--sm">—</div>
+          }
+        </div>
+        <span class="kpi__icon"><i class="pi pi-calendar"></i></span>
+      </div>
+      <div class="kpi__foot">
+        @if (proximaEclosaoData(); as data) {
+          {{ diasProximaEclosao()! < 0 ? 'Atrasada' : diasProximaEclosao() === 0 ? 'Hoje' : 'Faltam ' + diasProximaEclosao() + ' dia(s)' }}
+        } @else {
+          Nenhum lote incubando
+        }
+      </div>
+    </article>
   </section>
 
   <section class="panels-2">

@@ -4,6 +4,7 @@ import { Venda } from '@core/interfaces/venda.interface';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
+import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
@@ -24,18 +25,29 @@ const DASHBOARD_VAZIO: DashboardResumo = {
 
 /** Exporta os dados reais do IndexedDB (mesma fonte que as telas leem) para um único arquivo .xlsx com uma aba por entidade. */
 export async function exportWorkbook(filename: string, idb: IndexedDbService): Promise<void> {
-  const [vendas, producao, estoque, plantel, produtos, despesas, fluxoCaixa, dashboardRows, users] =
-    await Promise.all([
-      firstValueFrom(idb.getAll<Venda>(IDB_STORES.sales)),
-      firstValueFrom(idb.getAll<ProducaoDiaria>(IDB_STORES.dailyProduction)),
-      firstValueFrom(idb.getAll<EstoqueOvos>(IDB_STORES.eggStock)),
-      firstValueFrom(idb.getAll<Plantel>(IDB_STORES.flock)),
-      firstValueFrom(idb.getAll<Product>(IDB_STORES.products)),
-      firstValueFrom(idb.getAll<Expense>(IDB_STORES.expenses)),
-      firstValueFrom(idb.getAll<CashEntry>(IDB_STORES.cashFlow)),
-      firstValueFrom(idb.getAll<DashboardResumo>(IDB_STORES.dashboard)),
-      firstValueFrom(idb.getAll<User>(IDB_STORES.users)),
-    ]);
+  const [
+    vendas,
+    producao,
+    estoque,
+    plantel,
+    produtos,
+    despesas,
+    fluxoCaixa,
+    dashboardRows,
+    users,
+    novoLotePlantel,
+  ] = await Promise.all([
+    firstValueFrom(idb.getAll<Venda>(IDB_STORES.sales)),
+    firstValueFrom(idb.getAll<ProducaoDiaria>(IDB_STORES.dailyProduction)),
+    firstValueFrom(idb.getAll<EstoqueOvos>(IDB_STORES.eggStock)),
+    firstValueFrom(idb.getAll<Plantel>(IDB_STORES.flock)),
+    firstValueFrom(idb.getAll<Product>(IDB_STORES.products)),
+    firstValueFrom(idb.getAll<Expense>(IDB_STORES.expenses)),
+    firstValueFrom(idb.getAll<CashEntry>(IDB_STORES.cashFlow)),
+    firstValueFrom(idb.getAll<DashboardResumo>(IDB_STORES.dashboard)),
+    firstValueFrom(idb.getAll<User>(IDB_STORES.users)),
+    firstValueFrom(idb.getAll<NovoLotePlantel>(IDB_STORES.flockIncubation)),
+  ]);
   const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
 
   const wb = XLSX.utils.book_new();
@@ -181,6 +193,36 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     { header: usuariosHeader },
   );
   XLSX.utils.book_append_sheet(wb, usuariosSheet, 'Usuários');
+
+  const speciesLabel = (s: Species) => (s === 'quail' ? 'Codorna' : 'Galinha');
+  const novoLotePlantelHeader = [
+    'Data Incubadora',
+    'Espécie',
+    'Qtd. Ovos',
+    'Eclosão Prevista',
+    'Data Eclosão',
+    'Qtd. Nascida',
+    'Status',
+    'Custo Ovos',
+    'Custo Ração',
+    'Observações',
+  ];
+  const novoLotePlantelSheet = XLSX.utils.json_to_sheet(
+    novoLotePlantel.map((n) => ({
+      'Data Incubadora': ptDate(n.startDate),
+      Espécie: speciesLabel(n.species),
+      'Qtd. Ovos': n.eggCount,
+      'Eclosão Prevista': ptDate(n.expectedHatchDate),
+      'Data Eclosão': n.actualHatchDate ? ptDate(n.actualHatchDate) : '',
+      'Qtd. Nascida': n.hatchedCount ?? '',
+      Status: n.status,
+      'Custo Ovos': n.eggCost ?? '',
+      'Custo Ração': n.feedCost ?? '',
+      Observações: n.notes ?? '',
+    })),
+    { header: novoLotePlantelHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, novoLotePlantelSheet, 'Novo Plantel');
 
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

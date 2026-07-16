@@ -145,5 +145,36 @@ export function downloadImportTemplate(filename: string): void {
     'Usuários',
   );
 
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet([
+      {
+        'Data Incubadora': '01/07/2026',
+        Espécie: 'Codorna',
+        'Qtd. Ovos': 100,
+        'Eclosão Prevista': '19/07/2026',
+        'Data Eclosão': '',
+        'Qtd. Nascida': '',
+        Status: 'incubando',
+        'Custo Ovos': 75,
+        'Custo Ração': 200,
+        Observações: '',
+      },
+      {
+        'Data Incubadora': '01/06/2026',
+        Espécie: 'Galinha',
+        'Qtd. Ovos': 40,
+        'Eclosão Prevista': '22/06/2026',
+        'Data Eclosão': '23/06/2026',
+        'Qtd. Nascida': 32,
+        Status: 'eclodido',
+        'Custo Ovos': 90,
+        'Custo Ração': 210,
+        Observações: 'Lote Embrapa 051',
+      },
+    ]),
+    'Novo Plantel',
+  );
+
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

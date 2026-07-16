@@ -96,6 +96,12 @@ export class LayoutApp {
       sub: 'Codornas e galinhas em produção',
     },
     {
+      path: '/platform/gestao-plantel',
+      icon: 'pi-clock',
+      label: 'Gestão de novo Plantel',
+      sub: 'Controle de incubação e eclosão',
+    },
+    {
       path: '/platform/expenses',
       icon: 'pi-receipt',
       label: 'Despesas',

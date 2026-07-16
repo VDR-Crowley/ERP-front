@@ -1,0 +1,164 @@
+<div class="page">
+  <section class="kpi-grid kpi-grid--compact">
+    <article class="kpi kpi--amber">
+      <div class="kpi__label">Lotes incubando agora</div>
+      <div class="kpi__value">{{ num(lotesIncubando()) }}</div>
+    </article>
+    <article class="kpi kpi--blue kpi--ink-blue">
+      <div class="kpi__label">Próxima eclosão</div>
+      @if (proximaEclosao(); as p) {
+        <div class="kpi__value kpi__value--sm">{{ ptDate(p.expectedHatchDate) }}</div>
+        <div class="kpi__foot">
+          {{ diasProximaEclosao()! < 0 ? 'Atrasada' : diasProximaEclosao() === 0 ? 'Hoje' : 'Faltam ' + diasProximaEclosao() + ' dia(s)' }}
+        </div>
+      } @else {
+        <div class="kpi__value kpi__value--sm">—</div>
+      }
+    </article>
+    <article class="kpi kpi--green">
+      <div class="kpi__label">Investimento (lotes incubando)</div>
+      <div class="kpi__value kpi__value--sm">{{ brl(investimentoAtivo()) }}</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Gestão de novo Plantel</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar por data ou observação..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo lote
+      </button>
+    </div>
+
+    @let filtered = rows() | filterBy: search() : searchKeys;
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 900px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('startDate')">
+              Entrada na incubadora
+              <app-sort-icon [active]="sortField() === 'startDate'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('species')">
+              Espécie
+              <app-sort-icon [active]="sortField() === 'species'" [dir]="sortDir()" />
+            </th>
+            <th class="num sortable" (click)="sortBy('eggCount')">
+              Ovos
+              <app-sort-icon [active]="sortField() === 'eggCount'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('expectedHatchDate')">
+              Eclosão prevista
+              <app-sort-icon [active]="sortField() === 'expectedHatchDate'" [dir]="sortDir()" />
+            </th>
+            <th
+              class="num"
+              title="Ovos + Ração = investimento estimado até 45 dias pós-eclosão"
+            >
+              Investimento até 45 dias
+            </th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filtered; track item.id) {
+            <tr>
+              <td class="strong">{{ ptDate(item.startDate) }}</td>
+              <td>{{ speciesLabel(item.species) }}</td>
+              <td class="num">{{ num(item.eggCount) }}</td>
+              <td>{{ ptDate(item.expectedHatchDate) }}</td>
+              <td
+                class="num strong"
+                [title]="'Ovos: ' + brl(item.eggCost ?? 0) + ' + Ração: ' + brl(item.feedCost ?? 0) + ' = Investimento até 45 dias: ' + brl(investimento(item))"
+              >
+                {{ brl(investimento(item)) }}
+              </td>
+              <td>
+                @if (item.status === 'eclodido') {
+                  <span class="badge badge--ok">Eclodido</span>
+                } @else {
+                  <span
+                    class="badge"
+                    [class.badge--ok]="urgencyClass(item) === 'ok'"
+                    [class.badge--warn]="urgencyClass(item) === 'warn'"
+                    [class.badge--out]="urgencyClass(item) === 'out'"
+                  >
+                    {{ urgencyLabel(item) }}
+                  </span>
+                }
+              </td>
+              <td>
+                <div class="row-actions">
+                  @if (item.status === 'incubando') {
+                    <button type="button" class="btn btn--icon" title="Marcar eclosão" (click)="askHatch(item)">
+                      <i class="pi pi-check-circle"></i>
+                    </button>
+                  }
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(item)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(item)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (filtered.length === 0) {
+      <div class="empty">Nenhum lote encontrado.</div>
+    }
+    <div class="tbl-foot">{{ filtered.length }} lote(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-crud-form-modal
+  [open]="hatchOpen()"
+  title="Marcar eclosão"
+  [fields]="hatchFields"
+  [model]="hatchDraft"
+  (saved)="saveHatch()"
+  (cancelled)="cancelHatch()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o lote de ' + (ptDate(deleteTarget()?.startDate ?? '')) + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>
+
+@if (hatchNotice(); as notice) {
+  <div class="modal-overlay">
+    <div class="modal">
+      <div class="modal__icon modal__icon--ok"><i class="pi pi-check-circle"></i></div>
+      <h2 class="modal__title">Eclosão registrada</h2>
+      <p class="modal__text">{{ notice }}</p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--primary" (click)="closeHatchNotice()">OK</button>
+      </div>
+    </div>
+  </div>
+}

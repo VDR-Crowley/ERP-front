@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { IndexedDbService } from './idb.service';
 
 export const DB_NAME = 'minierp-db';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export const IDB_STORES = {
   sales: 'sales',
@@ -16,6 +16,7 @@ export const IDB_STORES = {
   cashFlow: 'cashFlow',
   dashboard: 'dashboard',
   users: 'users',
+  flockIncubation: 'flockIncubation',
 } as const;
 
 /**
