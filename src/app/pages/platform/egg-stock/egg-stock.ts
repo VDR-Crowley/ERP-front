@@ -1,9 +1,10 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EstoqueOvos as EstoqueOvosModel } from '@core/interfaces/estoque-ovos.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { latestByDate } from '@core/utils/latest-by-date';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -33,6 +34,7 @@ export class EggStock {
 
   private readonly store = createEntityStore<EstoqueOvosModel>(IDB_STORES.eggStock, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly periodFilter = inject(PeriodFilterService);
 
   // Mesma fonte de conversão/preço usada em Produtos.estoqueReal() — se o
   // usuário mudar preço ou "ovos por unidade" no cadastro, o cálculo aqui
@@ -125,28 +127,35 @@ export class EggStock {
   // data mais recente do array, mesmo que seja futura em relação ao relógio
   // do sistema — restringir a "<= hoje" fazia um registro com data futura por
   // erro de digitação (ex: ano errado) esconder o snapshot real e zerar tudo.
-  // Ignora linhas "molde" (planilha com o mês inteiro pré-preenchido, dias
-  // futuros ainda sem lançamento) onde os dois campos de ovos vêm em branco —
-  // senão uma dessas, por ter a maior data, vira "o snapshot mais recente" e
-  // zera os cards de novo, só que por causa de uma data futura legítima em
-  // vez de erro de digitação.
-  protected readonly estoqueAtual = computed<EstoqueOvosModel | undefined>(() =>
-    latestByDate(this.store.items().filter((e) => e.quailEggs !== null || e.chickenEggs !== null)),
+  // Codorna e galinha são calculadas SEPARADAMENTE: cada uma pega sua própria
+  // data mais recente com o próprio campo preenchido, ignorando linhas onde
+  // só o campo dela está em branco. Antes as duas compartilhavam uma única
+  // "linha mais recente geral" — se um lançamento recente preenchesse só
+  // codorna, o card de galinha zerava mesmo tendo um valor real em data
+  // anterior.
+  private readonly ultimoQuail = computed<EstoqueOvosModel | undefined>(() =>
+    latestByDate(this.store.items().filter((e) => e.quailEggs !== null)),
+  );
+  private readonly ultimoChicken = computed<EstoqueOvosModel | undefined>(() =>
+    latestByDate(this.store.items().filter((e) => e.chickenEggs !== null)),
   );
 
-  protected readonly totalCodorna = computed(() => this.estoqueAtual()?.quailEggs ?? 0);
-  protected readonly totalGalinha = computed(() => this.estoqueAtual()?.chickenEggs ?? 0);
-  protected readonly totalPacks = computed(() => {
-    const e = this.estoqueAtual();
-    return e ? e.quailPacks + e.chickenPacks : 0;
-  });
-  protected readonly valorTotal = computed(() => {
-    const e = this.estoqueAtual();
-    return e ? e.quailStockValue + e.chickenStockValue : 0;
-  });
+  protected readonly totalCodorna = computed(() => this.ultimoQuail()?.quailEggs ?? 0);
+  protected readonly totalGalinha = computed(() => this.ultimoChicken()?.chickenEggs ?? 0);
+  protected readonly totalPacks = computed(
+    () => (this.ultimoQuail()?.quailPacks ?? 0) + (this.ultimoChicken()?.chickenPacks ?? 0),
+  );
+  protected readonly valorTotal = computed(
+    () => (this.ultimoQuail()?.quailStockValue ?? 0) + (this.ultimoChicken()?.chickenStockValue ?? 0),
+  );
 
+  /** Movimentação restrita ao período selecionado no DatePicker/chips da topbar — os cards acima não usam este filtro (carry-forward). */
   protected readonly rows = computed<WithId<EstoqueOvosModel>[]>(() =>
-    sortRows(this.store.items(), this.sortField(), this.sortDir()),
+    sortRows(
+      this.store.items().filter((e) => this.periodFilter.includes(e.date)),
+      this.sortField(),
+      this.sortDir(),
+    ),
   );
 
   protected openNew(): void {
