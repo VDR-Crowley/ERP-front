@@ -114,7 +114,7 @@ export class Dashboard {
   // DatePicker/chips da topbar — diferente dos cards de estoque
   // (ovosCodornaEstoque/ovosGalinhaEstoque/bandejasProntas), que são
   // snapshot do saldo mais recente e continuam intencionalmente fora do
-  // filtro (ver comentário em ultimoEstoque/ultimaProducao).
+  // filtro (ver comentário em ultimoQuailEstoque/ultimaProducao).
   protected readonly producaoNoPeriodo = computed(() =>
     this.productionStore.items().filter((p) => this.periodFilter.includes(p.date)),
   );
@@ -185,12 +185,18 @@ export class Dashboard {
 
   // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
   // um snapshot com data futura por erro de digitação não pode esconder o
-  // estoque real e zerar os cards. Ver latestByDate. Ignora linhas "molde"
-  // (dias futuros da planilha ainda sem lançamento, com os dois campos em
-  // branco) — senão uma delas vira "a mais recente" só por ter a maior data
-  // e zera os cards de novo.
-  private readonly ultimoEstoque = computed(() =>
-    latestByDate(this.eggStockStore.items().filter((e) => e.quailEggs !== null || e.chickenEggs !== null)),
+  // estoque real e zerar os cards. Ver latestByDate. Codorna e galinha são
+  // calculadas SEPARADAMENTE: cada uma pega sua própria data mais recente
+  // com o próprio campo preenchido, ignorando linhas onde só o campo dela
+  // está em branco — mesma correção aplicada em egg-stock.ts. Antes as duas
+  // compartilhavam uma única "linha mais recente geral", então um
+  // lançamento recente preenchendo só uma espécie zerava a outra mesmo
+  // tendo estoque real disponível.
+  private readonly ultimoQuailEstoque = computed(() =>
+    latestByDate(this.eggStockStore.items().filter((e) => e.quailEggs !== null)),
+  );
+  private readonly ultimoChickenEstoque = computed(() =>
+    latestByDate(this.eggStockStore.items().filter((e) => e.chickenEggs !== null)),
   );
 
   // Estoque de Ovos é preenchido à parte da Produção Diária — enquanto não
@@ -207,19 +213,28 @@ export class Dashboard {
     () => this.productsStore.items().find((p) => p.name === '30 ovos galinha')?.eggsPerUnit ?? 30,
   );
 
+  // Cada espécie soma seu próprio "prontas" independente: pega o pack de
+  // Estoque de Ovos da própria espécie quando existe (arredondado pra baixo
+  // pra unidade — não dá pra vender 0,6 de um pack), e só cai pra converter
+  // a Produção Diária daquela espécie se ela nunca teve snapshot em Estoque
+  // de Ovos. Arredondar cada espécie pra baixo antes de somar evita misturar
+  // sobra fracionária de uma espécie com a outra (floor(1.6)+floor(1.6)=2,
+  // não floor(1.6+1.6)=3 — esse total não existe fisicamente como pack).
   protected readonly bandejasProntas = computed(() => {
-    const estoque = this.ultimoEstoque();
-    if (estoque) return Math.floor(estoque.quailPacks + estoque.chickenPacks);
+    const quailEstoque = this.ultimoQuailEstoque();
+    const quailPacks = quailEstoque
+      ? quailEstoque.quailPacks
+      : (this.ultimaProducao()?.quailEggs ?? 0) / this.quailPackSize();
 
-    const producao = this.ultimaProducao();
-    if (!producao) return 0;
-    return (
-      Math.floor((producao.quailEggs ?? 0) / this.quailPackSize()) +
-      Math.floor((producao.chickenEggs ?? 0) / this.chickenPackSize())
-    );
+    const chickenEstoque = this.ultimoChickenEstoque();
+    const chickenPacks = chickenEstoque
+      ? chickenEstoque.chickenPacks
+      : (this.ultimaProducao()?.chickenEggs ?? 0) / this.chickenPackSize();
+
+    return Math.floor(quailPacks) + Math.floor(chickenPacks);
   });
-  protected readonly ovosCodornaEstoque = computed(() => this.ultimoEstoque()?.quailEggs ?? 0);
-  protected readonly ovosGalinhaEstoque = computed(() => this.ultimoEstoque()?.chickenEggs ?? 0);
+  protected readonly ovosCodornaEstoque = computed(() => this.ultimoQuailEstoque()?.quailEggs ?? 0);
+  protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
 
   protected readonly totalOvosVendidos = computed(() =>
     this.vendasNoPeriodo().reduce((soma, venda) => {
