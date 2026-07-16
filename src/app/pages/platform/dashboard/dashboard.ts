@@ -179,8 +179,11 @@ export class Dashboard {
     return p ? daysUntil(p.expectedHatchDate) : null;
   });
 
-  protected readonly totalOvosColetados = computed(() =>
-    this.producaoNoPeriodo().reduce((soma, p) => soma + (p.quailEggs ?? 0) + (p.chickenEggs ?? 0), 0),
+  protected readonly totalOvosColetadosCodorna = computed(() =>
+    this.producaoNoPeriodo().reduce((soma, p) => soma + (p.quailEggs ?? 0), 0),
+  );
+  protected readonly totalOvosColetadosGalinha = computed(() =>
+    this.producaoNoPeriodo().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
 
   // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —

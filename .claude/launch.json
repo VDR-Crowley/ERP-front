@@ -187,6 +187,17 @@
         "4216"
       ],
       "port": 4216
+    },
+    {
+      "name": "erp-front-dev-kpi-split",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4217"
+      ],
+      "port": 4217
     }
   ]
 }
