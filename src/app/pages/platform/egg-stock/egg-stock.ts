@@ -1,6 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EstoqueOvos as EstoqueOvosModel } from '@core/interfaces/estoque-ovos.interface';
+import { Product } from '@core/interfaces/product.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
@@ -13,15 +14,11 @@ import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof EstoqueOvosModel;
 
-const FIELDS: CrudField[] = [
-  { key: 'date', label: 'Data', type: 'date', required: true },
-  { key: 'quailEggs', label: 'Ovos codorna', type: 'number', step: 1 },
-  { key: 'chickenEggs', label: 'Ovos galinha', type: 'number', step: 1 },
-  { key: 'quailPacks', label: 'Pack codorna', type: 'number', step: 0.01, required: true },
-  { key: 'chickenPacks', label: 'Pack galinha', type: 'number', step: 0.01, required: true },
-  { key: 'quailStockValue', label: 'Valor estoque codorna', type: 'number', step: 0.01, required: true },
-  { key: 'chickenStockValue', label: 'Valor estoque galinha', type: 'number', step: 0.01, required: true },
-];
+function toNumberOrUndefined(value: unknown): number | undefined {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 @Component({
   selector: 'app-egg-stock',
@@ -33,9 +30,81 @@ export class EggStock {
   protected readonly brl = brl;
   protected readonly num = num;
   protected readonly ptDate = ptDate;
-  protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<EstoqueOvosModel>(IDB_STORES.eggStock, []);
+  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+
+  // Mesma fonte de conversão/preço usada em Produtos.estoqueReal() — se o
+  // usuário mudar preço ou "ovos por unidade" no cadastro, o cálculo aqui
+  // acompanha em vez de duplicar valores soltos.
+  private readonly quailPackSize = computed(
+    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.eggsPerUnit ?? 50,
+  );
+  private readonly quailPackPrice = computed(
+    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.unitPrice ?? 15,
+  );
+  private readonly chickenPackSize = computed(
+    () =>
+      this.productsStore.items().find((p) => p.name === '1 Bandeja de ovos de galinha')?.eggsPerUnit ?? 30,
+  );
+  private readonly chickenPackPrice = computed(
+    () =>
+      this.productsStore.items().find((p) => p.name === '1 Bandeja de ovos de galinha')?.unitPrice ?? 20,
+  );
+
+  protected readonly fields: CrudField[] = [
+    { key: 'date', label: 'Data', type: 'date', required: true },
+    { key: 'quailEggs', label: 'Ovos codorna', type: 'number', step: 1 },
+    { key: 'chickenEggs', label: 'Ovos galinha', type: 'number', step: 1 },
+    {
+      key: 'quailPacks',
+      label: 'Pack codorna',
+      type: 'number',
+      step: 0.01,
+      required: true,
+      compute: (m) => {
+        const eggs = toNumberOrUndefined(m['quailEggs']);
+        if (eggs === undefined) return undefined;
+        return Math.round((eggs / this.quailPackSize()) * 100) / 100;
+      },
+    },
+    {
+      key: 'chickenPacks',
+      label: 'Pack galinha',
+      type: 'number',
+      step: 0.01,
+      required: true,
+      compute: (m) => {
+        const eggs = toNumberOrUndefined(m['chickenEggs']);
+        if (eggs === undefined) return undefined;
+        return Math.round((eggs / this.chickenPackSize()) * 100) / 100;
+      },
+    },
+    {
+      key: 'quailStockValue',
+      label: 'Valor estoque codorna',
+      type: 'number',
+      step: 0.01,
+      required: true,
+      compute: (m) => {
+        const packs = toNumberOrUndefined(m['quailPacks']);
+        if (packs === undefined) return undefined;
+        return Math.round(packs * this.quailPackPrice() * 100) / 100;
+      },
+    },
+    {
+      key: 'chickenStockValue',
+      label: 'Valor estoque galinha',
+      type: 'number',
+      step: 0.01,
+      required: true,
+      compute: (m) => {
+        const packs = toNumberOrUndefined(m['chickenPacks']);
+        if (packs === undefined) return undefined;
+        return Math.round(packs * this.chickenPackPrice() * 100) / 100;
+      },
+    },
+  ];
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date'];
