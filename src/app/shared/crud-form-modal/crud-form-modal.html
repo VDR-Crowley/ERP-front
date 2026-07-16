@@ -54,6 +54,10 @@
         }
       </div>
 
+      @if (note) {
+        <p class="modal__note">{{ note }}</p>
+      }
+
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost" (click)="cancel()">Cancelar</button>
         <button type="button" class="btn btn--primary" (click)="submit()">Salvar</button>

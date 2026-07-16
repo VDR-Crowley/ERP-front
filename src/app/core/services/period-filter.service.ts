@@ -1,25 +1,25 @@
 import { Injectable, signal } from '@angular/core';
 import { DateRange } from '@shared/components-ds/date-picker/date-picker';
 
-function daysAgo(date: Date, days: number): Date {
-  const start = new Date(date);
-  start.setDate(start.getDate() - days);
+function startOfMonth(date: Date): Date {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
   start.setHours(0, 0, 0, 0);
   return start;
 }
 
-function endOfToday(date: Date): Date {
-  const end = new Date(date);
+function endOfMonth(date: Date): Date {
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
   end.setHours(23, 59, 59, 999);
   return end;
 }
 
 const now = new Date();
-// Janela móvel de 30 dias (não "1º dia do mês até hoje"): no início de cada
-// mês, "mês atual" cobre poucos dias e mistura despesas do mês novo com
-// receita do mês anterior que ainda não caiu aqui — isso já derrubou a Margem
-// de Relatórios pra negativo mesmo com o negócio saudável no acumulado.
-const DEFAULT_RANGE: DateRange = [daysAgo(now, 29), endOfToday(now)];
+// Mês corrente inteiro (1º ao último dia), igual ao chip "atual" do
+// MonthTabs — pedido do cliente pra abrir a app já com o mês em vez de
+// "Tudo" em branco. Nota: nos primeiros dias do mês isso pode distorcer a
+// Margem de Relatórios (poucos dias de receita vs. despesas já lançadas);
+// se voltar a incomodar, considerar voltar pra janela móvel de 30 dias.
+const DEFAULT_RANGE: DateRange = [startOfMonth(now), endOfMonth(now)];
 
 /**
  * Período selecionado no DatePicker da topbar (`layout-app`), compartilhado

@@ -47,6 +47,8 @@ export class CrudFormModal implements OnChanges {
   @Input() title = '';
   @Input() fields: CrudField[] = [];
   @Input() model: Record<string, unknown> = {};
+  /** Nota fixa exibida abaixo dos campos (ex.: explicar pra onde o dado vai depois de salvar). */
+  @Input() note = '';
 
   @Output() saved = new EventEmitter<void>();
   @Output() cancelled = new EventEmitter<void>();

@@ -730,6 +730,12 @@ body {
     font-size: 0.88rem;
     line-height: 1.5;
   }
+  &__note {
+    margin: 0.9rem 0 0;
+    color: var(--erp-dim);
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
   &__error-list,
   &__summary-list {
     margin: 0.9rem 0 0;
