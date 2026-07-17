@@ -22,11 +22,22 @@
       <div class="kpi__foot">Soma da produção registrada</div>
     </article>
 
-    <article class="kpi kpi--blue">
+    <article class="kpi kpi--blue kpi--ink-blue">
       <div class="kpi__row">
         <div>
-          <div class="kpi__label">Prontas para venda hoje</div>
-          <div class="kpi__value">{{ num(bandejasProntas()) }} <span>bandejas</span></div>
+          <div class="kpi__label">Prontas para venda hoje - Codorna</div>
+          <div class="kpi__value">{{ num(bandejasProntasCodorna()) }} <span>bandejas</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-box"></i></span>
+      </div>
+      <div class="kpi__foot">Disponíveis no estoque mais recente</div>
+    </article>
+
+    <article class="kpi kpi--amber">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Prontas para venda hoje - Galinha</div>
+          <div class="kpi__value">{{ num(bandejasProntasGalinha()) }} <span>bandejas</span></div>
         </div>
         <span class="kpi__icon"><i class="pi pi-box"></i></span>
       </div>
@@ -60,6 +71,17 @@
         </span>
       </div>
       <div class="kpi__foot">{{ saldo() >= 0 ? 'Lucro no período' : 'Prejuízo no período' }}</div>
+    </article>
+
+    <article class="kpi kpi--green">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Valor de estoque</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(valorEstoque()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-wallet"></i></span>
+      </div>
+      <div class="kpi__foot">Ovos + bandejas no estoque mais recente</div>
     </article>
 
     <article class="kpi kpi--blue kpi--ink-blue">

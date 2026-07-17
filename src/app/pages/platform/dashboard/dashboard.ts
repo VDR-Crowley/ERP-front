@@ -112,9 +112,10 @@ export class Dashboard {
 
   // Cards de produção/vendas/saldo respeitam o período selecionado no
   // DatePicker/chips da topbar — diferente dos cards de estoque
-  // (ovosCodornaEstoque/ovosGalinhaEstoque/bandejasProntas), que são
-  // snapshot do saldo mais recente e continuam intencionalmente fora do
-  // filtro (ver comentário em ultimoQuailEstoque/ultimaProducao).
+  // (ovosCodornaEstoque/ovosGalinhaEstoque/bandejasProntasCodorna/
+  // bandejasProntasGalinha/valorEstoque), que são snapshot do saldo mais
+  // recente e continuam intencionalmente fora do filtro (ver comentário em
+  // ultimoQuailEstoque/ultimaProducao).
   protected readonly producaoNoPeriodo = computed(() =>
     this.productionStore.items().filter((p) => this.periodFilter.includes(p.date)),
   );
@@ -220,24 +221,34 @@ export class Dashboard {
   // Estoque de Ovos da própria espécie quando existe (arredondado pra baixo
   // pra unidade — não dá pra vender 0,6 de um pack), e só cai pra converter
   // a Produção Diária daquela espécie se ela nunca teve snapshot em Estoque
-  // de Ovos. Arredondar cada espécie pra baixo antes de somar evita misturar
-  // sobra fracionária de uma espécie com a outra (floor(1.6)+floor(1.6)=2,
-  // não floor(1.6+1.6)=3 — esse total não existe fisicamente como pack).
-  protected readonly bandejasProntas = computed(() => {
+  // de Ovos. Cards separados por espécie (não somados) — ver mesma separação
+  // já aplicada em ovosCodornaEstoque/ovosGalinhaEstoque.
+  protected readonly bandejasProntasCodorna = computed(() => {
     const quailEstoque = this.ultimoQuailEstoque();
     const quailPacks = quailEstoque
       ? quailEstoque.quailPacks
       : (this.ultimaProducao()?.quailEggs ?? 0) / this.quailPackSize();
-
+    return Math.floor(quailPacks);
+  });
+  protected readonly bandejasProntasGalinha = computed(() => {
     const chickenEstoque = this.ultimoChickenEstoque();
     const chickenPacks = chickenEstoque
       ? chickenEstoque.chickenPacks
       : (this.ultimaProducao()?.chickenEggs ?? 0) / this.chickenPackSize();
-
-    return Math.floor(quailPacks) + Math.floor(chickenPacks);
+    return Math.floor(chickenPacks);
   });
   protected readonly ovosCodornaEstoque = computed(() => this.ultimoQuailEstoque()?.quailEggs ?? 0);
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
+
+  // Mesmos campos snapshot usados em EggStock.valorTotal() (quailStockValue/
+  // chickenStockValue gravados na linha mais recente de cada espécie) — não
+  // recalcula packs*preço aqui pra não divergir se o preço mudar depois do
+  // registro do estoque.
+  protected readonly valorEstoque = computed(
+    () =>
+      (this.ultimoQuailEstoque()?.quailStockValue ?? 0) +
+      (this.ultimoChickenEstoque()?.chickenStockValue ?? 0),
+  );
 
   protected readonly totalOvosVendidos = computed(() =>
     this.vendasNoPeriodo().reduce((soma, venda) => {
