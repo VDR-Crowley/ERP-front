@@ -144,6 +144,8 @@ export class EggStock {
   protected readonly totalGalinha = computed(() => this.ultimoChicken()?.chickenEggs ?? 0);
   protected readonly totalPacksCodorna = computed(() => this.ultimoQuail()?.quailPacks ?? 0);
   protected readonly totalPacksGalinha = computed(() => this.ultimoChicken()?.chickenPacks ?? 0);
+  protected readonly valorPacksCodorna = computed(() => this.ultimoQuail()?.quailStockValue ?? 0);
+  protected readonly valorPacksGalinha = computed(() => this.ultimoChicken()?.chickenStockValue ?? 0);
   protected readonly valorTotal = computed(
     () => (this.ultimoQuail()?.quailStockValue ?? 0) + (this.ultimoChicken()?.chickenStockValue ?? 0),
   );
