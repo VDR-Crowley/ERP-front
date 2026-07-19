@@ -176,5 +176,26 @@ export function downloadImportTemplate(filename: string): void {
     'Novo Plantel',
   );
 
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet([
+      {
+        Tipo: 'Codorna postura',
+        'Sacos em Estoque': 5,
+        'Kg em Estoque': 100,
+        'Peso do Saco': 20,
+        Validade: '01/12/2026',
+      },
+      {
+        Tipo: 'Galinha crescimento',
+        'Sacos em Estoque': 3,
+        'Kg em Estoque': 120,
+        'Peso do Saco': 40,
+        Validade: '15/11/2026',
+      },
+    ]),
+    'Ração',
+  );
+
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

@@ -1,6 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Plantel as PlantelModel } from '@core/interfaces/plantel.interface';
+import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num } from '@core/utils/format';
@@ -11,6 +12,17 @@ import { createSortState, sortRows } from '@shared/table-sort/table-sort';
 import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof PlantelModel;
+
+const DIACRITICS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g');
+/** Mesmo padrão de normalização de texto usado no resto do app (ver filter-by.pipe.ts). */
+function normalizeSpecies(value: string): string {
+  return value.trim().toLowerCase().normalize('NFD').replace(DIACRITICS, '');
+}
+
+/** Peso de saco padrão quando a sincronização com Controle de Ração precisa
+ * criar um FeedStock novo (pedido original não especifica um peso — ver
+ * comentário em `syncFeedStock` abaixo). */
+const DEFAULT_BAG_WEIGHT_KG = 20;
 
 const FIELDS: CrudField[] = [
   { key: 'species', label: 'Espécie', type: 'text', required: true },
@@ -31,6 +43,7 @@ export class Plantel {
   protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<PlantelModel>(IDB_STORES.flock, []);
+  private readonly feedStockStore = createEntityStore<FeedStock>(IDB_STORES.feedStock, []);
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['species'];
@@ -102,6 +115,55 @@ export class Plantel {
       await this.store.add(record);
     }
     this.formOpen.set(false);
+
+    await this.syncFeedStock(record);
+  }
+
+  /**
+   * SINCRONIZAÇÃO COM CONTROLE DE RAÇÃO — efeito colateral do save de Plantel.
+   *
+   * Pedido original do usuário era ambíguo: "lá no plantel fica igual, o
+   * valor cadastrado lá vira o valor do estoque da ração". Interpretação
+   * adotada (a mais direta): a cada save de Plantel (criação OU edição),
+   * procura por nome normalizado (sem acento, minúsculo — mesmo padrão de
+   * `normalize()` em filter-by.pipe.ts) um FeedStock cujo `type` combine com
+   * `species`. Se achar, SOBRESCREVE `bagsInStock` desse FeedStock com
+   * `feedBagsPerMonth` do Plantel (e recalcula `kgInStock` mantendo o
+   * `lastBagWeightKg` já cadastrado, senão o kg ficaria dessincronizado do
+   * número de sacos). Se não achar nenhum FeedStock com esse nome, cria um
+   * novo, com peso de saco padrão de 20kg (não especificado no pedido
+   * original) e sem validade.
+   *
+   * Implicação a confirmar com o usuário: editar Plantel PISA por cima de
+   * qualquer reposição/abertura de saco feita manualmente em Controle de
+   * Ração pro mesmo tipo — não soma ao saldo existente, substitui.
+   */
+  private async syncFeedStock(plantel: PlantelModel): Promise<void> {
+    const target = normalizeSpecies(plantel.species);
+    if (!target) return;
+
+    const existing = this.feedStockStore
+      .items()
+      .find((f) => normalizeSpecies(f.type) === target);
+
+    if (existing) {
+      const updated: FeedStock = {
+        type: existing.type,
+        bagsInStock: plantel.feedBagsPerMonth,
+        kgInStock: plantel.feedBagsPerMonth * existing.lastBagWeightKg,
+        lastBagWeightKg: existing.lastBagWeightKg,
+        expirationDate: existing.expirationDate,
+      };
+      await this.feedStockStore.update(existing.id, updated);
+    } else {
+      await this.feedStockStore.add({
+        type: plantel.species,
+        bagsInStock: plantel.feedBagsPerMonth,
+        kgInStock: plantel.feedBagsPerMonth * DEFAULT_BAG_WEIGHT_KG,
+        lastBagWeightKg: DEFAULT_BAG_WEIGHT_KG,
+        expirationDate: null,
+      });
+    }
   }
 
   protected askDelete(p: WithId<PlantelModel>): void {

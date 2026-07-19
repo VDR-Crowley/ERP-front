@@ -102,6 +102,12 @@ export class LayoutApp {
       sub: 'Controle de incubação e eclosão',
     },
     {
+      path: '/platform/controle-racao',
+      icon: 'pi-inbox',
+      label: 'Controle de Ração',
+      sub: 'Estoque de ração por tipo e histórico de consumo',
+    },
+    {
       path: '/platform/expenses',
       icon: 'pi-receipt',
       label: 'Despesas',

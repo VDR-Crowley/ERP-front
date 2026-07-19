@@ -19,6 +19,7 @@ import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { NovoLotePlantel } from '@core/interfaces/novo-lote-plantel.interface';
+import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
@@ -54,6 +55,9 @@ const PRODUTO_CORES: Record<string, string> = {
   '5 ovos Galinha + 50 Codorna': '#e0b341',
 };
 const COR_PADRAO = '#64748b';
+
+/** Mesmo limite usado em Controle de Ração (feed-stock.interface / controle-racao.ts). */
+const ESTOQUE_RACAO_BAIXO_LIMITE = 1;
 
 const RESUMO_VAZIO: DashboardResumo = {
   totalQuails: 0,
@@ -106,6 +110,7 @@ export class Dashboard {
     IDB_STORES.flockIncubation,
     [],
   );
+  private readonly feedStockStore = createEntityStore<FeedStock>(IDB_STORES.feedStock, []);
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly resumo = computed(() => this.dashboardStore.items()[0] ?? RESUMO_VAZIO);
@@ -165,6 +170,10 @@ export class Dashboard {
   );
   protected readonly vendasPendentes = computed(
     () => this.vendasNoPeriodo().filter((v) => v.paymentPending).length,
+  );
+
+  protected readonly tiposRacaoBaixa = computed(
+    () => this.feedStockStore.items().filter((f) => f.bagsInStock <= ESTOQUE_RACAO_BAIXO_LIMITE).length,
   );
 
   protected readonly lotesIncubando = computed(

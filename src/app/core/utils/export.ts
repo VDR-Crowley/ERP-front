@@ -5,6 +5,7 @@ import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
+import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
@@ -36,6 +37,7 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     dashboardRows,
     users,
     novoLotePlantel,
+    feedStock,
   ] = await Promise.all([
     firstValueFrom(idb.getAll<Venda>(IDB_STORES.sales)),
     firstValueFrom(idb.getAll<ProducaoDiaria>(IDB_STORES.dailyProduction)),
@@ -47,6 +49,7 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     firstValueFrom(idb.getAll<DashboardResumo>(IDB_STORES.dashboard)),
     firstValueFrom(idb.getAll<User>(IDB_STORES.users)),
     firstValueFrom(idb.getAll<NovoLotePlantel>(IDB_STORES.flockIncubation)),
+    firstValueFrom(idb.getAll<FeedStock>(IDB_STORES.feedStock)),
   ]);
   const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
 
@@ -223,6 +226,19 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     { header: novoLotePlantelHeader },
   );
   XLSX.utils.book_append_sheet(wb, novoLotePlantelSheet, 'Novo Plantel');
+
+  const racaoHeader = ['Tipo', 'Sacos em Estoque', 'Kg em Estoque', 'Peso do Saco', 'Validade'];
+  const racaoSheet = XLSX.utils.json_to_sheet(
+    feedStock.map((f) => ({
+      Tipo: f.type,
+      'Sacos em Estoque': f.bagsInStock,
+      'Kg em Estoque': f.kgInStock,
+      'Peso do Saco': f.lastBagWeightKg,
+      Validade: f.expirationDate ? ptDate(f.expirationDate) : '',
+    })),
+    { header: racaoHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, racaoSheet, 'Ração');
 
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

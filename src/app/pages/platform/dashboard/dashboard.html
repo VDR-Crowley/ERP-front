@@ -106,6 +106,24 @@
       <div class="kpi__foot">Disponíveis no estoque mais recente</div>
     </article>
 
+    <article
+      class="kpi"
+      [class.kpi--red]="tiposRacaoBaixa() > 0"
+      [class.kpi--green]="tiposRacaoBaixa() === 0"
+      [class.kpi--ink-red]="tiposRacaoBaixa() > 0"
+    >
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Ração baixa</div>
+          <div class="kpi__value">{{ num(tiposRacaoBaixa()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
+      </div>
+      <div class="kpi__foot">
+        <a routerLink="/platform/controle-racao">Ver Controle de Ração</a>
+      </div>
+    </article>
+
     <article class="kpi kpi--purple">
       <div class="kpi__row">
         <div>

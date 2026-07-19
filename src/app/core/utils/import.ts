@@ -12,6 +12,7 @@ import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { User } from '@core/interfaces/user.interface';
+import { FeedStock } from '@core/interfaces/feed-stock.interface';
 
 export interface ImportResult {
   success: boolean;
@@ -30,6 +31,7 @@ interface ParsedData {
   dashboard?: DashboardResumo;
   users?: User[];
   flockIncubation?: NovoLotePlantel[];
+  feedStock?: FeedStock[];
 }
 
 const SHEET_NAMES: Record<keyof ParsedData, string> = {
@@ -43,6 +45,7 @@ const SHEET_NAMES: Record<keyof ParsedData, string> = {
   dashboard: 'Dashboard',
   users: 'Usuários',
   flockIncubation: 'Novo Plantel',
+  feedStock: 'Ração',
 };
 
 /** Lê e valida o arquivo; se houver qualquer erro, nenhum store é escrito. */
@@ -88,6 +91,9 @@ export async function importWorkbookFile(idb: IndexedDbService, file: File): Pro
 
   const flockIncubationSheet = getSheet(workbook, SHEET_NAMES.flockIncubation);
   if (flockIncubationSheet) data.flockIncubation = parseFlockIncubation(flockIncubationSheet, errors);
+
+  const feedStockSheet = getSheet(workbook, SHEET_NAMES.feedStock);
+  if (feedStockSheet) data.feedStock = parseFeedStock(feedStockSheet, errors);
 
   if (Object.keys(data).length === 0) {
     errors.push('Nenhuma aba reconhecida no arquivo. Baixe o modelo de exemplo pra conferir o formato.');
@@ -636,6 +642,41 @@ function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): NovoLotePla
         feedCost,
         ...(notes ? { notes } : {}),
       });
+    }
+  });
+  return result;
+}
+
+function parseFeedStock(ws: XLSX.WorkSheet, errors: string[]): FeedStock[] | undefined {
+  const label = SHEET_NAMES.feedStock;
+  const header = readHeader(ws);
+  const required = ['Tipo', 'Sacos em Estoque', 'Kg em Estoque', 'Peso do Saco', 'Validade'];
+  if (!requireColumns(header, label, required, errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: FeedStock[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const type = toRequiredString(row['Tipo']);
+    const bagsInStock = toNumber(row['Sacos em Estoque']);
+    const kgInStock = toNumber(row['Kg em Estoque']);
+    const lastBagWeightKg = toNumber(row['Peso do Saco']);
+    const expirationDate = parseDate(row['Validade']);
+
+    if (!type) errors.push(`${label} linha ${r}: "Tipo" vazio.`);
+    if (bagsInStock === undefined) errors.push(`${label} linha ${r}: "Sacos em Estoque" inválido.`);
+    if (kgInStock === undefined) errors.push(`${label} linha ${r}: "Kg em Estoque" inválido.`);
+    if (lastBagWeightKg === undefined) errors.push(`${label} linha ${r}: "Peso do Saco" inválido.`);
+    if (expirationDate === undefined) errors.push(`${label} linha ${r}: "Validade" em formato inválido.`);
+
+    if (
+      type &&
+      bagsInStock !== undefined &&
+      kgInStock !== undefined &&
+      lastBagWeightKg !== undefined &&
+      expirationDate !== undefined
+    ) {
+      result.push({ type, bagsInStock, kgInStock, lastBagWeightKg, expirationDate });
     }
   });
   return result;
