@@ -268,7 +268,7 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): Venda[] | undefined {
         product,
         quantity,
         unitPrice,
-        total,
+        total: Math.round(quantity * unitPrice * 100) / 100,
         paymentPending: paymentRaw === 'F',
         buyer,
         seller,
