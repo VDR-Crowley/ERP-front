@@ -144,11 +144,18 @@ export class EggStock {
   protected readonly totalGalinha = computed(() => this.ultimoChicken()?.chickenEggs ?? 0);
   protected readonly totalPacksCodorna = computed(() => this.ultimoQuail()?.quailPacks ?? 0);
   protected readonly totalPacksGalinha = computed(() => this.ultimoChicken()?.chickenPacks ?? 0);
-  protected readonly valorPacksCodorna = computed(() => this.ultimoQuail()?.quailStockValue ?? 0);
-  protected readonly valorPacksGalinha = computed(() => this.ultimoChicken()?.chickenStockValue ?? 0);
-  protected readonly valorTotal = computed(
-    () => (this.ultimoQuail()?.quailStockValue ?? 0) + (this.ultimoChicken()?.chickenStockValue ?? 0),
+
+  // quailStockValue/chickenStockValue gravados na linha são um snapshot
+  // histórico (preço do dia do lançamento) — os cards de resumo recalculam
+  // ao vivo com o preço ATUAL do produto, senão editar o preço em Produtos
+  // não reflete aqui até um novo registro de estoque ser criado.
+  protected readonly valorPacksCodorna = computed(
+    () => Math.round(this.totalPacksCodorna() * this.quailPackPrice() * 100) / 100,
   );
+  protected readonly valorPacksGalinha = computed(
+    () => Math.round(this.totalPacksGalinha() * this.chickenPackPrice() * 100) / 100,
+  );
+  protected readonly valorTotal = computed(() => this.valorPacksCodorna() + this.valorPacksGalinha());
 
   /** Movimentação restrita ao período selecionado no DatePicker/chips da topbar — os cards acima não usam este filtro (carry-forward). */
   protected readonly rows = computed<WithId<EstoqueOvosModel>[]>(() =>

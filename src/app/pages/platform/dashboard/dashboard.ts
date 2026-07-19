@@ -216,6 +216,13 @@ export class Dashboard {
   private readonly chickenPackSize = computed(
     () => this.productsStore.items().find((p) => p.name === '30 ovos galinha')?.eggsPerUnit ?? 30,
   );
+  private readonly quailPackPrice = computed(
+    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.unitPrice ?? 15,
+  );
+  private readonly chickenPackPrice = computed(
+    () =>
+      this.productsStore.items().find((p) => p.name === '1 Bandeja de ovos de galinha')?.unitPrice ?? 20,
+  );
 
   // Cada espécie soma seu próprio "prontas" independente: pega o pack de
   // Estoque de Ovos da própria espécie quando existe (arredondado pra baixo
@@ -240,14 +247,18 @@ export class Dashboard {
   protected readonly ovosCodornaEstoque = computed(() => this.ultimoQuailEstoque()?.quailEggs ?? 0);
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
 
-  // Mesmos campos snapshot usados em EggStock.valorTotal() (quailStockValue/
-  // chickenStockValue gravados na linha mais recente de cada espécie) — não
-  // recalcula packs*preço aqui pra não divergir se o preço mudar depois do
-  // registro do estoque.
+  // Recalcula ao vivo (packs da linha mais recente × preço ATUAL do produto
+  // cadastrado), mesmo padrão de EggStock.valorTotal()/Products.valorEstoque
+  // — não usa quailStockValue/chickenStockValue gravados na linha, que são
+  // snapshot do preço no dia do lançamento e ficariam desatualizados se o
+  // preço do produto mudar depois.
   protected readonly valorEstoque = computed(
     () =>
-      (this.ultimoQuailEstoque()?.quailStockValue ?? 0) +
-      (this.ultimoChickenEstoque()?.chickenStockValue ?? 0),
+      Math.round(
+        ((this.ultimoQuailEstoque()?.quailPacks ?? 0) * this.quailPackPrice() +
+          (this.ultimoChickenEstoque()?.chickenPacks ?? 0) * this.chickenPackPrice()) *
+          100,
+      ) / 100,
   );
 
   protected readonly totalOvosVendidos = computed(() =>
