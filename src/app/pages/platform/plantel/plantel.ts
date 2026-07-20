@@ -21,8 +21,9 @@ function normalizeSpecies(value: string): string {
 
 /** Peso de saco padrão quando a sincronização com Controle de Ração precisa
  * criar um FeedStock novo (pedido original não especifica um peso — ver
- * comentário em `syncFeedStock` abaixo). */
-const DEFAULT_BAG_WEIGHT_KG = 20;
+ * comentário em `syncFeedStock` abaixo). Cliente confirmou 40kg como compra
+ * padrão atual; não afeta FeedStocks já existentes com 20kg. */
+const DEFAULT_BAG_WEIGHT_KG = 40;
 
 const FIELDS: CrudField[] = [
   { key: 'species', label: 'Espécie', type: 'text', required: true },
@@ -131,7 +132,7 @@ export class Plantel {
    * `feedBagsPerMonth` do Plantel (e recalcula `kgInStock` mantendo o
    * `lastBagWeightKg` já cadastrado, senão o kg ficaria dessincronizado do
    * número de sacos). Se não achar nenhum FeedStock com esse nome, cria um
-   * novo, com peso de saco padrão de 20kg (não especificado no pedido
+   * novo, com peso de saco padrão de 40kg (não especificado no pedido
    * original) e sem validade.
    *
    * Implicação a confirmar com o usuário: editar Plantel PISA por cima de

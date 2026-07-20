@@ -113,7 +113,7 @@ export class ControleRacao {
     this.draft = {
       type: '',
       bagsInStock: 0,
-      lastBagWeightKg: '20',
+      lastBagWeightKg: '40',
       expirationDate: null,
     };
     this.formOpen.set(true);
@@ -142,7 +142,7 @@ export class ControleRacao {
     this.replenishTarget = item;
     this.replenishDraft = {
       bags: 0,
-      bagWeightKg: String(item.lastBagWeightKg || 20),
+      bagWeightKg: String(item.lastBagWeightKg || 40),
       expirationDate: item.expirationDate,
     };
     this.replenishOpen.set(true);
