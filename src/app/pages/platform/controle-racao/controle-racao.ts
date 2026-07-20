@@ -33,6 +33,20 @@ const FIELDS: CrudField[] = [
   { key: 'expirationDate', label: 'Validade', type: 'date' },
 ];
 
+const EDIT_FIELDS: CrudField[] = [
+  { key: 'type', label: 'Tipo', type: 'text', required: true },
+  { key: 'bagsInStock', label: 'Sacos em estoque', type: 'number', step: 1, required: true },
+  { key: 'kgInStock', label: 'Kg em estoque', type: 'number', step: 0.1, required: true },
+  {
+    key: 'lastBagWeightKg',
+    label: 'Peso do saco',
+    type: 'select',
+    required: true,
+    options: PESO_SACO_OPTIONS,
+  },
+  { key: 'expirationDate', label: 'Validade', type: 'date' },
+];
+
 const REPLENISH_FIELDS: CrudField[] = [
   { key: 'bags', label: 'Sacos repostos', type: 'number', step: 1, required: true },
   {
@@ -60,6 +74,7 @@ export class ControleRacao {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
   protected readonly fields = FIELDS;
+  protected readonly editFields = EDIT_FIELDS;
   protected readonly replenishFields = REPLENISH_FIELDS;
   protected readonly openBagFields = OPEN_BAG_FIELDS;
 
@@ -76,6 +91,10 @@ export class ControleRacao {
   protected readonly formOpen = signal(false);
   protected draft: Record<string, unknown> = {};
   protected readonly deleteTarget = signal<WithId<FeedStock> | null>(null);
+
+  protected readonly editOpen = signal(false);
+  protected editDraft: Record<string, unknown> = {};
+  private editTarget: WithId<FeedStock> | null = null;
 
   protected readonly replenishOpen = signal(false);
   protected replenishDraft: Record<string, unknown> = {};
@@ -137,6 +156,38 @@ export class ControleRacao {
     };
     await this.store.add(record);
     this.formOpen.set(false);
+  }
+
+  protected openEdit(item: WithId<FeedStock>): void {
+    this.editTarget = item;
+    this.editDraft = {
+      type: item.type,
+      bagsInStock: item.bagsInStock,
+      kgInStock: item.kgInStock,
+      lastBagWeightKg: String(item.lastBagWeightKg),
+      expirationDate: item.expirationDate,
+    };
+    this.editOpen.set(true);
+  }
+
+  protected cancelEdit(): void {
+    this.editOpen.set(false);
+  }
+
+  protected async saveEdit(): Promise<void> {
+    const target = this.editTarget;
+    if (!target) return;
+
+    const d = this.editDraft;
+    const record: FeedStock = {
+      type: String(d['type']).trim(),
+      bagsInStock: Number(d['bagsInStock']),
+      kgInStock: Number(d['kgInStock']),
+      lastBagWeightKg: Number(d['lastBagWeightKg']),
+      expirationDate: d['expirationDate'] ? String(d['expirationDate']) : null,
+    };
+    await this.store.update(target.id, record);
+    this.editOpen.set(false);
   }
 
   protected askReplenish(item: WithId<FeedStock>): void {
