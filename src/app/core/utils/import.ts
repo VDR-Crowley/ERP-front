@@ -169,14 +169,47 @@ function requireColumns(
   return true;
 }
 
+// Janela de anos plausíveis pra autocorreção de digitação: [anoAtual-1, anoAtual+1].
+// A base de teste tem datas com o ano digitado errado (2027/2028 em vez de 2026),
+// o que fazia registros sumirem dos filtros de mês (só apareciam no chip "Tudo").
+// Qualquer ano fora dessa janela é tratado como erro de digitação, nunca como data
+// legítima — e corrigido preservando mês/dia. Vale só pra novas importações; dados
+// já gravados no IndexedDB não são migrados por essa função.
+const PLAUSIBLE_YEAR_WINDOW = 1;
+
+/**
+ * Corrige o ano de uma data importada quando ele cai fora da janela plausível
+ * (anoAtual-1..anoAtual+1). Entre os anos plausíveis, escolhe o que deixa a data
+ * mais próxima de hoje (preservando mês/dia) — é a melhor aproximação do que o
+ * usuário quis digitar sem inventar informação que a planilha não tem.
+ */
+function correctImplausibleYear(year: number, month: number, day: number): number {
+  const now = new Date();
+  const minYear = now.getFullYear() - PLAUSIBLE_YEAR_WINDOW;
+  const maxYear = now.getFullYear() + PLAUSIBLE_YEAR_WINDOW;
+  if (year >= minYear && year <= maxYear) return year;
+
+  let bestYear = year;
+  let bestDiff = Infinity;
+  for (let y = minYear; y <= maxYear; y++) {
+    const diff = Math.abs(new Date(y, month - 1, day).getTime() - now.getTime());
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestYear = y;
+    }
+  }
+  return bestYear;
+}
+
 function excelSerialToIso(serial: number): string {
   // Arredonda pro dia inteiro: células de data "de verdade" no Excel podem vir
   // com um serial fracionário por imprecisão de ponto flutuante (ex.: 46203.9996
   // em vez de 46204), o que faria parse_date_code cair no dia errado.
   const parsed = XLSX.SSF.parse_date_code(Math.round(serial));
+  const year = correctImplausibleYear(parsed.y, parsed.m, parsed.d);
   const mm = String(parsed.m).padStart(2, '0');
   const dd = String(parsed.d).padStart(2, '0');
-  return `${parsed.y}-${mm}-${dd}`;
+  return `${year}-${mm}-${dd}`;
 }
 
 function parseDate(value: unknown): string | null | undefined {
@@ -187,9 +220,15 @@ function parseDate(value: unknown): string | null | undefined {
     const br = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (br) {
       const [, d, m, y] = br;
-      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      const year = correctImplausibleYear(Number(y), Number(m), Number(d));
+      return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) {
+      const [, y, m, d] = iso;
+      const year = correctImplausibleYear(Number(y), Number(m), Number(d));
+      return `${year}-${m}-${d}`;
+    }
   }
   return undefined;
 }
