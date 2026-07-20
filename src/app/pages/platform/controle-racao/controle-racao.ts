@@ -1,8 +1,9 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -11,6 +12,7 @@ import { createSortState, sortRows } from '@shared/table-sort/table-sort';
 import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof FeedStock;
+type LogSortField = keyof FeedOpenLog;
 
 /** Saco fechado restante ou menos já conta como estoque baixo pro tipo (confirmado pelo usuário). */
 const ESTOQUE_BAIXO_LIMITE = 1;
@@ -80,6 +82,7 @@ export class ControleRacao {
 
   private readonly store = createEntityStore<FeedStock>(IDB_STORES.feedStock, []);
   private readonly logStore = createEntityStore<FeedOpenLog>(IDB_STORES.feedOpenLog, []);
+  private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['type'];
@@ -87,6 +90,11 @@ export class ControleRacao {
   protected readonly sortField = this.sortState.sortField;
   protected readonly sortDir = this.sortState.sortDir;
   protected readonly sortBy = this.sortState.sortBy;
+
+  private readonly logSortState = createSortState<LogSortField>('date', -1);
+  protected readonly logSortField = this.logSortState.sortField;
+  protected readonly logSortDir = this.logSortState.sortDir;
+  protected readonly logSortBy = this.logSortState.sortBy;
 
   protected readonly formOpen = signal(false);
   protected draft: Record<string, unknown> = {};
@@ -124,6 +132,15 @@ export class ControleRacao {
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     return this.logStore.items().filter((l) => l.date.startsWith(ym)).length;
   });
+
+  /** Histórico de aberturas de saco, restrito ao período dos chips da topbar. */
+  protected readonly logRows = computed<WithId<FeedOpenLog>[]>(() =>
+    sortRows(
+      this.logStore.items().filter((l) => this.periodFilter.includes(l.date)),
+      this.logSortField(),
+      this.logSortDir(),
+    ),
+  );
 
   protected isEstoqueBaixo(item: FeedStock): boolean {
     return item.bagsInStock <= ESTOQUE_BAIXO_LIMITE;

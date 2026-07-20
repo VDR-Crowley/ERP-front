@@ -198,6 +198,17 @@
         "4217"
       ],
       "port": 4217
+    },
+    {
+      "name": "erp-front-dev-controle-racao",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4218"
+      ],
+      "port": 4218
     }
   ]
 }

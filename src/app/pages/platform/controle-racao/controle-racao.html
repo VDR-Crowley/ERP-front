@@ -108,6 +108,47 @@
     }
     <div class="tbl-foot">{{ filtered.length }} tipo(s)</div>
   </div>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Histórico de sacos abertos</h2>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 480px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="logSortBy('date')">
+              Data
+              <app-sort-icon [active]="logSortField() === 'date'" [dir]="logSortDir()" />
+            </th>
+            <th class="sortable" (click)="logSortBy('feedType')">
+              Tipo
+              <app-sort-icon [active]="logSortField() === 'feedType'" [dir]="logSortDir()" />
+            </th>
+            <th class="num sortable" (click)="logSortBy('weightKg')">
+              Peso do saco aberto (kg)
+              <app-sort-icon [active]="logSortField() === 'weightKg'" [dir]="logSortDir()" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (log of logRows(); track log.id) {
+            <tr>
+              <td>{{ ptDate(log.date) }}</td>
+              <td class="strong">{{ log.feedType }}</td>
+              <td class="num">{{ num(log.weightKg) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (logRows().length === 0) {
+      <div class="empty">Nenhum saco aberto no período selecionado.</div>
+    }
+    <div class="tbl-foot">{{ logRows().length }} registro(s)</div>
+  </div>
 </div>
 
 <app-crud-form-modal
