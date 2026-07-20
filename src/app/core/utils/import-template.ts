@@ -197,5 +197,14 @@ export function downloadImportTemplate(filename: string): void {
     'Ração',
   );
 
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet([
+      { Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 },
+      { Data: '05/07/2026', Tipo: 'Galinha crescimento', 'Peso Aberto (kg)': 40 },
+    ]),
+    'Ração - Sacos Abertos',
+  );
+
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

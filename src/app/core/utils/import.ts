@@ -12,7 +12,7 @@ import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { User } from '@core/interfaces/user.interface';
-import { FeedStock } from '@core/interfaces/feed-stock.interface';
+import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
 
 export interface ImportResult {
   success: boolean;
@@ -32,6 +32,7 @@ interface ParsedData {
   users?: User[];
   flockIncubation?: NovoLotePlantel[];
   feedStock?: FeedStock[];
+  feedOpenLog?: FeedOpenLog[];
 }
 
 const SHEET_NAMES: Record<keyof ParsedData, string> = {
@@ -46,6 +47,7 @@ const SHEET_NAMES: Record<keyof ParsedData, string> = {
   users: 'Usuários',
   flockIncubation: 'Novo Plantel',
   feedStock: 'Ração',
+  feedOpenLog: 'Ração - Sacos Abertos',
 };
 
 /** Lê e valida o arquivo; se houver qualquer erro, nenhum store é escrito. */
@@ -94,6 +96,9 @@ export async function importWorkbookFile(idb: IndexedDbService, file: File): Pro
 
   const feedStockSheet = getSheet(workbook, SHEET_NAMES.feedStock);
   if (feedStockSheet) data.feedStock = parseFeedStock(feedStockSheet, errors);
+
+  const feedOpenLogSheet = getSheet(workbook, SHEET_NAMES.feedOpenLog);
+  if (feedOpenLogSheet) data.feedOpenLog = parseFeedOpenLog(feedOpenLogSheet, errors);
 
   if (Object.keys(data).length === 0) {
     errors.push('Nenhuma aba reconhecida no arquivo. Baixe o modelo de exemplo pra conferir o formato.');
@@ -716,6 +721,31 @@ function parseFeedStock(ws: XLSX.WorkSheet, errors: string[]): FeedStock[] | und
       expirationDate !== undefined
     ) {
       result.push({ type, bagsInStock, kgInStock, lastBagWeightKg, expirationDate });
+    }
+  });
+  return result;
+}
+
+function parseFeedOpenLog(ws: XLSX.WorkSheet, errors: string[]): FeedOpenLog[] | undefined {
+  const label = SHEET_NAMES.feedOpenLog;
+  const header = readHeader(ws);
+  const required = ['Data', 'Tipo', 'Peso Aberto (kg)'];
+  if (!requireColumns(header, label, required, errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: FeedOpenLog[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const date = parseDate(row['Data']);
+    const feedType = toRequiredString(row['Tipo']);
+    const weightKg = toNumber(row['Peso Aberto (kg)']);
+
+    if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
+    if (!feedType) errors.push(`${label} linha ${r}: "Tipo" vazio.`);
+    if (weightKg === undefined) errors.push(`${label} linha ${r}: "Peso Aberto (kg)" inválido.`);
+
+    if (date && feedType && weightKg !== undefined) {
+      result.push({ feedType, date, weightKg });
     }
   });
   return result;
