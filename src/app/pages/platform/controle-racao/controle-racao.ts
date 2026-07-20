@@ -46,6 +46,7 @@ const REPLENISH_FIELDS: CrudField[] = [
 ];
 
 const OPEN_BAG_FIELDS: CrudField[] = [
+  { key: 'date', label: 'Data', type: 'date', required: true },
   { key: 'weightKg', label: 'Peso do saco aberto (kg)', type: 'number', step: 0.1, required: true },
 ];
 
@@ -175,7 +176,10 @@ export class ControleRacao {
 
   protected askOpenBag(item: WithId<FeedStock>): void {
     this.openBagTarget = item;
-    this.openBagDraft = { weightKg: item.lastBagWeightKg };
+    this.openBagDraft = {
+      date: new Date().toISOString().slice(0, 10),
+      weightKg: item.lastBagWeightKg,
+    };
     this.openBagOpen.set(true);
   }
 
@@ -188,6 +192,7 @@ export class ControleRacao {
     if (!target) return;
 
     const weightKg = Number(this.openBagDraft['weightKg']);
+    const date = String(this.openBagDraft['date']);
 
     const record: FeedStock = {
       type: target.type,
@@ -199,7 +204,7 @@ export class ControleRacao {
     await this.store.update(target.id, record);
     await this.logStore.add({
       feedType: target.type,
-      date: new Date().toISOString().slice(0, 10),
+      date,
       weightKg,
     });
     this.openBagOpen.set(false);
