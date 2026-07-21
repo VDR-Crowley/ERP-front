@@ -59,74 +59,51 @@
       </div>
     </article>
 
+  </section>
+
+  <section class="chip-row">
     <a
       routerLink="/platform/controle-racao"
-      class="kpi kpi--clickable"
-      [class.kpi--red]="tiposRacaoBaixa() > 0"
-      [class.kpi--green]="tiposRacaoBaixa() === 0"
-      [class.kpi--ink-red]="tiposRacaoBaixa() > 0"
+      class="chip chip--clickable"
+      [class.chip--red]="tiposRacaoBaixa() > 0"
+      [class.chip--green]="tiposRacaoBaixa() === 0"
+      [title]="tiposRacaoBaixa() === 0 ? 'Tudo em dia' : tiposRacaoBaixaNomes().join(', ')"
     >
-      <div class="kpi__row">
-        <div>
-          <div class="kpi__label">Ração baixa</div>
-          @if (tiposRacaoBaixa() === 0) {
-            <div class="kpi__value kpi__value--sm">nenhuma</div>
-          } @else {
-            <div class="kpi__value">{{ num(tiposRacaoBaixa()) }}</div>
-          }
-        </div>
-        <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
-      </div>
-      <div class="kpi__foot">
-        @if (tiposRacaoBaixa() === 0) {
-          Tudo em dia
-        } @else {
-          {{ tiposRacaoBaixaNomes().join(', ') }}
-        }
-      </div>
+      <span class="chip__icon"><i class="pi pi-inbox"></i></span>
+      <span class="chip__label">Ração baixa</span>
+      <span class="chip__value">{{ tiposRacaoBaixa() === 0 ? 'nenhuma' : num(tiposRacaoBaixa()) }}</span>
     </a>
 
-    <a routerLink="/platform/gestao-plantel" class="kpi kpi--purple kpi--clickable">
-      <div class="kpi__row">
-        <div>
-          <div class="kpi__label">Lotes incubando agora</div>
-          <div class="kpi__value">{{ num(lotesIncubando()) }}</div>
-        </div>
-        <span class="kpi__icon"><i class="pi pi-clock"></i></span>
-      </div>
-      <div class="kpi__foot">
-        @if (lotesIncubando() === 0) {
-          Nenhum lote incubando
-        } @else if (lotesIncubandoPorEspecie().quail > 0 && lotesIncubandoPorEspecie().chicken > 0) {
-          Codorna {{ lotesIncubandoPorEspecie().quail }} | Galinha {{ lotesIncubandoPorEspecie().chicken }}
-        } @else if (proximaEclosaoData()) {
-          Eclosão prevista {{ ptDate(proximaEclosaoData()!) }}
-        } @else {
-          Ver Gestão de novo Plantel
-        }
-      </div>
+    <a
+      routerLink="/platform/gestao-plantel"
+      class="chip chip--clickable chip--purple"
+      [title]="
+        lotesIncubando() === 0
+          ? 'Nenhum lote incubando'
+          : (lotesIncubandoPorEspecie().quail > 0 && lotesIncubandoPorEspecie().chicken > 0)
+            ? 'Codorna ' + lotesIncubandoPorEspecie().quail + ' | Galinha ' + lotesIncubandoPorEspecie().chicken
+            : proximaEclosaoData()
+              ? 'Eclosão prevista ' + ptDate(proximaEclosaoData()!)
+              : 'Ver Gestão de novo Plantel'
+      "
+    >
+      <span class="chip__icon"><i class="pi pi-clock"></i></span>
+      <span class="chip__label">Lotes incubando</span>
+      <span class="chip__value">{{ num(lotesIncubando()) }}</span>
     </a>
 
-    <article class="kpi kpi--green">
-      <div class="kpi__row">
-        <div>
-          <div class="kpi__label">Próxima eclosão</div>
-          @if (proximaEclosaoData(); as data) {
-            <div class="kpi__value kpi__value--sm">{{ ptDate(data) }}</div>
-          } @else {
-            <div class="kpi__value kpi__value--sm">—</div>
-          }
-        </div>
-        <span class="kpi__icon"><i class="pi pi-calendar"></i></span>
-      </div>
-      <div class="kpi__foot">
-        @if (proximaEclosaoData(); as data) {
-          {{ diasProximaEclosao()! < 0 ? 'Atrasada' : diasProximaEclosao() === 0 ? 'Hoje' : 'Faltam ' + diasProximaEclosao() + ' dia(s)' }}
-        } @else {
-          Nenhum lote incubando
-        }
-      </div>
-    </article>
+    <div
+      class="chip chip--green"
+      [title]="
+        proximaEclosaoData()
+          ? (diasProximaEclosao()! < 0 ? 'Atrasada' : diasProximaEclosao() === 0 ? 'Hoje' : 'Faltam ' + diasProximaEclosao() + ' dia(s)')
+          : 'Nenhum lote incubando'
+      "
+    >
+      <span class="chip__icon"><i class="pi pi-calendar"></i></span>
+      <span class="chip__label">Próxima eclosão</span>
+      <span class="chip__value">{{ proximaEclosaoData() ? ptDate(proximaEclosaoData()!) : '—' }}</span>
+    </div>
   </section>
 
   <section class="panels-2">

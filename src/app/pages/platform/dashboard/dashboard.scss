@@ -2,6 +2,73 @@
   display: block;
 }
 
+/* ---------- Chips compactos (Ração baixa / Lotes incubando / Próxima eclosão) ---------- */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.chip {
+  --accent: var(--erp-green);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: var(--erp-surface);
+  border: 1px solid var(--erp-border);
+  color: var(--erp-text);
+  text-decoration: none;
+  font-size: 0.82rem;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    font-size: 0.75rem;
+  }
+  &__label {
+    color: var(--erp-muted);
+    font-weight: 600;
+  }
+  &__value {
+    font-weight: 800;
+  }
+
+  &--purple {
+    --accent: var(--erp-purple);
+  }
+  &--green {
+    --accent: var(--erp-green);
+  }
+  &--red {
+    --accent: var(--erp-red);
+
+    .chip__value {
+      color: var(--erp-red);
+    }
+  }
+
+  &--clickable {
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 20%, transparent);
+      transform: translateY(-1px);
+    }
+  }
+}
+
 .dash-summary {
   display: flex;
   align-items: center;
