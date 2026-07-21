@@ -208,6 +208,9 @@ export class Dashboard {
   protected readonly totalOvosColetadosGalinha = computed(() =>
     this.producaoNoPeriodo().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
+  protected readonly producaoHojeTotal = computed(
+    () => this.totalOvosColetadosCodorna() + this.totalOvosColetadosGalinha(),
+  );
 
   // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
   // um snapshot com data futura por erro de digitação não pode esconder o
@@ -266,6 +269,9 @@ export class Dashboard {
       : (this.ultimaProducao()?.chickenEggs ?? 0) / this.chickenPackSize();
     return Math.floor(chickenPacks);
   });
+  protected readonly prontasParaVendaTotal = computed(
+    () => this.bandejasProntasCodorna() + this.bandejasProntasGalinha(),
+  );
   protected readonly ovosCodornaEstoque = computed(() => this.ultimoQuailEstoque()?.quailEggs ?? 0);
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
 
