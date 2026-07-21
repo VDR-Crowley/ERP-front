@@ -69,12 +69,12 @@
         <tbody>
           @for (item of filtered; track item.id) {
             <tr>
-              <td class="strong">{{ item.type }}</td>
-              <td class="num">{{ num(item.bagsInStock) }}</td>
-              <td class="num">{{ num(item.kgInStock, 1) }}</td>
-              <td class="num">{{ num(item.lastBagWeightKg) }}</td>
-              <td>{{ item.expirationDate ? ptDate(item.expirationDate) : '—' }}</td>
-              <td>
+              <td class="strong" data-label="Tipo">{{ item.type }}</td>
+              <td class="num" data-label="Sacos em estoque">{{ num(item.bagsInStock) }}</td>
+              <td class="num" data-label="Kg em estoque">{{ num(item.kgInStock, 1) }}</td>
+              <td class="num" data-label="Peso do saco (kg)">{{ num(item.lastBagWeightKg) }}</td>
+              <td data-label="Validade">{{ item.expirationDate ? ptDate(item.expirationDate) : '—' }}</td>
+              <td data-label="Status">
                 @if (isEstoqueBaixo(item)) {
                   <span class="badge badge--out">Estoque baixo</span>
                 } @else {
@@ -135,9 +135,9 @@
         <tbody>
           @for (log of logRows(); track log.id) {
             <tr>
-              <td>{{ ptDate(log.date) }}</td>
-              <td class="strong">{{ log.feedType }}</td>
-              <td class="num">{{ num(log.weightKg) }}</td>
+              <td data-label="Data">{{ ptDate(log.date) }}</td>
+              <td class="strong" data-label="Tipo">{{ log.feedType }}</td>
+              <td class="num" data-label="Peso do saco aberto (kg)">{{ num(log.weightKg) }}</td>
             </tr>
           }
         </tbody>

@@ -121,28 +121,28 @@
         <tbody>
           @for (v of filtered; track v.id) {
             <tr>
-              <td>{{ ptDate(v.date) }}</td>
-              <td class="strong">{{ v.product }}</td>
-              <td class="num">{{ num(v.quantity) }}</td>
-              <td class="num">{{ brl(v.unitPrice) }}</td>
-              <td class="num strong">{{ brl(v.total) }}</td>
-              <td>{{ v.buyer }}</td>
-              <td>{{ v.seller }}</td>
-              <td>
+              <td data-label="Data">{{ ptDate(v.date) }}</td>
+              <td class="strong" data-label="Produto">{{ v.product }}</td>
+              <td class="num" data-label="Qtd">{{ num(v.quantity) }}</td>
+              <td class="num" data-label="Preço Unit.">{{ brl(v.unitPrice) }}</td>
+              <td class="num strong" data-label="Total">{{ brl(v.total) }}</td>
+              <td data-label="Comprador">{{ v.buyer }}</td>
+              <td data-label="Vendedor">{{ v.seller }}</td>
+              <td data-label="Situação">
                 @if (v.paymentPending) {
                   <span class="badge badge--warn">Pendente</span>
                 } @else {
                   <span class="badge badge--ok">Pago</span>
                 }
               </td>
-              <td>
+              <td data-label="Entrega">
                 @if (v.deliveryPending) {
                   <span class="badge badge--warn">Falta</span>
                 } @else {
                   <span class="badge badge--ok">Entregue</span>
                 }
               </td>
-              <td>{{ v.deliveryDate ? ptDate(v.deliveryDate) : '—' }}</td>
+              <td data-label="Entrega em">{{ v.deliveryDate ? ptDate(v.deliveryDate) : '—' }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(v)">

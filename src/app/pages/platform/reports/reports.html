@@ -89,10 +89,10 @@
         <tbody>
           @for (c of topBuyers(); track c.name) {
             <tr>
-              <td class="strong">{{ c.name }}</td>
-              <td class="num">{{ num(c.orders) }}</td>
-              <td class="num strong">{{ brl(c.total) }}</td>
-              <td>
+              <td class="strong" data-label="Cliente">{{ c.name }}</td>
+              <td class="num" data-label="Pedidos">{{ num(c.orders) }}</td>
+              <td class="num strong" data-label="Total">{{ brl(c.total) }}</td>
+              <td data-label="Participação">
                 <span class="bar-track"><span class="bar-fill" [style.width]="c.pct"></span></span>
               </td>
             </tr>

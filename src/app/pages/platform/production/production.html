@@ -90,10 +90,10 @@
         <tbody>
           @for (p of filtered; track p.id) {
             <tr>
-              <td class="strong">{{ ptDate(p.date) }}</td>
-              <td class="num">{{ num(p.quailEggs) }}</td>
-              <td class="num">{{ num(p.chickenEggs) }}</td>
-              <td class="num strong">{{ num(p.total) }}</td>
+              <td class="strong" data-label="Data">{{ ptDate(p.date) }}</td>
+              <td class="num" data-label="Codorna">{{ num(p.quailEggs) }}</td>
+              <td class="num" data-label="Galinha">{{ num(p.chickenEggs) }}</td>
+              <td class="num strong" data-label="Total">{{ num(p.total) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(p)">

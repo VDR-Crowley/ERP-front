@@ -75,13 +75,13 @@
         <tbody>
           @for (e of filtered; track e.id) {
             <tr>
-              <td>{{ ptDate(e.date) }}</td>
-              <td class="strong">{{ e.description }}</td>
-              <td>{{ e.category }}</td>
-              <td class="num">{{ e.quantity ?? '—' }}</td>
-              <td class="num">{{ e.unitPrice !== undefined ? brl(e.unitPrice) : '—' }}</td>
-              <td class="num strong">{{ brl(e.amount) }}</td>
-              <td>
+              <td data-label="Data">{{ ptDate(e.date) }}</td>
+              <td class="strong" data-label="Descrição">{{ e.description }}</td>
+              <td data-label="Categoria">{{ e.category }}</td>
+              <td class="num" data-label="Qtd.">{{ e.quantity ?? '—' }}</td>
+              <td class="num" data-label="Valor unit.">{{ e.unitPrice !== undefined ? brl(e.unitPrice) : '—' }}</td>
+              <td class="num strong" data-label="Valor total">{{ brl(e.amount) }}</td>
+              <td data-label="Situação">
                 @if (e.paid) {
                   <span class="badge badge--ok">Pago</span>
                 } @else {

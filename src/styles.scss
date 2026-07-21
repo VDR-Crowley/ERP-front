@@ -845,9 +845,112 @@ body {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .crud-form {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Camada responsiva mobile/tablet (390px - 768px) ----------
+   Reaproveita as classes globais acima (kpi, panel, tbl, search, badge) —
+   só reduz densidade e converte tabelas em lista de cards. Segue o layout
+   mobile importado do Claude Design (projeto "Mobile do MiniERP"). */
+@media (max-width: 768px) {
+  .kpi-grid,
+  .kpi-grid--compact {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.6rem;
+  }
+  .kpi {
+    padding: 0.85rem;
+  }
+  .kpi__value {
+    font-size: 1.3rem;
+  }
+
+  .panel {
+    padding: 0.9rem;
+    border-radius: 14px;
+  }
+  .panel__head {
+    gap: 0.6rem;
+  }
+  .panel__head .search {
+    flex: 1 1 100%;
+    order: 2;
+  }
+  .panel__head .btn {
+    order: 3;
+  }
+  .search {
+    width: 100%;
+  }
+  .search input {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* Tabela -> lista de cards. Cada <td> precisa de [data-label] com o texto
+     do <th> correspondente (a última coluna, de ações, fica sem label). */
+  .tbl-wrap {
+    overflow: visible;
+    max-height: none;
+    margin: 0;
+  }
+  .tbl {
+    min-width: 0;
+    width: 100%;
+  }
+  .tbl thead {
+    display: none;
+  }
+  .tbl tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    background: var(--erp-surface-2);
+    border-radius: 12px;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.55rem;
+    border-top: none;
+  }
+  .tbl tbody tr:last-child {
+    margin-bottom: 0;
+  }
+  .tbl td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.15rem 0;
+    white-space: normal;
+    text-align: right;
+    border: none;
+  }
+  .tbl td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--erp-dim);
+    text-align: left;
+  }
+  .tbl td:empty,
+  .tbl td:not([data-label])[colspan] {
+    display: none;
+  }
+  .tbl td:last-child {
+    position: static;
+    background: none;
+    justify-content: flex-end;
+    padding-top: 0.4rem;
+  }
+  .tbl td:last-child::before {
+    content: none;
+  }
+  .tbl td .row-actions {
+    justify-content: flex-end;
+    width: 100%;
   }
 }
 

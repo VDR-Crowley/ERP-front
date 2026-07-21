@@ -73,17 +73,18 @@
         <tbody>
           @for (item of filtered; track item.id) {
             <tr>
-              <td class="strong">{{ ptDate(item.startDate) }}</td>
-              <td>{{ speciesLabel(item.species) }}</td>
-              <td class="num">{{ num(item.eggCount) }}</td>
-              <td>{{ ptDate(item.expectedHatchDate) }}</td>
+              <td class="strong" data-label="Entrada na incubadora">{{ ptDate(item.startDate) }}</td>
+              <td data-label="Espécie">{{ speciesLabel(item.species) }}</td>
+              <td class="num" data-label="Ovos">{{ num(item.eggCount) }}</td>
+              <td data-label="Eclosão prevista">{{ ptDate(item.expectedHatchDate) }}</td>
               <td
                 class="num strong"
+                data-label="Investimento até 45 dias"
                 [title]="'Ovos: ' + brl(item.eggCost ?? 0) + ' + Ração: ' + brl(item.feedCost ?? 0) + ' = Investimento até 45 dias: ' + brl(investimento(item))"
               >
                 {{ brl(investimento(item)) }}
               </td>
-              <td>
+              <td data-label="Status">
                 @if (item.status === 'eclodido') {
                   <span class="badge badge--ok">Eclodido</span>
                 } @else {

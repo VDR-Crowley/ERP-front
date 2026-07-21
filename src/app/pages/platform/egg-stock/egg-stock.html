@@ -81,13 +81,13 @@
         <tbody>
           @for (e of filtered; track e.id) {
             <tr>
-              <td class="strong">{{ ptDate(e.date) }}</td>
-              <td class="num">{{ num(e.quailEggs) }}</td>
-              <td class="num">{{ num(e.chickenEggs) }}</td>
-              <td class="num">{{ num(e.quailPacks, 2) }}</td>
-              <td class="num">{{ num(e.chickenPacks, 2) }}</td>
-              <td class="num strong">{{ brl(e.quailStockValue) }}</td>
-              <td class="num strong">{{ brl(e.chickenStockValue) }}</td>
+              <td class="strong" data-label="Data">{{ ptDate(e.date) }}</td>
+              <td class="num" data-label="Ovos codorna">{{ num(e.quailEggs) }}</td>
+              <td class="num" data-label="Ovos galinha">{{ num(e.chickenEggs) }}</td>
+              <td class="num" data-label="Pack codorna">{{ num(e.quailPacks, 2) }}</td>
+              <td class="num" data-label="Pack galinha">{{ num(e.chickenPacks, 2) }}</td>
+              <td class="num strong" data-label="Valor codorna">{{ brl(e.quailStockValue) }}</td>
+              <td class="num strong" data-label="Valor galinha">{{ brl(e.chickenStockValue) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(e)">

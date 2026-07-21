@@ -43,8 +43,8 @@
         <tbody>
           @for (u of filtered; track u.id) {
             <tr>
-              <td class="strong">{{ u.name }}</td>
-              <td>{{ u.email }}</td>
+              <td class="strong" data-label="Nome">{{ u.name }}</td>
+              <td data-label="E-mail">{{ u.email }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(u)">

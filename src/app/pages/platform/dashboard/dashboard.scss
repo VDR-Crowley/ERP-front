@@ -227,3 +227,10 @@
     font-weight: 700;
   }
 }
+
+@media (max-width: 768px) {
+  .legend__name {
+    min-width: 0;
+    flex: 1;
+  }
+}

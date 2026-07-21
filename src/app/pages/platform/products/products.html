@@ -63,10 +63,10 @@
         <tbody>
           @for (p of filtered; track p.id) {
             <tr>
-              <td class="strong">{{ p.name }}</td>
-              <td>{{ p.unit }}</td>
-              <td class="num strong">{{ brl(p.unitPrice) }}</td>
-              <td class="num">{{ num(estoqueReal(p)) }}</td>
+              <td class="strong" data-label="Produto">{{ p.name }}</td>
+              <td data-label="Unidade">{{ p.unit }}</td>
+              <td class="num strong" data-label="Preço">{{ brl(p.unitPrice) }}</td>
+              <td class="num" data-label="Estoque">{{ num(estoqueReal(p)) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(p)">

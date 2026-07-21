@@ -58,6 +58,8 @@ export class LayoutApp {
   protected readonly menuOpen = signal(false);
   /** Sidebar recolhida (só ícones) no desktop */
   protected readonly collapsed = signal(this.readCollapsed());
+  /** Bottom sheet de filtro/importação no mobile (<=768px) */
+  protected readonly filterOpen = signal(false);
 
   protected readonly importState = signal<ImportState>('idle');
   protected readonly importErrors = signal<string[]>([]);
@@ -145,6 +147,9 @@ export class LayoutApp {
     },
   ];
 
+  /** Atalhos da tab bar fixa no mobile (<=768px): as 4 telas mais usadas. */
+  protected readonly tabs: NavItem[] = this.nav.slice(0, 4);
+
   private isDesktop(): boolean {
     return typeof window !== 'undefined' && window.innerWidth >= 1024;
   }
@@ -181,6 +186,14 @@ export class LayoutApp {
     } else {
       this.menuOpen.update((open) => !open);
     }
+  }
+
+  protected toggleFilter(): void {
+    this.filterOpen.update((open) => !open);
+  }
+
+  protected closeFilter(): void {
+    this.filterOpen.set(false);
   }
 
   protected closeMenu(): void {

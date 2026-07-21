@@ -306,3 +306,116 @@ $sidebar: 240px;
     padding: 0.75rem 1rem;
   }
 }
+
+/* ---------- Mobile/tablet (390px - 768px) ----------
+   Segue o layout mobile importado do Claude Design: filtro/importação viram
+   um bottom sheet, e uma tab bar fixa dá acesso rápido às 4 telas principais.
+   Reaproveita os mesmos controles (app-month-tabs, app-date-picker, botões
+   de importar/exportar) só reposicionados via CSS. */
+.top__filter {
+  display: none;
+}
+.tabbar {
+  display: none;
+}
+.scrim--filter {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .top__filter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--erp-ghost-bg);
+    border: 1px solid var(--erp-ghost-border);
+    color: var(--erp-text);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .top__right {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    background: var(--erp-surface);
+    border-top: 1px solid var(--erp-border);
+    border-radius: 18px 18px 0 0;
+    padding: 1rem 1.1rem calc(1rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
+    transform: translateY(100%);
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+    app-month-tabs,
+    app-date-picker {
+      width: 100%;
+    }
+    app-date-picker {
+      display: inline-flex !important;
+    }
+  }
+  .shell--filter-open .top__right {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .scrim--filter {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(4, 7, 11, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .shell--filter-open .scrim--filter {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .content {
+    padding-bottom: 88px;
+  }
+
+  .tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    background: var(--erp-surface);
+    border-top: 1px solid var(--erp-border);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+
+    &__link {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 2px;
+      color: var(--erp-dim);
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 700;
+
+      i {
+        font-size: 18px;
+      }
+      &--active {
+        color: var(--erp-green);
+      }
+    }
+  }
+}

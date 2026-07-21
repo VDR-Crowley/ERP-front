@@ -73,12 +73,12 @@
         <tbody>
           @for (item of filtered; track item.id) {
             <tr>
-              <td class="strong">{{ item.species }}</td>
-              <td class="num">{{ num(item.quantity) }}</td>
-              <td class="num">{{ num(item.feedBagsPerMonth) }}</td>
-              <td class="num">{{ brl(item.bagPrice) }}</td>
-              <td class="num strong">{{ brl(item.monthlyTotal) }}</td>
-              <td class="num">{{ brl(custoPorAve(item)) }}</td>
+              <td class="strong" data-label="Espécie">{{ item.species }}</td>
+              <td class="num" data-label="Quantidade">{{ num(item.quantity) }}</td>
+              <td class="num" data-label="Sacos/mês">{{ num(item.feedBagsPerMonth) }}</td>
+              <td class="num" data-label="Preço saco">{{ brl(item.bagPrice) }}</td>
+              <td class="num strong" data-label="Custo/mês">{{ brl(item.monthlyTotal) }}</td>
+              <td class="num" data-label="Custo/ave">{{ brl(custoPorAve(item)) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(item)">

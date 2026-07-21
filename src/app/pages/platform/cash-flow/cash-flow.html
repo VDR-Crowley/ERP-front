@@ -87,17 +87,17 @@
         <tbody>
           @for (c of filtered; track c.id) {
             <tr>
-              <td>{{ ptDate(c.date) }}</td>
-              <td class="strong">{{ c.description }}</td>
-              <td>
+              <td data-label="Data">{{ ptDate(c.date) }}</td>
+              <td class="strong" data-label="Descrição">{{ c.description }}</td>
+              <td data-label="Tipo">
                 @if (c.inflow) {
                   <span class="badge badge--ok">Entrada</span>
                 } @else {
                   <span class="badge badge--out">Saída</span>
                 }
               </td>
-              <td class="num strong">{{ brl(c.amount) }}</td>
-              <td class="num">{{ brl(c.saldo) }}</td>
+              <td class="num strong" data-label="Valor">{{ brl(c.amount) }}</td>
+              <td class="num" data-label="Saldo">{{ brl(c.saldo) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">

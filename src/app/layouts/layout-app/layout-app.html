@@ -1,5 +1,11 @@
-<div class="shell" [class.shell--open]="menuOpen()" [class.shell--collapsed]="collapsed()">
+<div
+  class="shell"
+  [class.shell--open]="menuOpen()"
+  [class.shell--collapsed]="collapsed()"
+  [class.shell--filter-open]="filterOpen()"
+>
   <div class="scrim" (click)="closeMenu()"></div>
+  <div class="scrim scrim--filter" (click)="closeFilter()"></div>
 
   <aside class="side">
     <div class="side__brand">
@@ -51,6 +57,14 @@
           <p>{{ pageSub() }}</p>
         </div>
       </div>
+      <button
+        class="top__filter"
+        type="button"
+        (click)="toggleFilter()"
+        aria-label="Filtro e importação/exportação"
+      >
+        <i class="pi pi-filter"></i>
+      </button>
       <div class="top__right">
         <app-month-tabs />
         <app-date-picker
@@ -82,6 +96,15 @@
       <router-outlet />
     </main>
   </div>
+
+  <nav class="tabbar">
+    @for (tab of tabs; track tab.path) {
+      <a class="tabbar__link" [routerLink]="tab.path" routerLinkActive="tabbar__link--active">
+        <i [class]="'pi ' + tab.icon"></i>
+        <span>{{ tab.label }}</span>
+      </a>
+    }
+  </nav>
 
   @if (importState() !== 'idle') {
     <div class="modal-overlay">

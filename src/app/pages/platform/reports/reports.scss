@@ -53,3 +53,13 @@
   border-radius: 4px;
   background: var(--erp-green);
 }
+
+@media (max-width: 768px) {
+  .bar-track {
+    width: 100%;
+  }
+  .legend__name {
+    min-width: 0;
+    flex: 1;
+  }
+}
