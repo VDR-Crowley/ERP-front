@@ -106,8 +106,9 @@
       <div class="kpi__foot">Disponíveis no estoque mais recente</div>
     </article>
 
-    <article
-      class="kpi"
+    <a
+      routerLink="/platform/controle-racao"
+      class="kpi kpi--clickable"
       [class.kpi--red]="tiposRacaoBaixa() > 0"
       [class.kpi--green]="tiposRacaoBaixa() === 0"
       [class.kpi--ink-red]="tiposRacaoBaixa() > 0"
@@ -119,12 +120,10 @@
         </div>
         <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
       </div>
-      <div class="kpi__foot">
-        <a routerLink="/platform/controle-racao">Ver Controle de Ração</a>
-      </div>
-    </article>
+      <div class="kpi__foot">Ver Controle de Ração</div>
+    </a>
 
-    <article class="kpi kpi--purple">
+    <a routerLink="/platform/gestao-plantel" class="kpi kpi--purple kpi--clickable">
       <div class="kpi__row">
         <div>
           <div class="kpi__label">Lotes incubando agora</div>
@@ -132,10 +131,8 @@
         </div>
         <span class="kpi__icon"><i class="pi pi-clock"></i></span>
       </div>
-      <div class="kpi__foot">
-        <a routerLink="/platform/gestao-plantel">Ver Gestão de novo Plantel</a>
-      </div>
-    </article>
+      <div class="kpi__foot">Ver Gestão de novo Plantel</div>
+    </a>
 
     <article class="kpi kpi--green">
       <div class="kpi__row">

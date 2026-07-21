@@ -195,6 +195,21 @@ body {
   &--ink-green .kpi__value { color: var(--erp-green-ink); }
   &--ink-blue .kpi__value { color: var(--erp-blue); }
   &--ink-red .kpi__value { color: var(--erp-red); }
+
+  &--clickable {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 20%, transparent);
+      transform: translateY(-2px);
+    }
+  }
 }
 
 /* ---------- Panel ---------- */
