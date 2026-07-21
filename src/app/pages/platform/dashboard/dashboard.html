@@ -116,11 +116,21 @@
       <div class="kpi__row">
         <div>
           <div class="kpi__label">Ração baixa</div>
-          <div class="kpi__value">{{ num(tiposRacaoBaixa()) }}</div>
+          @if (tiposRacaoBaixa() === 0) {
+            <div class="kpi__value kpi__value--sm">nenhuma</div>
+          } @else {
+            <div class="kpi__value">{{ num(tiposRacaoBaixa()) }}</div>
+          }
         </div>
         <span class="kpi__icon"><i class="pi pi-inbox"></i></span>
       </div>
-      <div class="kpi__foot">Ver Controle de Ração</div>
+      <div class="kpi__foot">
+        @if (tiposRacaoBaixa() === 0) {
+          Tudo em dia
+        } @else {
+          {{ tiposRacaoBaixaNomes().join(', ') }}
+        }
+      </div>
     </a>
 
     <a routerLink="/platform/gestao-plantel" class="kpi kpi--purple kpi--clickable">
@@ -131,7 +141,17 @@
         </div>
         <span class="kpi__icon"><i class="pi pi-clock"></i></span>
       </div>
-      <div class="kpi__foot">Ver Gestão de novo Plantel</div>
+      <div class="kpi__foot">
+        @if (lotesIncubando() === 0) {
+          Nenhum lote incubando
+        } @else if (lotesIncubandoPorEspecie().quail > 0 && lotesIncubandoPorEspecie().chicken > 0) {
+          Codorna {{ lotesIncubandoPorEspecie().quail }} | Galinha {{ lotesIncubandoPorEspecie().chicken }}
+        } @else if (proximaEclosaoData()) {
+          Eclosão prevista {{ ptDate(proximaEclosaoData()!) }}
+        } @else {
+          Ver Gestão de novo Plantel
+        }
+      </div>
     </a>
 
     <article class="kpi kpi--green">

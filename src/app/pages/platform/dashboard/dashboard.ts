@@ -175,10 +175,23 @@ export class Dashboard {
   protected readonly tiposRacaoBaixa = computed(
     () => this.feedStockStore.items().filter((f) => f.bagsInStock <= ESTOQUE_RACAO_BAIXO_LIMITE).length,
   );
+  protected readonly tiposRacaoBaixaNomes = computed(() =>
+    this.feedStockStore
+      .items()
+      .filter((f) => f.bagsInStock <= ESTOQUE_RACAO_BAIXO_LIMITE)
+      .map((f) => f.type),
+  );
 
   protected readonly lotesIncubando = computed(
     () => this.flockIncubationStore.items().filter((i) => i.status === 'incubando').length,
   );
+  protected readonly lotesIncubandoPorEspecie = computed(() => {
+    const incubando = this.flockIncubationStore.items().filter((i) => i.status === 'incubando');
+    return {
+      quail: incubando.filter((i) => i.species === 'quail').length,
+      chicken: incubando.filter((i) => i.species === 'chicken').length,
+    };
+  });
   private readonly proximaEclosao = computed(() => {
     const pendentes = this.flockIncubationStore.items().filter((i) => i.status === 'incubando');
     return pendentes.length ? sortRows(pendentes, 'expectedHatchDate', 1)[0] : null;
