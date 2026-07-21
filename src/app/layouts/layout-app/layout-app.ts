@@ -6,6 +6,7 @@ import { AuthSession } from '@core/services/auth-session.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { DatePicker, DateRange } from '@shared/components-ds/date-picker/date-picker';
 import { MonthTabs } from '@shared/components-ds/month-tabs/month-tabs';
+import { BottomSheet } from '@shared/components-ds/bottom-sheet/bottom-sheet';
 
 interface NavItem {
   path: string;
@@ -20,7 +21,7 @@ const COLLAPSE_KEY = 'erp-nav-collapsed';
 
 @Component({
   selector: 'app-layout-app',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, KeyValuePipe, DatePicker, MonthTabs],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, KeyValuePipe, DatePicker, MonthTabs, BottomSheet],
   templateUrl: './layout-app.html',
   styleUrl: './layout-app.scss',
 })
@@ -194,6 +195,11 @@ export class LayoutApp {
 
   protected closeFilter(): void {
     this.filterOpen.set(false);
+  }
+
+  /** Fechar via backdrop/arraste do `app-bottom-sheet` (nunca reabre por aqui). */
+  protected onFilterOpenChange(open: boolean): void {
+    this.filterOpen.set(open);
   }
 
   protected closeMenu(): void {

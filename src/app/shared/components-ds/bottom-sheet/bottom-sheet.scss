@@ -1,0 +1,123 @@
+/* Bottom sheet sempre-overlay: quem decide QUANDO mostrar (breakpoint,
+   toggle) é o chamador — via `open` e a classe/CSS que aplicar no host
+   (ex.: `layout-app.scss` esconde o host inteiro no desktop). Aqui dentro
+   é só o comportamento de sheet em si. */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgba(4, 7, 11, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+
+  &--visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Slide up/down + fade controlados só por CSS. O CDK (arraste) escreve seu
+   próprio `transform` inline no `.sheet__drag` (filho) — se os dois
+   disputassem a mesma propriedade `transform` no mesmo elemento, o inline
+   do CDK sempre venceria e o slide de abrir/fechar sumiria mesmo com a
+   folha CSS certa. */
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s ease;
+
+  &--open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Arraste (CdkDrag) fica isolado aqui — CDK controla o `transform` deste elemento. */
+.sheet__drag {
+  display: flex;
+  flex-direction: column;
+  max-height: min(85dvh, 640px);
+  background: var(--erp-surface);
+  border-top: 1px solid var(--erp-border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &--dragging {
+    transition: none;
+  }
+}
+
+.sheet__handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0 0.3rem;
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+.sheet__grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--erp-border);
+}
+
+.sheet__header {
+  flex-shrink: 0;
+  padding: 0 1.1rem 0.5rem;
+}
+.sheet__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--erp-text);
+}
+.sheet__desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--erp-dim);
+}
+
+.sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  padding: 0.4rem 1.1rem calc(1rem + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+.sheet__footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 1.1rem calc(1rem + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-backdrop,
+  .sheet,
+  .sheet__drag {
+    transition: none !important;
+  }
+}

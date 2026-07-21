@@ -1,0 +1,63 @@
+<div
+  class="sheet-backdrop"
+  [class.sheet-backdrop--visible]="open()"
+  (mousedown)="onBackdropMouseDown()"
+></div>
+
+<div class="sheet" [class.sheet--open]="open()">
+  <div
+    #sheet
+    class="sheet__drag"
+    [class.sheet__drag--dragging]="dragging()"
+    cdkDrag
+    cdkDragLockAxis="y"
+    [cdkDragFreeDragPosition]="dragPosition()"
+    [cdkDragDisabled]="!open()"
+    (cdkDragStarted)="onDragStarted()"
+    (cdkDragMoved)="onDragMoved($event)"
+    (cdkDragEnded)="onDragEnded($event)"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-hidden]="!open()"
+  >
+    <div class="sheet__handle" cdkDragHandle>
+      <span class="sheet__grip"></span>
+    </div>
+
+    @if (hasHeader()) {
+      <header class="sheet__header">
+        @if (title()) {
+          <h2 class="sheet__title">{{ title() }}</h2>
+        }
+        @if (description()) {
+          <p class="sheet__desc">{{ description() }}</p>
+        }
+      </header>
+    }
+
+    <div class="sheet__body">
+      <ng-content />
+    </div>
+
+    @if (hasActions()) {
+      <footer class="sheet__footer">
+        @for (action of actions(); track action.label; let i = $index) {
+          <button
+            type="button"
+            class="btn"
+            [class.btn--primary]="resolveIntent(action, i) === 'primary'"
+            [class.btn--ghost]="resolveIntent(action, i) === 'ghost'"
+            [disabled]="action.disabled"
+            (click)="onActionClick(action)"
+          >
+            @if (action.icon) {
+              <i [class]="'pi ' + action.icon"></i>
+            }
+            {{ action.label }}
+          </button>
+        }
+      </footer>
+    }
+  </div>
+</div>

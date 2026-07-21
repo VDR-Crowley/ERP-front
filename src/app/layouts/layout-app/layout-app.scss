@@ -309,16 +309,19 @@ $sidebar: 240px;
 
 /* ---------- Mobile/tablet (390px - 768px) ----------
    Segue o layout mobile importado do Claude Design: filtro/importação viram
-   um bottom sheet, e uma tab bar fixa dá acesso rápido às 4 telas principais.
-   Reaproveita os mesmos controles (app-month-tabs, app-date-picker, botões
-   de importar/exportar) só reposicionados via CSS. */
+   um bottom sheet (app-bottom-sheet, componente reutilizável em
+   shared/components-ds), e uma tab bar fixa dá acesso rápido às 4 telas
+   principais. O bottom sheet duplica os mesmos controles do toolbar
+   desktop (app-month-tabs, app-date-picker, botões de importar/exportar)
+   porque as duas versões têm containers/CSS incompatíveis (linha vs
+   painel fixo) — só uma fica visível por vez, via breakpoint. */
 .top__filter {
   display: none;
 }
 .tabbar {
   display: none;
 }
-.scrim--filter {
+.top__sheet {
   display: none;
 }
 
@@ -337,23 +340,12 @@ $sidebar: 240px;
     flex-shrink: 0;
   }
 
-  .top__right {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 70;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.65rem;
-    background: var(--erp-surface);
-    border-top: 1px solid var(--erp-border);
-    border-radius: 18px 18px 0 0;
-    padding: 1rem 1.1rem calc(1rem + env(safe-area-inset-bottom));
-    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
-    transform: translateY(100%);
-    pointer-events: none;
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  .top__right--desktop {
+    display: none;
+  }
+
+  .top__sheet {
+    display: block;
 
     app-month-tabs,
     app-date-picker {
@@ -362,25 +354,6 @@ $sidebar: 240px;
     app-date-picker {
       display: inline-flex !important;
     }
-  }
-  .shell--filter-open .top__right {
-    transform: translateY(0);
-    pointer-events: auto;
-  }
-
-  .scrim--filter {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 65;
-    background: rgba(4, 7, 11, 0.6);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s ease;
-  }
-  .shell--filter-open .scrim--filter {
-    opacity: 1;
-    pointer-events: auto;
   }
 
   .content {

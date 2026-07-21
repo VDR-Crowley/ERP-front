@@ -2,10 +2,8 @@
   class="shell"
   [class.shell--open]="menuOpen()"
   [class.shell--collapsed]="collapsed()"
-  [class.shell--filter-open]="filterOpen()"
 >
   <div class="scrim" (click)="closeMenu()"></div>
-  <div class="scrim scrim--filter" (click)="closeFilter()"></div>
 
   <aside class="side">
     <div class="side__brand">
@@ -65,7 +63,7 @@
       >
         <i class="pi pi-filter"></i>
       </button>
-      <div class="top__right">
+      <div class="top__right top__right--desktop">
         <app-month-tabs />
         <app-date-picker
           ngSkipHydration
@@ -79,18 +77,37 @@
         <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
           <i class="pi pi-upload"></i> Importar
         </button>
-        <input
-          #fileInput
-          type="file"
-          accept=".xlsx"
-          hidden
-          (change)="onFileSelected($event)"
-        />
         <button class="btn btn--ghost" type="button" (click)="exportar()">
           <i class="pi pi-download"></i> Exportar
         </button>
       </div>
     </header>
+
+    <input #fileInput type="file" accept=".xlsx" hidden (change)="onFileSelected($event)" />
+
+    <app-bottom-sheet
+      class="top__sheet"
+      ariaLabel="Filtro e importação/exportação"
+      [open]="filterOpen()"
+      (openChange)="onFilterOpenChange($event)"
+    >
+      <app-month-tabs />
+      <app-date-picker
+        ngSkipHydration
+        mode="range"
+        [value]="periodFilter.active() ? periodFilter.range() : null"
+        (valueChange)="onPeriodChange($event)"
+      />
+      <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
+        <i class="pi pi-file-excel"></i> Modelo
+      </button>
+      <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
+        <i class="pi pi-upload"></i> Importar
+      </button>
+      <button class="btn btn--ghost" type="button" (click)="exportar()">
+        <i class="pi pi-download"></i> Exportar
+      </button>
+    </app-bottom-sheet>
 
     <main class="content">
       <router-outlet />
