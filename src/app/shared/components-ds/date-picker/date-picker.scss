@@ -129,6 +129,16 @@
   width: 100%;
 }
 
+// `<p-datepicker>` (o pill visível) é `display: inline-flex` e, sem isso, fica
+// no seu próprio width intrinsecamente estreito (encolhido ao texto/ícone)
+// dentro do `.app-date-picker__display` — sobra espaço vazio à direita, fora
+// do pill, mesmo com o `__tap-catcher` (que cobre `.app-date-picker__display`
+// inteiro) já clicável ali. Sem isso o campo não bate com a largura cheia dos
+// outros elementos do filtro (chips, botões Modelo/Importar/Exportar).
+.app-date-picker--mobile .app-date-picker__field {
+  width: 100%;
+}
+
 // Fica por cima do input/ícone do PrimeNG (que abriria um overlay quebrado
 // dentro do sheet) e intercepta o toque pra alternar o calendário embutido.
 .app-date-picker__tap-catcher {
