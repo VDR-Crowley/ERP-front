@@ -276,17 +276,19 @@ export class Dashboard {
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
 
   // Recalcula ao vivo (packs da linha mais recente × preço ATUAL do produto
-  // cadastrado), mesmo padrão de EggStock.valorTotal()/Products.valorEstoque
+  // cadastrado), mesmo padrão de EggStock.valorPacksCodorna()/valorPacksGalinha()
   // — não usa quailStockValue/chickenStockValue gravados na linha, que são
   // snapshot do preço no dia do lançamento e ficariam desatualizados se o
   // preço do produto mudar depois.
-  protected readonly valorEstoque = computed(
+  protected readonly valorEstoqueCodorna = computed(
+    () => Math.round((this.ultimoQuailEstoque()?.quailPacks ?? 0) * this.quailPackPrice() * 100) / 100,
+  );
+  protected readonly valorEstoqueGalinha = computed(
     () =>
-      Math.round(
-        ((this.ultimoQuailEstoque()?.quailPacks ?? 0) * this.quailPackPrice() +
-          (this.ultimoChickenEstoque()?.chickenPacks ?? 0) * this.chickenPackPrice()) *
-          100,
-      ) / 100,
+      Math.round((this.ultimoChickenEstoque()?.chickenPacks ?? 0) * this.chickenPackPrice() * 100) / 100,
+  );
+  protected readonly valorEstoque = computed(
+    () => this.valorEstoqueCodorna() + this.valorEstoqueGalinha(),
   );
 
   protected readonly totalOvosVendidos = computed(() =>
