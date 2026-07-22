@@ -56,6 +56,9 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  /* Rede de segurança: qualquer elemento que escapar do viewport (bug futuro)
+     vira scroll interno em vez de derrubar a página inteira pro lado. */
+  overflow-x: hidden;
   background: var(--erp-bg);
   color: var(--erp-text);
   font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
@@ -898,7 +901,12 @@ body {
     margin: 0;
   }
   .tbl {
-    min-width: 0;
+    /* !important necessário: várias páginas (dashboard, vendas, estoque de
+       ovos, ração, plantel...) fixam um min-width via style="" inline na
+       <table> pra caber no painel desktop — estilo inline sempre vence
+       regra de classe, mesmo dentro de media query, e travava a tabela
+       larga além do viewport mobile (scroll horizontal na página toda). */
+    min-width: 0 !important;
     width: 100%;
   }
   .tbl thead {

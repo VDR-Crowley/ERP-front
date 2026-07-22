@@ -356,6 +356,16 @@ $sidebar: 240px;
     }
   }
 
+  /* Botões (Modelo/Importar/Exportar) dentro do sheet: sem isso eles herdam
+     align-items: stretch do .sheet__body (flex column) e viram 3 barras
+     genéricas ocupando 100% da largura, empilhadas — em vez dos pills
+     compactos que são em qualquer outro lugar do app. */
+  .top__sheet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   .content {
     padding-bottom: 88px;
   }

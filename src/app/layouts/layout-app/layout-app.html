@@ -98,15 +98,17 @@
         [value]="periodFilter.active() ? periodFilter.range() : null"
         (valueChange)="onPeriodChange($event)"
       />
-      <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
-        <i class="pi pi-file-excel"></i> Modelo
-      </button>
-      <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
-        <i class="pi pi-upload"></i> Importar
-      </button>
-      <button class="btn btn--ghost" type="button" (click)="exportar()">
-        <i class="pi pi-download"></i> Exportar
-      </button>
+      <div class="top__sheet-actions">
+        <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
+          <i class="pi pi-file-excel"></i> Modelo
+        </button>
+        <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
+          <i class="pi pi-upload"></i> Importar
+        </button>
+        <button class="btn btn--ghost" type="button" (click)="exportar()">
+          <i class="pi pi-download"></i> Exportar
+        </button>
+      </div>
     </app-bottom-sheet>
 
     <main class="content">
