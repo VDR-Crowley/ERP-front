@@ -120,6 +120,15 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0.6rem;
+  // `layout-app.scss` força `app-date-picker { display: inline-flex !important }`
+  // dentro do `.top__sheet` (regra pré-existente, pro contexto desktop-like
+  // original) — isso faz o :host virar um flex container ROW, e este wrapper
+  // (filho direto do host) vira um item desse row sem flex-grow, ficando no
+  // shrink-to-fit em vez de esticar. `width: 100%` resolve o flex-basis pro
+  // width cheio do host, que por sua vez já tem `width: 100%` (mesma regra
+  // externa) — sem isso o campo fica mais estreito que os irmãos (chips,
+  // botões Modelo/Importar/Exportar).
+  width: 100%;
 }
 
 .app-date-picker__display {
@@ -135,8 +144,20 @@
 // do pill, mesmo com o `__tap-catcher` (que cobre `.app-date-picker__display`
 // inteiro) já clicável ali. Sem isso o campo não bate com a largura cheia dos
 // outros elementos do filtro (chips, botões Modelo/Importar/Exportar).
+//
+// `pointer-events: none`: o `.p-datepicker-input-icon-container` interno do
+// PrimeNG tem `left` (nosso override, pro ícone ficar à esquerda no desktop)
+// E `inset-inline-end`/`right` (padrão do PrimeNG) ao mesmo tempo — com
+// width:auto isso vira `width = container - left - right`. Com o campo em
+// 100% de largura, essa faixa invisível (`z-index: 1`, herdado do PrimeNG)
+// passa a cobrir quase o campo inteiro, por cima do `__tap-catcher`, e rouba
+// o clique pro handler interno do PrimeNG (que tenta abrir o overlay
+// flutuante quebrado) em vez do nosso toggle. No mobile este campo é 100%
+// decorativo — quem trata clique é sempre o `__tap-catcher` — então o campo
+// (e tudo dentro dele: input, ícone) fica fora do hit-test inteiramente.
 .app-date-picker--mobile .app-date-picker__field {
   width: 100%;
+  pointer-events: none;
 }
 
 // Fica por cima do input/ícone do PrimeNG (que abriria um overlay quebrado
