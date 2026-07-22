@@ -233,4 +233,12 @@
     min-width: 0;
     flex: 1;
   }
+
+  .chip-row {
+    flex-direction: column;
+  }
+  .chip {
+    width: 100%;
+    box-sizing: border-box;
+  }
 }
