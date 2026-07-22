@@ -13,6 +13,7 @@ import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { User } from '@core/interfaces/user.interface';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
+import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.interface';
 
 export interface ImportResult {
   success: boolean;
@@ -33,6 +34,7 @@ interface ParsedData {
   flockIncubation?: NovoLotePlantel[];
   feedStock?: FeedStock[];
   feedOpenLog?: FeedOpenLog[];
+  flockCleaning?: FlockCleaning[];
 }
 
 const SHEET_NAMES: Record<keyof ParsedData, string> = {
@@ -48,6 +50,7 @@ const SHEET_NAMES: Record<keyof ParsedData, string> = {
   flockIncubation: 'Novo Plantel',
   feedStock: 'Ração',
   feedOpenLog: 'Ração - Sacos Abertos',
+  flockCleaning: 'Higienização',
 };
 
 /** Lê e valida o arquivo; se houver qualquer erro, nenhum store é escrito. */
@@ -99,6 +102,9 @@ export async function importWorkbookFile(idb: IndexedDbService, file: File): Pro
 
   const feedOpenLogSheet = getSheet(workbook, SHEET_NAMES.feedOpenLog);
   if (feedOpenLogSheet) data.feedOpenLog = parseFeedOpenLog(feedOpenLogSheet, errors);
+
+  const flockCleaningSheet = getSheet(workbook, SHEET_NAMES.flockCleaning);
+  if (flockCleaningSheet) data.flockCleaning = parseFlockCleaning(flockCleaningSheet, errors);
 
   if (Object.keys(data).length === 0) {
     errors.push('Nenhuma aba reconhecida no arquivo. Baixe o modelo de exemplo pra conferir o formato.');
@@ -721,6 +727,60 @@ function parseFeedStock(ws: XLSX.WorkSheet, errors: string[]): FeedStock[] | und
       expirationDate !== undefined
     ) {
       result.push({ type, bagsInStock, kgInStock, lastBagWeightKg, expirationDate });
+    }
+  });
+  return result;
+}
+
+function parseCleaningType(value: unknown): CleaningType | undefined {
+  const norm = toRequiredString(value)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+  if (norm === 'total') return 'total';
+  if (norm === 'bebedouro' || norm === 'feeder') return 'feeder';
+  if (norm === 'bandeja' || norm === 'tray') return 'tray';
+  if (norm === 'ninho' || norm === 'nest') return 'nest';
+  return undefined;
+}
+
+function parseFlockCleaning(ws: XLSX.WorkSheet, errors: string[]): FlockCleaning[] | undefined {
+  const label = SHEET_NAMES.flockCleaning;
+  const header = readHeader(ws);
+  const required = ['Data', 'Espécie', 'Tipo', 'Observações'];
+  if (!requireColumns(header, label, required, errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: FlockCleaning[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const date = parseDate(row['Data']);
+    const species = parseSpecies(row['Espécie']);
+    const cleaningType = parseCleaningType(row['Tipo']);
+    const notes = toRequiredString(row['Observações']);
+
+    if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
+    if (!species) errors.push(`${label} linha ${r}: "Espécie" deve ser Codorna ou Galinha (veio "${row['Espécie']}").`);
+    if (!cleaningType) {
+      errors.push(`${label} linha ${r}: "Tipo" deve ser Total, Bebedouro, Bandeja ou Ninho (veio "${row['Tipo']}").`);
+    }
+    // Bandeja só existe pra Codorna (guarda ovos na bandeja) e Ninho só pra
+    // Galinha (bota no ninho) — mesma restrição aplicada no formulário da tela.
+    if (species && cleaningType === 'tray' && species !== 'quail') {
+      errors.push(`${label} linha ${r}: "Tipo" Bandeja só é válido pra espécie Codorna.`);
+    }
+    if (species && cleaningType === 'nest' && species !== 'chicken') {
+      errors.push(`${label} linha ${r}: "Tipo" Ninho só é válido pra espécie Galinha.`);
+    }
+
+    const compatible =
+      cleaningType === 'total' ||
+      cleaningType === 'feeder' ||
+      (cleaningType === 'tray' && species === 'quail') ||
+      (cleaningType === 'nest' && species === 'chicken');
+
+    if (date && species && cleaningType && compatible) {
+      result.push({ date, species, cleaningType, ...(notes ? { notes } : {}) });
     }
   });
   return result;

@@ -6,6 +6,7 @@ import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
+import { FlockCleaning } from '@core/interfaces/flock-cleaning.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
@@ -39,6 +40,7 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     novoLotePlantel,
     feedStock,
     feedOpenLog,
+    flockCleaning,
   ] = await Promise.all([
     firstValueFrom(idb.getAll<Venda>(IDB_STORES.sales)),
     firstValueFrom(idb.getAll<ProducaoDiaria>(IDB_STORES.dailyProduction)),
@@ -52,6 +54,7 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     firstValueFrom(idb.getAll<NovoLotePlantel>(IDB_STORES.flockIncubation)),
     firstValueFrom(idb.getAll<FeedStock>(IDB_STORES.feedStock)),
     firstValueFrom(idb.getAll<FeedOpenLog>(IDB_STORES.feedOpenLog)),
+    firstValueFrom(idb.getAll<FlockCleaning>(IDB_STORES.flockCleaning)),
   ]);
   const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
 
@@ -254,6 +257,26 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     { header: racaoAbertosHeader },
   );
   XLSX.utils.book_append_sheet(wb, racaoAbertosSheet, 'Ração - Sacos Abertos');
+
+  const cleaningTypeLabel: Record<FlockCleaning['cleaningType'], string> = {
+    total: 'Total',
+    feeder: 'Bebedouro',
+    tray: 'Bandeja',
+    nest: 'Ninho',
+  };
+  const higienizacaoHeader = ['Data', 'Espécie', 'Tipo', 'Observações'];
+  const higienizacaoSheet = XLSX.utils.json_to_sheet(
+    [...flockCleaning]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((h) => ({
+        Data: ptDate(h.date),
+        Espécie: speciesLabel(h.species),
+        Tipo: cleaningTypeLabel[h.cleaningType],
+        Observações: h.notes ?? '',
+      })),
+    { header: higienizacaoHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, higienizacaoSheet, 'Higienização');
 
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

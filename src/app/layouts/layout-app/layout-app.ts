@@ -111,6 +111,12 @@ export class LayoutApp {
       sub: 'Estoque de ração por tipo e histórico de consumo',
     },
     {
+      path: '/platform/higienizacao',
+      icon: 'pi-sparkles',
+      label: 'Higienização do Plantel',
+      sub: 'Histórico de limpezas por espécie',
+    },
+    {
       path: '/platform/expenses',
       icon: 'pi-receipt',
       label: 'Despesas',

@@ -18,8 +18,12 @@
             } @else {
               <span>{{ field.label }}</span>
               @if (field.type === 'select') {
-                <select [(ngModel)]="model[field.key]" [name]="field.key">
-                  @for (opt of field.options; track opt.value) {
+                <select
+                  [ngModel]="model[field.key]"
+                  (ngModelChange)="onFieldChange(field, $event)"
+                  [name]="field.key"
+                >
+                  @for (opt of getOptions(field); track opt.value) {
                     <option [value]="opt.value">{{ opt.label }}</option>
                   }
                 </select>
@@ -34,7 +38,7 @@
                   autocomplete="off"
                 />
                 <datalist [id]="field.key + '-list'">
-                  @for (opt of field.options; track opt.value) {
+                  @for (opt of getOptions(field); track opt.value) {
                     <option [value]="opt.label"></option>
                   }
                 </datalist>

@@ -206,5 +206,16 @@ export function downloadImportTemplate(filename: string): void {
     'Ração - Sacos Abertos',
   );
 
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet([
+      { Data: '01/07/2026', Espécie: 'Codorna', Tipo: 'Total', Observações: 'Limpeza geral do galpão' },
+      { Data: '03/07/2026', Espécie: 'Codorna', Tipo: 'Bandeja', Observações: '' },
+      { Data: '02/07/2026', Espécie: 'Galinha', Tipo: 'Bebedouro', Observações: '' },
+      { Data: '04/07/2026', Espécie: 'Galinha', Tipo: 'Ninho', Observações: 'Troca de forração' },
+    ]),
+    'Higienização',
+  );
+
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }

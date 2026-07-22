@@ -27,6 +27,19 @@ export interface CrudField {
    * opção é mantido como está (fallback livre) e o callback não dispara.
    */
   onSelect?: (option: { value: string; label: string }, model: Record<string, unknown>) => void;
+  /**
+   * Opcional: recalcula as `options` de um 'select'/'autocomplete' a partir do
+   * model atual (ex.: tipo de limpeza muda conforme a espécie escolhida).
+   * Quando presente, sobrepõe `options` estático.
+   */
+  optionsFor?: (model: Record<string, unknown>) => { value: string; label: string }[];
+  /**
+   * Disparado em qualquer tipo de campo sempre que o valor muda (antes do
+   * recompute dos campos `compute`). Usado pra efeitos colaterais entre
+   * campos do mesmo form (ex.: resetar o valor de um select dependente
+   * quando o campo do qual ele depende muda).
+   */
+  onChange?: (value: unknown, model: Record<string, unknown>) => void;
 }
 
 /**
@@ -63,6 +76,10 @@ export class CrudFormModal implements OnChanges {
     return !!field.compute && field.compute(this.model) !== undefined;
   }
 
+  protected getOptions(field: CrudField): { value: string; label: string }[] {
+    return field.optionsFor ? field.optionsFor(this.model) : (field.options ?? []);
+  }
+
   protected onFieldChange(field: CrudField, value: unknown): void {
     this.model[field.key] = value;
     if (field.type === 'autocomplete' && field.onSelect) {
@@ -71,6 +88,7 @@ export class CrudFormModal implements OnChanges {
         field.onSelect(match, this.model);
       }
     }
+    field.onChange?.(value, this.model);
     this.recomputeAll();
   }
 

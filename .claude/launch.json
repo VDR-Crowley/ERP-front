@@ -209,6 +209,17 @@
         "4218"
       ],
       "port": 4218
+    },
+    {
+      "name": "erp-front-dev-higienizacao",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4220"
+      ],
+      "port": 4220
     }
   ]
 }

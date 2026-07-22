@@ -30,6 +30,11 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./controle-racao/controle-racao').then((m) => m.ControleRacao),
   },
   {
+    path: 'higienizacao',
+    loadComponent: () =>
+      import('./higienizacao-plantel/higienizacao-plantel').then((m) => m.HigienizacaoPlantel),
+  },
+  {
     path: 'expenses',
     loadComponent: () => import('./expenses/expenses').then((m) => m.Expenses),
   },
