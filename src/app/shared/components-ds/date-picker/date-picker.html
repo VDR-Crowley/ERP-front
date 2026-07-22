@@ -1,16 +1,58 @@
-<span class="app-date-picker">
-  <p-datepicker
-    [selectionMode]="mode()"
-    [ngModel]="internalValue()"
-    (ngModelChange)="onModelChange($event)"
-    [readonlyInput]="true"
-    [showIcon]="true"
-    iconDisplay="input"
-    [showButtonBar]="true"
-    dateFormat="d M yy"
-    [placeholder]="resolvedPlaceholder()"
-    styleClass="app-date-picker__field"
-    panelStyleClass="app-date-picker__panel"
-  />
-  <i class="pi pi-chevron-down app-date-picker__chevron" aria-hidden="true"></i>
-</span>
+@if (!inline()) {
+  <span class="app-date-picker">
+    <p-datepicker
+      [selectionMode]="mode()"
+      [ngModel]="internalValue()"
+      (ngModelChange)="onModelChange($event)"
+      [readonlyInput]="true"
+      [showIcon]="true"
+      iconDisplay="input"
+      [showButtonBar]="true"
+      dateFormat="d M yy"
+      [placeholder]="resolvedPlaceholder()"
+      styleClass="app-date-picker__field"
+      panelStyleClass="app-date-picker__panel"
+    />
+    <i class="pi pi-chevron-down app-date-picker__chevron" aria-hidden="true"></i>
+  </span>
+} @else {
+  <div class="app-date-picker app-date-picker--mobile">
+    <span class="app-date-picker__display">
+      <p-datepicker
+        [selectionMode]="mode()"
+        [ngModel]="internalValue()"
+        [readonlyInput]="true"
+        [showIcon]="true"
+        iconDisplay="input"
+        [tabindex]="-1"
+        dateFormat="d M yy"
+        [placeholder]="resolvedPlaceholder()"
+        styleClass="app-date-picker__field"
+      />
+      <i
+        class="pi app-date-picker__chevron"
+        [class.pi-chevron-down]="!expanded()"
+        [class.pi-chevron-up]="expanded()"
+        aria-hidden="true"
+      ></i>
+      <button
+        type="button"
+        class="app-date-picker__tap-catcher"
+        (click)="toggleExpanded()"
+        [attr.aria-expanded]="expanded()"
+        [attr.aria-label]="resolvedPlaceholder()"
+      ></button>
+    </span>
+    @if (expanded()) {
+      <p-datepicker
+        [selectionMode]="mode()"
+        [ngModel]="internalValue()"
+        (ngModelChange)="onModelChange($event)"
+        [inline]="true"
+        [showButtonBar]="true"
+        dateFormat="d M yy"
+        panelStyleClass="app-date-picker__panel"
+      />
+    }
+  </div>
+}

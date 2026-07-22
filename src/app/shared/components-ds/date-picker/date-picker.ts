@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePickerModule } from 'primeng/datepicker';
 
@@ -23,11 +23,24 @@ export class DatePicker {
   readonly mode = input<DatePickerMode>('single');
   readonly value = input<Date | DateRange | null>(null);
   readonly placeholder = input<string>();
+  /** No bottom sheet mobile, o overlay flutuante do PrimeNG fica mal posicionado
+   * (o `CdkDrag` do sheet mantém `transform` inline no ancestral, o que muda o
+   * containing block do painel `position: fixed`). Com `inline=true`, o campo
+   * vira um toggle que expande o calendário nativo (`p-datepicker[inline]`) no
+   * próprio fluxo do sheet, em vez de abrir um overlay posicionado por JS. */
+  readonly inline = input<boolean>(false);
   readonly valueChange = output<Date | DateRange | null>();
+
+  /** Só usado quando `inline()` — controla se o calendário embutido está aberto. */
+  protected readonly expanded = signal(false);
 
   protected readonly resolvedPlaceholder = computed(
     () => this.placeholder() ?? (this.mode() === 'range' ? 'Selecionar período' : 'Selecionar data'),
   );
+
+  protected toggleExpanded(): void {
+    this.expanded.update((v) => !v);
+  }
 
   /** Valor no formato que o p-datepicker espera: `Date | Date[]`. */
   protected readonly internalValue = computed<Date | Date[] | null>(() => {
@@ -45,6 +58,7 @@ export class DatePicker {
         // saber que o usuário pediu pra remover o filtro (não é "1º clique
         // pendente", que chega como array parcial, tratado abaixo).
         this.valueChange.emit(null);
+        this.expanded.set(false);
         return;
       }
       const [start, end] = Array.isArray(next) ? next : [null, null];
@@ -55,8 +69,10 @@ export class DatePicker {
         return;
       }
       this.valueChange.emit([start, end] as DateRange);
+      this.expanded.set(false);
       return;
     }
     this.valueChange.emit(Array.isArray(next) ? null : next);
+    this.expanded.set(false);
   }
 }

@@ -95,6 +95,7 @@
       <app-date-picker
         ngSkipHydration
         mode="range"
+        [inline]="true"
         [value]="periodFilter.active() ? periodFilter.range() : null"
         (valueChange)="onPeriodChange($event)"
       />

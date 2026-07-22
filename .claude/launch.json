@@ -220,6 +220,17 @@
         "4220"
       ],
       "port": 4220
+    },
+    {
+      "name": "erp-front-dev-date-picker-inline",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4221"
+      ],
+      "port": 4221
     }
   ]
 }
