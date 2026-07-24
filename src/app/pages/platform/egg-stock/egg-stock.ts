@@ -56,30 +56,30 @@ export class EggStock {
 
   protected readonly fields: CrudField[] = [
     { key: 'date', label: 'Data', type: 'date', required: true },
-    { key: 'quailEggs', label: 'Ovos codorna', type: 'number', step: 1 },
-    { key: 'chickenEggs', label: 'Ovos galinha', type: 'number', step: 1 },
+    { key: 'quailPacks', label: 'Pack codorna', type: 'number', step: 0.01 },
+    { key: 'chickenPacks', label: 'Pack galinha', type: 'number', step: 0.01 },
     {
-      key: 'quailPacks',
-      label: 'Pack codorna',
+      key: 'quailEggs',
+      label: 'Ovos codorna',
       type: 'number',
-      step: 0.01,
+      step: 1,
       required: true,
       compute: (m) => {
-        const eggs = toNumberOrUndefined(m['quailEggs']);
-        if (eggs === undefined) return undefined;
-        return Math.round((eggs / this.quailPackSize()) * 100) / 100;
+        const packs = toNumberOrUndefined(m['quailPacks']);
+        if (packs === undefined) return undefined;
+        return Math.round(packs * this.quailPackSize());
       },
     },
     {
-      key: 'chickenPacks',
-      label: 'Pack galinha',
+      key: 'chickenEggs',
+      label: 'Ovos galinha',
       type: 'number',
-      step: 0.01,
+      step: 1,
       required: true,
       compute: (m) => {
-        const eggs = toNumberOrUndefined(m['chickenEggs']);
-        if (eggs === undefined) return undefined;
-        return Math.round((eggs / this.chickenPackSize()) * 100) / 100;
+        const packs = toNumberOrUndefined(m['chickenPacks']);
+        if (packs === undefined) return undefined;
+        return Math.round(packs * this.chickenPackSize());
       },
     },
     {
