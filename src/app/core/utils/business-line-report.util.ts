@@ -314,6 +314,21 @@ export function buildProductReport(
   return results.sort((a, b) => a.marginPct - b.marginPct);
 }
 
+/**
+ * Remove da lista as vendas cujo `id` esteja marcado como "evento isolado" (`SaleExclusion`).
+ * Função genérica (não amarrada a nenhum produto/espécie específica) pra generalizar: qualquer
+ * venda pode ser desconsiderada da análise no futuro, sem apagar o registro original de `sales`.
+ */
+export function excludeSalesByIds<T extends { id: string }>(
+  sales: T[],
+  excludedSaleIds: ReadonlySet<string>,
+): T[] {
+  if (excludedSaleIds.size === 0) {
+    return sales;
+  }
+  return sales.filter((sale) => !excludedSaleIds.has(sale.id));
+}
+
 /** Série mensal de receita por espécie (pro gráfico comparativo ao longo do tempo). Só meses com venda real aparecem. */
 export function buildSpeciesRevenueSeries(sales: Venda[], products: Product[]): SpeciesMonthlyPoint[] {
   const eggUnitPrices = computeEggUnitPrices(products);

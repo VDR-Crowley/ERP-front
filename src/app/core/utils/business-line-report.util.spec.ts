@@ -12,6 +12,7 @@ import {
   computeEggUnitPrices,
   computeFlockRatio,
   detectSpeciesMentions,
+  excludeSalesByIds,
   parseProductComposition,
   resolveProductComposition,
 } from './business-line-report.util';
@@ -263,6 +264,28 @@ describe('buildProductReport', () => {
 
     // Pior margem (galinha, negativa) vem primeiro.
     expect(results[0].name).toBe('1 Bandeja de ovos de galinha');
+  });
+});
+
+describe('excludeSalesByIds', () => {
+  const withId = (id: string, overrides: Partial<Venda> = {}) => ({ ...venda(overrides), id });
+
+  it('remove só as vendas cujo id está no conjunto de excluídos', () => {
+    const sales = [withId('a'), withId('b'), withId('c')];
+    const result = excludeSalesByIds(sales, new Set(['b']));
+    expect(result.map((s) => s.id)).toEqual(['a', 'c']);
+  });
+
+  it('retorna a mesma lista (sem cópia desnecessária) quando não há exclusões', () => {
+    const sales = [withId('a'), withId('b')];
+    const result = excludeSalesByIds(sales, new Set());
+    expect(result).toBe(sales);
+  });
+
+  it('retorna lista vazia quando todas as vendas estão excluídas', () => {
+    const sales = [withId('a'), withId('b')];
+    const result = excludeSalesByIds(sales, new Set(['a', 'b']));
+    expect(result).toEqual([]);
   });
 });
 

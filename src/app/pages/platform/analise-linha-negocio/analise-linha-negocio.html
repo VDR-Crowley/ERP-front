@@ -72,6 +72,77 @@
     }
   </div>
 
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Vendas atípicas</h2>
+      <div class="panel__actions">
+        @if (excludedCount() > 0) {
+          <span class="badge badge--warn">{{ excludedCount() }} desconsiderada(s) no período</span>
+        }
+        <button type="button" class="btn btn--ghost" (click)="toggleManageExclusions()">
+          <i class="pi" [class.pi-chevron-down]="!manageExclusionsOpen()" [class.pi-chevron-up]="manageExclusionsOpen()"></i>
+          {{ manageExclusionsOpen() ? 'Fechar' : 'Gerenciar' }}
+        </button>
+      </div>
+    </div>
+
+    <p class="hint-text">
+      Marque vendas que não representam o fluxo normal do negócio (ex.: evento isolado, venda
+      única de um produto que não é recorrente) pra excluí-las dos cálculos desta tela — o
+      registro continua normalmente em Vendas, só sai desta análise.
+    </p>
+
+    @if (manageExclusionsOpen()) {
+      <div class="search" style="margin-bottom: 0.75rem">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar produto, comprador..."
+          [ngModel]="exclusionSearch()"
+          (ngModelChange)="exclusionSearch.set($event)"
+        />
+      </div>
+
+      @let vendasBusca = vendasNoPeriodo() | filterBy: exclusionSearch() : exclusionSearchKeys;
+
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 560px">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Produto</th>
+              <th>Comprador</th>
+              <th class="num">Total</th>
+              <th>Desconsiderar</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of vendasBusca; track v.id) {
+              <tr [class.row--weak]="isExcluded(v.id)">
+                <td data-label="Data">{{ ptDate(v.date) }}</td>
+                <td class="strong" data-label="Produto">{{ v.product }}</td>
+                <td data-label="Comprador">{{ v.buyer }}</td>
+                <td class="num" data-label="Total">{{ brl(v.total) }}</td>
+                <td data-label="Desconsiderar">
+                  <input
+                    type="checkbox"
+                    [checked]="isExcluded(v.id)"
+                    (change)="toggleExclusion(v)"
+                    title="Desconsiderar esta venda da análise"
+                  />
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (vendasBusca.length === 0) {
+        <div class="empty">Nenhuma venda encontrada no período.</div>
+      }
+    }
+  </div>
+
   <div class="view-tabs">
     <button type="button" class="view-tabs__tab" [class.view-tabs__tab--active]="view() === 'especie'" (click)="setView('especie')">
       Por linha de negócio

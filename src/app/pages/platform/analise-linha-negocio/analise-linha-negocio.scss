@@ -86,3 +86,10 @@
 .row--strong td {
   color: var(--erp-green-ink);
 }
+
+.hint-text {
+  margin: 0 0 0.9rem;
+  font-size: 0.8rem;
+  color: var(--erp-dim);
+  max-width: 62ch;
+}
