@@ -1,0 +1,186 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--blue">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Codorna · Receita</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(report().codorna.revenue) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-arrow-up-right"></i></span>
+      </div>
+      <div class="kpi__foot">
+        Custo {{ brl(report().codorna.cost) }} · Lucro {{ brl(report().codorna.profit) }} ·
+        Margem {{ num(report().codorna.marginPct, 1) }}%
+      </div>
+    </article>
+    <article class="kpi kpi--amber">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Galinha · Receita</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(report().galinha.revenue) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-arrow-up-right"></i></span>
+      </div>
+      <div class="kpi__foot">
+        Custo {{ brl(report().galinha.cost) }} · Lucro {{ brl(report().galinha.profit) }} ·
+        Margem {{ num(report().galinha.marginPct, 1) }}%
+      </div>
+    </article>
+    <article class="kpi" [class.kpi--green]="report().galinhaCobreCustos" [class.kpi--red]="!report().galinhaCobreCustos">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Galinha cobre os próprios custos?</div>
+          <div class="kpi__value kpi__value--sm">
+            @if (report().galinhaCobreCustos) {
+              <span class="badge badge--ok">Sim</span>
+            } @else {
+              <span class="badge badge--out">Não</span>
+            }
+          </div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-question-circle"></i></span>
+      </div>
+      <div class="kpi__foot">
+        @if (report().galinhaCobreCustos) {
+          Lucro próprio no período selecionado.
+        } @else {
+          Diferença coberta pela codorna: {{ brl(report().diferencaCobertaPelaCodorna) }}
+        }
+      </div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Receita por espécie ao longo do tempo</h2>
+    </div>
+    @if (hasVendas()) {
+      <apx-chart
+        [series]="revenueOverTimeChart().series"
+        [chart]="revenueOverTimeChart().chart"
+        [colors]="revenueOverTimeChart().colors"
+        [stroke]="revenueOverTimeChart().stroke"
+        [dataLabels]="revenueOverTimeChart().dataLabels"
+        [xaxis]="revenueOverTimeChart().xaxis"
+        [yaxis]="revenueOverTimeChart().yaxis"
+        [grid]="revenueOverTimeChart().grid"
+        [legend]="revenueOverTimeChart().legend"
+        [tooltip]="revenueOverTimeChart().tooltip"
+      />
+    } @else {
+      <div class="empty">Sem vendas no período.</div>
+    }
+  </div>
+
+  <div class="view-tabs">
+    <button type="button" class="view-tabs__tab" [class.view-tabs__tab--active]="view() === 'especie'" (click)="setView('especie')">
+      Por linha de negócio
+    </button>
+    <button type="button" class="view-tabs__tab" [class.view-tabs__tab--active]="view() === 'produto'" (click)="setView('produto')">
+      Por produto
+    </button>
+  </div>
+
+  @if (view() === 'especie') {
+    <div class="panels-2">
+      <div class="panel">
+        <h2 class="panel__title" style="margin-bottom: 1rem">Codorna</h2>
+        <div class="tbl-wrap">
+          <table class="tbl" style="min-width: 320px">
+            <tbody>
+              <tr><td>Receita</td><td class="num strong">{{ brl(report().codorna.revenue) }}</td></tr>
+              <tr><td>Custo (rateado)</td><td class="num">{{ brl(report().codorna.cost) }}</td></tr>
+              <tr><td>Lucro</td><td class="num strong">{{ brl(report().codorna.profit) }}</td></tr>
+              <tr><td>Margem</td><td class="num">{{ num(report().codorna.marginPct, 1) }}%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 class="panel__title" style="margin-bottom: 1rem">Galinha</h2>
+        <div class="tbl-wrap">
+          <table class="tbl" style="min-width: 320px">
+            <tbody>
+              <tr><td>Receita</td><td class="num strong">{{ brl(report().galinha.revenue) }}</td></tr>
+              <tr><td>Custo (rateado)</td><td class="num">{{ brl(report().galinha.cost) }}</td></tr>
+              <tr><td>Lucro</td><td class="num strong">{{ brl(report().galinha.profit) }}</td></tr>
+              <tr><td>Margem</td><td class="num">{{ num(report().galinha.marginPct, 1) }}%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Rentabilidade por produto</h2>
+      </div>
+
+      <div class="highlight-row">
+        @if (produtoMaisFraco(); as pior) {
+          <div class="highlight highlight--weak">
+            <span class="highlight__label">Margem mais fraca</span>
+            <span class="highlight__name">{{ pior.name }}</span>
+            <span class="highlight__value">{{ num(pior.marginPct, 1) }}%</span>
+          </div>
+        }
+        @if (produtoMaisForte(); as melhor) {
+          <div class="highlight highlight--strong">
+            <span class="highlight__label">Margem mais forte</span>
+            <span class="highlight__name">{{ melhor.name }}</span>
+            <span class="highlight__value">{{ num(melhor.marginPct, 1) }}%</span>
+          </div>
+        }
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 720px">
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sortBy('name')">
+                Produto
+                <app-sort-icon [active]="sortField() === 'name'" [dir]="sortDir()" />
+              </th>
+              <th class="num sortable" (click)="sortBy('quantitySold')">
+                Vendidos
+                <app-sort-icon [active]="sortField() === 'quantitySold'" [dir]="sortDir()" />
+              </th>
+              <th class="num sortable" (click)="sortBy('revenue')">
+                Receita
+                <app-sort-icon [active]="sortField() === 'revenue'" [dir]="sortDir()" />
+              </th>
+              <th class="num sortable" (click)="sortBy('cost')">
+                Custo
+                <app-sort-icon [active]="sortField() === 'cost'" [dir]="sortDir()" />
+              </th>
+              <th class="num sortable" (click)="sortBy('profit')">
+                Lucro
+                <app-sort-icon [active]="sortField() === 'profit'" [dir]="sortDir()" />
+              </th>
+              <th class="num sortable" (click)="sortBy('marginPct')">
+                Margem
+                <app-sort-icon [active]="sortField() === 'marginPct'" [dir]="sortDir()" />
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of productRows(); track p.name) {
+              <tr [class.row--weak]="p === produtoMaisFraco()" [class.row--strong]="p === produtoMaisForte()">
+                <td class="strong" data-label="Produto">{{ p.name }}</td>
+                <td class="num" data-label="Vendidos">{{ num(p.quantitySold) }}</td>
+                <td class="num" data-label="Receita">{{ brl(p.revenue) }}</td>
+                <td class="num" data-label="Custo">{{ brl(p.cost) }}</td>
+                <td class="num" data-label="Lucro">{{ brl(p.profit) }}</td>
+                <td class="num strong" data-label="Margem">{{ num(p.marginPct, 1) }}%</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (productRows().length === 0) {
+        <div class="empty">Sem vendas no período.</div>
+      }
+    </div>
+  }
+</div>

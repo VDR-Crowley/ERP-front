@@ -47,6 +47,11 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./reports/reports').then((m) => m.Reports),
   },
   {
+    path: 'analise-linha-negocio',
+    loadComponent: () =>
+      import('./analise-linha-negocio/analise-linha-negocio').then((m) => m.AnaliseLinhaNegocio),
+  },
+  {
     path: 'products',
     loadComponent: () => import('./products/products').then((m) => m.Products),
   },

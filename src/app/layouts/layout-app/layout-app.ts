@@ -135,6 +135,12 @@ export class LayoutApp {
       sub: 'Indicadores e análises do período',
     },
     {
+      path: '/platform/analise-linha-negocio',
+      icon: 'pi-percentage',
+      label: 'Análise por Linha de Negócio',
+      sub: 'Rentabilidade: codorna x galinha, por produto',
+    },
+    {
       path: '/platform/products',
       icon: 'pi-box',
       label: 'Produtos',
