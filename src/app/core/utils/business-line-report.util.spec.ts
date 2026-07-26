@@ -130,6 +130,37 @@ describe('allocateExpenseAmount', () => {
   });
 });
 
+describe('allocateExpenseAmount com override manual de espécie', () => {
+  const flockRatio = computeFlockRatio(PLANTEL_MOCK);
+
+  it('override "codorna" tem prioridade sobre a detecção por texto (categoria/descrição de galinha)', () => {
+    const result = allocateExpenseAmount(
+      expense({ description: 'Saco de ração de galinha aberto pras codornas', category: 'Ração Galinha', amount: 106 }),
+      flockRatio,
+      'codorna',
+    );
+    expect(result).toEqual({ codorna: 106, galinha: 0 });
+  });
+
+  it('sem override, mantém a detecção automática por texto (comportamento atual)', () => {
+    const result = allocateExpenseAmount(
+      expense({ description: 'Compra de insumo', category: 'Galinha', amount: 50 }),
+      flockRatio,
+    );
+    expect(result).toEqual({ codorna: 0, galinha: 50 });
+  });
+
+  it('override null força rateio pelo plantel mesmo quando o texto identificaria espécie única', () => {
+    const result = allocateExpenseAmount(
+      expense({ description: 'Ração codornas', category: 'Ração', amount: 100 }),
+      flockRatio,
+      null,
+    );
+    expect(result.codorna).toBeCloseTo(100 * (130 / 162), 5);
+    expect(result.galinha).toBeCloseTo(100 * (32 / 162), 5);
+  });
+});
+
 describe('parseProductComposition', () => {
   it('extrai a composição de um kit misto', () => {
     expect(parseProductComposition('5 ovos Galinha + 50 Codorna')).toEqual({ codorna: 50, galinha: 5 });
@@ -234,6 +265,34 @@ describe('buildBusinessLineReport', () => {
 
     expect(report.galinhaCobreCustos).toBe(true);
     expect(report.diferencaCobertaPelaCodorna).toBe(0);
+  });
+});
+
+describe('buildBusinessLineReport com override de despesa (expenseSpeciesOverrides)', () => {
+  it('usa o override manual no lugar da detecção por texto pra despesa marcada', () => {
+    const sales: Venda[] = [venda({ product: '50 ovos de codorna', total: 150, quantity: 10 })];
+    const expenses = [
+      { ...expense({ description: 'Saco de ração de galinha usado pras codornas', category: 'Ração Galinha', amount: 106 }), id: 'exp-1' },
+    ];
+    const overrides = new Map<string, 'codorna' | 'galinha' | null>([['exp-1', 'codorna']]);
+
+    const report = buildBusinessLineReport(sales, expenses, PLANTEL_MOCK, PRODUTOS_MOCK, overrides);
+
+    expect(report.codorna.cost).toBe(106);
+    expect(report.galinha.cost).toBe(0);
+  });
+
+  it('despesa sem entrada no mapa de overrides mantém a detecção automática', () => {
+    const sales: Venda[] = [venda({ product: '50 ovos de codorna', total: 150, quantity: 10 })];
+    const expenses = [
+      { ...expense({ description: 'Ração galinhas', category: 'Ração', amount: 200 }), id: 'exp-2' },
+    ];
+    const overrides = new Map<string, 'codorna' | 'galinha' | null>([['exp-outro', 'codorna']]);
+
+    const report = buildBusinessLineReport(sales, expenses, PLANTEL_MOCK, PRODUTOS_MOCK, overrides);
+
+    expect(report.galinha.cost).toBe(200);
+    expect(report.codorna.cost).toBe(0);
   });
 });
 

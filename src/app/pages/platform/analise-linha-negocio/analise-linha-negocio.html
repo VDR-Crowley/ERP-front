@@ -143,6 +143,81 @@
     }
   </div>
 
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Despesas — origem real</h2>
+      <div class="panel__actions">
+        @if (expenseOverridesCount() > 0) {
+          <span class="badge badge--warn">{{ expenseOverridesCount() }} com origem sobrescrita</span>
+        }
+        <button type="button" class="btn btn--ghost" (click)="toggleManageExpenseOverrides()">
+          <i class="pi" [class.pi-chevron-down]="!manageExpenseOverridesOpen()" [class.pi-chevron-up]="manageExpenseOverridesOpen()"></i>
+          {{ manageExpenseOverridesOpen() ? 'Fechar' : 'Gerenciar' }}
+        </button>
+      </div>
+    </div>
+
+    <p class="hint-text">
+      A detecção automática usa a categoria/descrição da despesa pra saber qual espécie
+      consumiu o custo. Quando isso não bate com a realidade (ex.: saco de ração de galinha
+      usado de fato pras codornas, por falta de ração específica no comércio), sobrescreva a
+      espécie aqui — a categoria/descrição original não é alterada.
+    </p>
+
+    @if (manageExpenseOverridesOpen()) {
+      <div class="search" style="margin-bottom: 0.75rem">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar descrição, categoria..."
+          [ngModel]="expenseSearch()"
+          (ngModelChange)="expenseSearch.set($event)"
+        />
+      </div>
+
+      @let despesasBusca = despesasFiltradas() | filterBy: expenseSearch() : expenseSearchKeys;
+
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 620px">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Descrição</th>
+              <th>Categoria</th>
+              <th class="num">Valor</th>
+              <th>Espécie real</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of despesasBusca; track e.id) {
+              <tr [class.row--weak]="expenseSpeciesChoice(e.id) !== 'auto'">
+                <td data-label="Data">{{ ptDate(e.date) }}</td>
+                <td class="strong" data-label="Descrição">{{ e.description }}</td>
+                <td data-label="Categoria">{{ e.category }}</td>
+                <td class="num" data-label="Valor">{{ brl(e.amount) }}</td>
+                <td data-label="Espécie real">
+                  <select
+                    [ngModel]="expenseSpeciesChoice(e.id)"
+                    (ngModelChange)="setExpenseSpeciesOverride(e, $event)"
+                    title="Sobrescrever a espécie que realmente consumiu esta despesa"
+                  >
+                    <option value="auto">Automático</option>
+                    <option value="codorna">Codorna</option>
+                    <option value="galinha">Galinha</option>
+                  </select>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (despesasBusca.length === 0) {
+        <div class="empty">Nenhuma despesa encontrada no período.</div>
+      }
+    }
+  </div>
+
   <div class="view-tabs">
     <button type="button" class="view-tabs__tab" [class.view-tabs__tab--active]="view() === 'especie'" (click)="setView('especie')">
       Por linha de negócio

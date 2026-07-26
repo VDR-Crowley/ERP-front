@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { IndexedDbService } from './idb.service';
 
 export const DB_NAME = 'minierp-db';
-export const DB_VERSION = 5;
+export const DB_VERSION = 6;
 
 export const IDB_STORES = {
   sales: 'sales',
@@ -22,6 +22,8 @@ export const IDB_STORES = {
   flockCleaning: 'flockCleaning',
   /** Vendas marcadas como "evento isolado" — excluídas da Análise por Linha de Negócio, sem apagar o registro original de `sales`. */
   excludedSales: 'excludedSales',
+  /** Overrides manuais de espécie por despesa — ver `ExpenseSpeciesOverride`. */
+  expenseSpeciesOverrides: 'expenseSpeciesOverrides',
 } as const;
 
 /**

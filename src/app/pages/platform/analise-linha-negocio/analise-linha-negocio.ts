@@ -17,7 +17,8 @@ import { Expense } from '@core/interfaces/expense.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { SaleExclusion } from '@core/interfaces/sale-exclusion.interface';
-import { ProductLineResult } from '@core/interfaces/business-line-report.interface';
+import { ExpenseSpeciesOverride } from '@core/interfaces/expense-species-override.interface';
+import { ProductLineResult, Species } from '@core/interfaces/business-line-report.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
@@ -36,6 +37,9 @@ import { FilterByPipe } from '@core/pipes/filter-by.pipe';
 type ProductSortField = keyof ProductLineResult;
 type ViewMode = 'especie' | 'produto';
 type ExclusionSearchField = 'product' | 'buyer';
+type ExpenseSearchField = 'description' | 'category';
+/** Opção do seletor de override por despesa — `auto` remove o override (volta pra detecção por texto). */
+type ExpenseSpeciesChoice = 'auto' | Species;
 
 interface LineChartOptions {
   series: ApexAxisChartSeries;
@@ -57,6 +61,9 @@ const MESES_ABREV = [
 /** Motivo padrão salvo ao marcar uma venda como "evento isolado" pela tela (ver `SaleExclusion`). */
 const MOTIVO_PADRAO = 'Evento isolado / não recorrente (marcado manualmente na Análise por Linha de Negócio)';
 
+/** Motivo padrão salvo ao marcar o override de espécie de uma despesa (ver `ExpenseSpeciesOverride`). */
+const MOTIVO_OVERRIDE_PADRAO = 'Origem real diferente da categoria/descrição (marcado manualmente na Análise por Linha de Negócio)';
+
 /**
  * Tela "Análise por Linha de Negócio" — rentabilidade de codorna x galinha e por produto,
  * a partir dos dados já existentes em `sales`, `expenses`, `flock` e `products` (IndexedDB).
@@ -68,6 +75,11 @@ const MOTIVO_PADRAO = 'Evento isolado / não recorrente (marcado manualmente na 
  * marcadas como "desconsiderar da análise" — isso não apaga a venda de `sales`, só a remove
  * dos cálculos aqui, via um store separado (`excludedSales`, ver `SaleExclusion`). O
  * mecanismo é genérico: qualquer venda pode ser marcada, não só um produto específico.
+ *
+ * Despesas também podem ter a espécie sobrescrita manualmente (ex.: saco de ração de
+ * galinha usado de fato pras codornas) via outro store separado (`expenseSpeciesOverrides`,
+ * ver `ExpenseSpeciesOverride`), que tem prioridade sobre a detecção por texto em
+ * `allocateExpenseAmount`.
  */
 @Component({
   selector: 'app-analise-linha-negocio',
@@ -85,6 +97,10 @@ export class AnaliseLinhaNegocio {
   private readonly flockStore = createEntityStore<Plantel>(IDB_STORES.flock, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
   private readonly excludedSalesStore = createEntityStore<SaleExclusion>(IDB_STORES.excludedSales, []);
+  private readonly expenseOverridesStore = createEntityStore<ExpenseSpeciesOverride>(
+    IDB_STORES.expenseSpeciesOverrides,
+    [],
+  );
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
 
@@ -102,12 +118,21 @@ export class AnaliseLinhaNegocio {
   protected readonly exclusionSearch = signal('');
   protected readonly exclusionSearchKeys: ExclusionSearchField[] = ['product', 'buyer'];
 
+  /** Painel "Despesas — origem real" — fechado por padrão pra não poluir a tela. */
+  protected readonly manageExpenseOverridesOpen = signal(false);
+  protected toggleManageExpenseOverrides(): void {
+    this.manageExpenseOverridesOpen.update((open) => !open);
+  }
+
+  protected readonly expenseSearch = signal('');
+  protected readonly expenseSearchKeys: ExpenseSearchField[] = ['description', 'category'];
+
   /** Todas as vendas do store restritas ao período selecionado no DatePicker da topbar (sem descontar exclusões — usado na lista de gerenciamento, pra poder marcar/desmarcar). */
   protected readonly vendasNoPeriodo = computed(() =>
     this.salesStore.items().filter((v) => this.periodFilter.includes(v.date)),
   );
   /** Despesas do store restritas ao mesmo período. */
-  private readonly despesasFiltradas = computed(() =>
+  protected readonly despesasFiltradas = computed(() =>
     this.expensesStore.items().filter((e) => this.periodFilter.includes(e.date)),
   );
   /** Plantel não é filtrado por período — é o tamanho atual do plantel, usado só pro rateio. */
@@ -120,6 +145,14 @@ export class AnaliseLinhaNegocio {
   );
   protected readonly excludedCount = computed(
     () => this.vendasNoPeriodo().filter((v) => this.excludedSaleIds().has(v.id)).length,
+  );
+
+  /** `id` de despesa -> override manual de espécie (ver `ExpenseSpeciesOverride`); usado no rateio de custos abaixo. */
+  protected readonly expenseSpeciesOverrides = computed(
+    () => new Map(this.expenseOverridesStore.items().map((o) => [o.expenseId, o.species])),
+  );
+  protected readonly expenseOverridesCount = computed(
+    () => this.despesasFiltradas().filter((e) => this.expenseSpeciesOverrides().has(e.id)).length,
   );
 
   /** Vendas do período, descontadas as marcadas como evento isolado — usadas em todos os cálculos abaixo. */
@@ -135,6 +168,7 @@ export class AnaliseLinhaNegocio {
       this.despesasFiltradas(),
       this.flockItems(),
       this.productsItems(),
+      this.expenseSpeciesOverrides(),
     ),
   );
 
@@ -144,6 +178,7 @@ export class AnaliseLinhaNegocio {
       this.despesasFiltradas(),
       this.flockItems(),
       this.productsItems(),
+      this.expenseSpeciesOverrides(),
     ),
   );
 
@@ -213,5 +248,42 @@ export class AnaliseLinhaNegocio {
       reason: MOTIVO_PADRAO,
       createdAt: new Date().toISOString().slice(0, 10),
     });
+  }
+
+  /** Opção atual do seletor pra uma despesa: `auto` quando não há override gravado. */
+  protected expenseSpeciesChoice(expenseId: string): ExpenseSpeciesChoice {
+    return this.expenseSpeciesOverrides().get(expenseId) ?? 'auto';
+  }
+
+  /**
+   * Aplica o override de espécie escolhido pra uma despesa (ver `ExpenseSpeciesOverride`).
+   * `auto` remove o override (volta pra detecção por texto); `codorna`/`galinha` grava a
+   * espécie real que consumiu o custo, sobrescrevendo a categoria/descrição.
+   */
+  protected async setExpenseSpeciesOverride(
+    expense: WithId<Expense>,
+    choice: ExpenseSpeciesChoice,
+  ): Promise<void> {
+    const existing = this.expenseOverridesStore.items().find((o) => o.expenseId === expense.id);
+
+    if (choice === 'auto') {
+      if (existing) {
+        await this.expenseOverridesStore.remove(existing.id);
+      }
+      return;
+    }
+
+    const override: ExpenseSpeciesOverride = {
+      expenseId: expense.id,
+      species: choice,
+      reason: MOTIVO_OVERRIDE_PADRAO,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+
+    if (existing) {
+      await this.expenseOverridesStore.update(existing.id, override);
+    } else {
+      await this.expenseOverridesStore.add(override);
+    }
   }
 }

@@ -70,11 +70,30 @@ export function computeFlockRatio(flock: Pick<Plantel, 'species' | 'quantity'>[]
  * Rateia uma despesa entre as espécies: 100% pra espécie mencionada explicitamente na
  * descrição/categoria, ou proporcional ao plantel quando é compartilhada (sem menção, ou
  * mencionando as duas ao mesmo tempo — ex.: "Ração codornas e galinhas").
+ *
+ * `speciesOverride`, quando presente, tem prioridade sobre a detecção por texto — cobre o
+ * caso de um saco de ração de uma espécie ser usado de fato pra alimentar a outra (ex.: não
+ * tinha ração de codorna disponível no comércio, abriu um saco de galinha). `undefined`
+ * (padrão) mantém a detecção automática; `null` força o rateio pelo plantel mesmo que o
+ * texto identifique uma espécie única.
  */
 export function allocateExpenseAmount(
   expense: Pick<Expense, 'description' | 'category' | 'amount'>,
   flockRatio: SpeciesAmounts,
+  speciesOverride?: Species | null,
 ): SpeciesAmounts {
+  if (speciesOverride !== undefined) {
+    if (speciesOverride === null) {
+      return {
+        codorna: expense.amount * flockRatio.codorna,
+        galinha: expense.amount * flockRatio.galinha,
+      };
+    }
+    return speciesOverride === 'codorna'
+      ? { codorna: expense.amount, galinha: 0 }
+      : { codorna: 0, galinha: expense.amount };
+  }
+
   const mentions = new Set<Species>([
     ...detectSpeciesMentions(expense.description ?? ''),
     ...detectSpeciesMentions(expense.category ?? ''),
@@ -212,12 +231,17 @@ function toSpeciesTotals(revenue: number, cost: number): SpeciesTotals {
   };
 }
 
-/** Monta o relatório agregado por espécie (codorna x galinha) pro período já filtrado pelo chamador. */
+/**
+ * Monta o relatório agregado por espécie (codorna x galinha) pro período já filtrado pelo
+ * chamador. `expenseSpeciesOverrides` mapeia `id` de despesa -> override manual de espécie
+ * (ver `allocateExpenseAmount`); despesa sem entrada no mapa cai na detecção automática.
+ */
 export function buildBusinessLineReport(
   sales: Venda[],
-  expenses: Expense[],
+  expenses: (Expense & { id?: string })[],
   flock: Plantel[],
   products: Product[],
+  expenseSpeciesOverrides: ReadonlyMap<string, Species | null> = new Map(),
 ): BusinessLineReport {
   const flockRatio = computeFlockRatio(flock);
   const eggUnitPrices = computeEggUnitPrices(products);
@@ -232,7 +256,8 @@ export function buildBusinessLineReport(
 
   const cost: SpeciesAmounts = { codorna: 0, galinha: 0 };
   for (const expense of expenses) {
-    const alloc = allocateExpenseAmount(expense, flockRatio);
+    const override = expense.id !== undefined ? expenseSpeciesOverrides.get(expense.id) : undefined;
+    const alloc = allocateExpenseAmount(expense, flockRatio, override);
     cost.codorna += alloc.codorna;
     cost.galinha += alloc.galinha;
   }
@@ -258,9 +283,10 @@ export function buildBusinessLineReport(
  */
 export function buildProductReport(
   sales: Venda[],
-  expenses: Expense[],
+  expenses: (Expense & { id?: string })[],
   flock: Plantel[],
   products: Product[],
+  expenseSpeciesOverrides: ReadonlyMap<string, Species | null> = new Map(),
 ): ProductLineResult[] {
   const flockRatio = computeFlockRatio(flock);
   const eggUnitPrices = computeEggUnitPrices(products);
@@ -286,7 +312,8 @@ export function buildProductReport(
 
   const speciesCost: SpeciesAmounts = { codorna: 0, galinha: 0 };
   for (const expense of expenses) {
-    const alloc = allocateExpenseAmount(expense, flockRatio);
+    const override = expense.id !== undefined ? expenseSpeciesOverrides.get(expense.id) : undefined;
+    const alloc = allocateExpenseAmount(expense, flockRatio, override);
     speciesCost.codorna += alloc.codorna;
     speciesCost.galinha += alloc.galinha;
   }
