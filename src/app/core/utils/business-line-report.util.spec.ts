@@ -128,6 +128,18 @@ describe('allocateExpenseAmount', () => {
     expect(result.codorna).toBeCloseTo(200 * (130 / 162), 5);
     expect(result.galinha).toBeCloseTo(200 * (32 / 162), 5);
   });
+
+  it('categoria explícita de espécie tem prioridade sobre a descrição quando as duas divergem (caso real: saco de ração de galinha recategorizado manualmente pra codorna)', () => {
+    // Caso real reportado: despesa comprada como "Ração galinhas Embrapa" (descrição menciona
+    // galinha) mas o usuário recategorizou manualmente pra "Codornas" porque o saco foi de fato
+    // usado pras codornas (não achou ração de codorna no comércio). A categoria é o campo que o
+    // usuário edita deliberadamente pra corrigir a classificação — tem que vencer a descrição.
+    const result = allocateExpenseAmount(
+      expense({ description: 'Ração galinhas Embrapa', category: 'Codornas', amount: 106 }),
+      flockRatio,
+    );
+    expect(result).toEqual({ codorna: 106, galinha: 0 });
+  });
 });
 
 describe('allocateExpenseAmount com override manual de espécie', () => {

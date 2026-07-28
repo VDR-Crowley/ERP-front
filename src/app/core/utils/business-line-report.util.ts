@@ -68,14 +68,21 @@ export function computeFlockRatio(flock: Pick<Plantel, 'species' | 'quantity'>[]
 
 /**
  * Rateia uma despesa entre as espécies: 100% pra espécie mencionada explicitamente na
- * descrição/categoria, ou proporcional ao plantel quando é compartilhada (sem menção, ou
- * mencionando as duas ao mesmo tempo — ex.: "Ração codornas e galinhas").
+ * categoria ou, na falta dela, na descrição — ou proporcional ao plantel quando nenhuma das
+ * duas identifica uma espécie única (sem menção em nenhum campo, ou um campo mencionando as
+ * duas ao mesmo tempo — ex.: "Ração codornas e galinhas").
  *
- * `speciesOverride`, quando presente, tem prioridade sobre a detecção por texto — cobre o
- * caso de um saco de ração de uma espécie ser usado de fato pra alimentar a outra (ex.: não
- * tinha ração de codorna disponível no comércio, abriu um saco de galinha). `undefined`
- * (padrão) mantém a detecção automática; `null` força o rateio pelo plantel mesmo que o
- * texto identifique uma espécie única.
+ * A categoria tem prioridade sobre a descrição (não é união dos dois): categoria é o campo
+ * que o usuário edita deliberadamente pra classificar/corrigir a despesa (ex.: recategorizar
+ * manualmente um saco de ração de galinha usado de fato pras codornas), enquanto a descrição
+ * costuma vir do nome original da compra e pode não refletir a espécie que consumiu de
+ * verdade. Categoria genérica (tipo "Ração"/"Tela"/"Feno", sem menção de espécie) cai
+ * naturalmente pra descrição, já que `detectSpeciesMentions` não encontra nada nela.
+ *
+ * `speciesOverride`, quando presente, tem prioridade sobre tudo isso — cobre o mesmo caso de
+ * saco trocado com um controle dedicado (painel "Despesas — origem real") em vez de depender
+ * de editar a categoria. `undefined` (padrão) mantém a detecção automática; `null` força o
+ * rateio pelo plantel mesmo que o texto identifique uma espécie única.
  */
 export function allocateExpenseAmount(
   expense: Pick<Expense, 'description' | 'category' | 'amount'>,
@@ -94,13 +101,16 @@ export function allocateExpenseAmount(
       : { codorna: 0, galinha: expense.amount };
   }
 
-  const mentions = new Set<Species>([
-    ...detectSpeciesMentions(expense.description ?? ''),
-    ...detectSpeciesMentions(expense.category ?? ''),
-  ]);
+  const categoryMentions = detectSpeciesMentions(expense.category ?? '');
+  const descriptionMentions = detectSpeciesMentions(expense.description ?? '');
+  const species =
+    categoryMentions.length === 1
+      ? categoryMentions[0]
+      : descriptionMentions.length === 1
+        ? descriptionMentions[0]
+        : undefined;
 
-  if (mentions.size === 1) {
-    const [species] = mentions;
+  if (species) {
     return species === 'codorna'
       ? { codorna: expense.amount, galinha: 0 }
       : { codorna: 0, galinha: expense.amount };
