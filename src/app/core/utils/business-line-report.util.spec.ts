@@ -324,6 +324,65 @@ describe('buildProductReport', () => {
     // Pior margem (galinha, negativa) vem primeiro.
     expect(results[0].name).toBe('1 Bandeja de ovos de galinha');
   });
+
+  it('mantém custo por espécie independente entre produtos, com plantel diferente, várias despesas com categoria genérica ("Ração"/"Tela"/"Feno") e vários produtos por espécie', () => {
+    // Cenário calcado no relato real: Categoria muitas vezes é o TIPO de despesa (Ração, Tela,
+    // Feno), não a espécie — só a Descrição indica a espécie nesses casos. Reproduz múltiplos
+    // produtos por espécie pra garantir que o costRate de uma espécie não vaza/duplica pra outra.
+    const flock: Plantel[] = [
+      { species: 'Codornas', quantity: 100, feedBagsPerMonth: 2, bagPrice: 100, monthlyTotal: 200 },
+      { species: 'Galinhas Embrapa 051', quantity: 50, feedBagsPerMonth: 2, bagPrice: 100, monthlyTotal: 200 },
+    ];
+    const products: Product[] = [
+      { name: 'Ovos de codorna A', unit: 'Bandeja', unitPrice: 10, stock: 10, eggsPerUnit: 10 },
+      { name: 'Ovos de codorna B', unit: 'Bandeja', unitPrice: 10, stock: 10, eggsPerUnit: 10 },
+      { name: 'Ovos de galinha A', unit: 'Bandeja', unitPrice: 10, stock: 10, eggsPerUnit: 10 },
+      { name: 'Ovos de galinha B', unit: 'Bandeja', unitPrice: 10, stock: 10, eggsPerUnit: 10 },
+    ];
+    const sales: Venda[] = [
+      venda({ date: '2026-06-01', product: 'Ovos de codorna A', total: 100 }),
+      venda({ date: '2026-07-01', product: 'Ovos de codorna B', total: 200 }),
+      venda({ date: '2026-06-15', product: 'Ovos de galinha A', total: 300 }),
+      venda({ date: '2026-07-15', product: 'Ovos de galinha B', total: 400 }),
+    ];
+    const expenses: Expense[] = [
+      // Categoria genérica ("Ração" = tipo de despesa, não espécie) — só a descrição indica a espécie.
+      expense({ description: 'Ração galinhas Embrapa', category: 'Ração', amount: 150 }),
+      expense({ description: 'Ração codornas', category: 'Ração', amount: 60 }),
+      // Espécie só na categoria, descrição genérica.
+      expense({ description: 'Compra de insumo mensal', category: 'Galinha', amount: 40 }),
+      // Nenhuma menção em lugar nenhum — cai no rateio por plantel (2/3 codorna, 1/3 galinha).
+      expense({ description: 'Tela de proteção', category: 'Tela', amount: 90 }),
+      expense({ description: 'Feno', category: 'Feno', amount: 30 }),
+    ];
+
+    const results = buildProductReport(sales, expenses, flock, products);
+
+    const custoPorEspecie = (prefixo: string) =>
+      results.filter((r) => r.name.startsWith(prefixo)).reduce((soma, r) => soma + r.cost, 0);
+
+    const custoCodorna = custoPorEspecie('Ovos de codorna');
+    const custoGalinha = custoPorEspecie('Ovos de galinha');
+
+    // codorna: 60 (Ração codornas) + 2/3 de (90 + 30) = 60 + 80 = 140
+    // galinha: 150 (Ração galinhas) + 40 (categoria) + 1/3 de (90 + 30) = 150 + 40 + 40 = 230
+    expect(custoCodorna).toBeCloseTo(140, 5);
+    expect(custoGalinha).toBeCloseTo(230, 5);
+    // Guarda de regressão direta: os totais por espécie não podem ser iguais nem vazar um pro outro.
+    expect(custoGalinha).not.toBeCloseTo(custoCodorna, 2);
+
+    const galinhaA = results.find((r) => r.name === 'Ovos de galinha A')!;
+    const galinhaB = results.find((r) => r.name === 'Ovos de galinha B')!;
+    const codornaA = results.find((r) => r.name === 'Ovos de codorna A')!;
+    const codornaB = results.find((r) => r.name === 'Ovos de codorna B')!;
+
+    // Custo por produto proporcional à receita, com o costRate da própria espécie — nenhum dos
+    // quatro produtos pode compartilhar custo com um produto de outra espécie.
+    expect(galinhaA.cost).toBeCloseTo(300 * (230 / 700), 5);
+    expect(galinhaB.cost).toBeCloseTo(400 * (230 / 700), 5);
+    expect(codornaA.cost).toBeCloseTo(100 * (140 / 300), 5);
+    expect(codornaB.cost).toBeCloseTo(200 * (140 / 300), 5);
+  });
 });
 
 describe('excludeSalesByIds', () => {
