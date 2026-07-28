@@ -242,6 +242,27 @@ describe('allocateSaleAmount', () => {
     const v = venda({ product: 'Produto genérico', total: 10 });
     expect(allocateSaleAmount(v, undefined, eggUnitPrices)).toEqual({ codorna: 0, galinha: 0 });
   });
+
+  it('rateia pela contagem crua de ovos do kit quando falta preço de referência de uma das espécies (não deve virar 100% da outra)', () => {
+    // Catálogo só tem produto de referência de codorna — nenhum produto de espécie única de
+    // galinha (ex.: granja só vende ovo de galinha dentro de kits). Sem esse fallback,
+    // eggUnitPrices.galinha fica null e o kit inteiro era jogado 100% pra codorna.
+    const catalogoSemReferenciaGalinha: Product[] = [
+      { name: '50 ovos de codorna', unit: 'Bandeja (50 ovos)', unitPrice: 15, stock: 26, eggsPerUnit: 50 },
+      { name: '5 ovos Galinha + 50 Codorna', unit: 'Kit misto', unitPrice: 30, stock: 15, eggsPerUnit: 55 },
+    ];
+    const precos = computeEggUnitPrices(catalogoSemReferenciaGalinha);
+    expect(precos.galinha).toBeNull();
+
+    const kit = catalogoSemReferenciaGalinha.find((p) => p.name === '5 ovos Galinha + 50 Codorna')!;
+    const v = venda({ product: kit.name, total: 30 });
+    const result = allocateSaleAmount(v, kit, precos);
+
+    // composição do kit: 50 codorna / 5 galinha -> rateio 50/55 e 5/55, nunca 100%/0%.
+    expect(result.codorna).toBeCloseTo(30 * (50 / 55), 5);
+    expect(result.galinha).toBeCloseTo(30 * (5 / 55), 5);
+    expect(result.galinha).toBeGreaterThan(0);
+  });
 });
 
 describe('buildBusinessLineReport', () => {

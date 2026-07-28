@@ -199,6 +199,12 @@ export function computeEggUnitPrices(
  * dividido pelo valor implícito de cada tipo de ovo quando o produto é misto (menciona as
  * duas espécies no nome). Produto sem nenhuma menção reconhecível (não dá pra classificar)
  * não entra no rateio por espécie.
+ *
+ * O rateio por valor implícito só é usado quando o catálogo tem preço de referência (produto
+ * de espécie única) pras DUAS espécies do kit — faltando referência de uma delas,
+ * `eggUnitPrices` daquela espécie vem `null` e cair pra `0` no cálculo jogava 100% do kit pra
+ * espécie que tem referência, mesmo quando o kit claramente tem ovo da outra também. Nesse
+ * caso, cai num rateio mais simples pela contagem crua de ovos do kit (sem depender de preço).
  */
 export function allocateSaleAmount(
   sale: Pick<Venda, 'product' | 'total'>,
@@ -217,13 +223,24 @@ export function allocateSaleAmount(
 
   if (mentions.length === 2) {
     const composition = resolveProductComposition(product ?? { name: productName, eggsPerUnit: 0 });
-    const impliedCodorna = composition.codorna * (eggUnitPrices.codorna ?? 0);
-    const impliedGalinha = composition.galinha * (eggUnitPrices.galinha ?? 0);
-    const impliedTotal = impliedCodorna + impliedGalinha;
-    if (impliedTotal > 0) {
+
+    if (eggUnitPrices.codorna !== null && eggUnitPrices.galinha !== null) {
+      const impliedCodorna = composition.codorna * eggUnitPrices.codorna;
+      const impliedGalinha = composition.galinha * eggUnitPrices.galinha;
+      const impliedTotal = impliedCodorna + impliedGalinha;
+      if (impliedTotal > 0) {
+        return {
+          codorna: sale.total * (impliedCodorna / impliedTotal),
+          galinha: sale.total * (impliedGalinha / impliedTotal),
+        };
+      }
+    }
+
+    const eggTotal = composition.codorna + composition.galinha;
+    if (eggTotal > 0) {
       return {
-        codorna: sale.total * (impliedCodorna / impliedTotal),
-        galinha: sale.total * (impliedGalinha / impliedTotal),
+        codorna: sale.total * (composition.codorna / eggTotal),
+        galinha: sale.total * (composition.galinha / eggTotal),
       };
     }
   }
