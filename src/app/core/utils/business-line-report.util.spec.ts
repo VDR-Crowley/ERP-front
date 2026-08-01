@@ -299,6 +299,26 @@ describe('buildBusinessLineReport', () => {
     expect(report.galinhaCobreCustos).toBe(true);
     expect(report.diferencaCobertaPelaCodorna).toBe(0);
   });
+
+  it('custo total (codorna + galinha) bate exatamente com a soma bruta das despesas do período — garante que a Margem de Relatórios (que usa a soma bruta, sem segmentar por espécie) nunca diverge da Análise por Linha de Negócio', () => {
+    const sales: Venda[] = [
+      venda({ product: '50 ovos de codorna', total: 150, quantity: 10 }),
+      venda({ product: '1 Bandeja de ovos de galinha', total: 40, quantity: 2 }),
+    ];
+    const expenses: Expense[] = [
+      expense({ description: 'Ração codornas', category: 'Ração', amount: 106 }),
+      expense({ description: 'Ração galinhas', category: 'Ração', amount: 200 }),
+      // Sem menção em lugar nenhum — cai no rateio por plantel, mas continua somando 100%.
+      expense({ description: 'Tela de proteção', category: 'Tela', amount: 57.3 }),
+      // Categoria e descrição mencionam espécies diferentes — cai no rateio por plantel também.
+      expense({ description: 'Ração galinhas Embrapa', category: 'Codornas', amount: 84.9 }),
+    ];
+    const somaBrutaDespesas = expenses.reduce((soma, e) => soma + e.amount, 0);
+
+    const report = buildBusinessLineReport(sales, expenses, PLANTEL_MOCK, PRODUTOS_MOCK);
+
+    expect(report.codorna.cost + report.galinha.cost).toBeCloseTo(somaBrutaDespesas, 8);
+  });
 });
 
 describe('buildBusinessLineReport com override de despesa (expenseSpeciesOverrides)', () => {
