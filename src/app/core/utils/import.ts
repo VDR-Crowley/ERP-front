@@ -7,6 +7,7 @@ import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
+import { migrateLegacyHatchEvents } from '@core/utils/hatch-tracking.util';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
@@ -685,8 +686,7 @@ function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): NovoLotePla
         species,
         eggCount,
         expectedHatchDate,
-        actualHatchDate,
-        hatchedCount,
+        hatchEvents: migrateLegacyHatchEvents({ actualHatchDate, hatchedCount }),
         status: statusRaw,
         eggCost,
         feedCost,

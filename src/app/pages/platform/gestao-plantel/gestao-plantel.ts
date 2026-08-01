@@ -1,10 +1,18 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
+import { HatchEvent, NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { addDays, daysUntil } from '@core/utils/date-diff';
+import {
+  addHatchEvent,
+  deriveStatusAfterHatchChange,
+  migrateLegacyHatchEvents,
+  removeHatchEvent,
+  totalHatched,
+  updateHatchEvent,
+} from '@core/utils/hatch-tracking.util';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -37,9 +45,11 @@ const FIELDS: CrudField[] = [
   { key: 'notes', label: 'Observações', type: 'text' },
 ];
 
-const HATCH_FIELDS: CrudField[] = [
-  { key: 'actualHatchDate', label: 'Data da eclosão', type: 'date', required: true },
-  { key: 'hatchedCount', label: 'Quantidade de aves nascidas', type: 'number', step: 1, required: true },
+/** Campos do registro incremental de nascimento (ver `HatchEvent`) — um lote tem vários desses ao longo dos dias de eclosão. */
+const HATCH_EVENT_FIELDS: CrudField[] = [
+  { key: 'date', label: 'Data', type: 'date', required: true },
+  { key: 'count', label: 'Quantidade de aves nascidas', type: 'number', step: 1, required: true },
+  { key: 'notes', label: 'Observações', type: 'text' },
 ];
 
 @Component({
@@ -53,8 +63,9 @@ export class GestaoPlantel {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
   protected readonly fields = FIELDS;
-  protected readonly hatchFields = HATCH_FIELDS;
+  protected readonly hatchEventFields = HATCH_EVENT_FIELDS;
   protected readonly speciesLabel = (s: Species) => (s === 'quail' ? 'Codorna' : 'Galinha');
+  protected readonly totalHatched = totalHatched;
 
   private readonly store = createEntityStore<NovoLotePlantel>(IDB_STORES.flockIncubation, []);
 
@@ -71,22 +82,51 @@ export class GestaoPlantel {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<NovoLotePlantel> | null>(null);
 
-  protected readonly hatchOpen = signal(false);
+  /** Lotes com `hatchEvents` sempre presente — normaliza registros salvos antes do histórico incremental existir (ver `migrateLegacyHatchEvents`). */
+  private readonly lotesNormalizados = computed<WithId<NovoLotePlantel>[]>(() =>
+    this.store.items().map((item) => ({ ...item, hatchEvents: migrateLegacyHatchEvents(item) })),
+  );
+
+  /** `id`s de lote com o painel de histórico de nascimentos aberto. */
+  protected readonly historyOpenIds = signal<ReadonlySet<string>>(new Set());
+  protected isHistoryOpen(loteId: string): boolean {
+    return this.historyOpenIds().has(loteId);
+  }
+  protected toggleHistory(loteId: string): void {
+    this.historyOpenIds.update((ids) => {
+      const next = new Set(ids);
+      if (next.has(loteId)) {
+        next.delete(loteId);
+      } else {
+        next.add(loteId);
+      }
+      return next;
+    });
+  }
+
+  protected readonly hatchFormOpen = signal(false);
+  protected readonly hatchFormTitle = signal('Registrar nascimento');
   protected hatchDraft: Record<string, unknown> = {};
-  private hatchTarget: WithId<NovoLotePlantel> | null = null;
+  private hatchLoteTarget: WithId<NovoLotePlantel> | null = null;
+  private editingHatchEventId: string | null = null;
+
+  protected readonly deleteHatchEventTarget = signal<{
+    lote: WithId<NovoLotePlantel>;
+    event: HatchEvent;
+  } | null>(null);
 
   protected readonly hatchNotice = signal<string | null>(null);
 
   protected readonly rows = computed<WithId<NovoLotePlantel>[]>(() =>
-    sortRows(this.store.items(), this.sortField(), this.sortDir()),
+    sortRows(this.lotesNormalizados(), this.sortField(), this.sortDir()),
   );
 
   protected readonly lotesIncubando = computed(
-    () => this.store.items().filter((i) => i.status === 'incubando').length,
+    () => this.lotesNormalizados().filter((i) => i.status === 'incubando').length,
   );
 
   protected readonly proximaEclosao = computed(() => {
-    const pendentes = this.store.items().filter((i) => i.status === 'incubando');
+    const pendentes = this.lotesNormalizados().filter((i) => i.status === 'incubando');
     return pendentes.length ? sortRows(pendentes, 'expectedHatchDate', 1)[0] : null;
   });
 
@@ -96,14 +136,32 @@ export class GestaoPlantel {
   });
 
   protected readonly investimentoAtivo = computed(() =>
-    this.store
-      .items()
+    this.lotesNormalizados()
       .filter((i) => i.status === 'incubando')
       .reduce((soma, i) => soma + this.investimento(i), 0),
   );
 
   protected investimento(item: NovoLotePlantel): number {
     return (item.eggCost ?? 0) + (item.feedCost ?? 0);
+  }
+
+  /** Monta o registro completo pra persistir, trocando só o histórico de nascimentos e o status — descarta os campos legados (`actualHatchDate`/`hatchedCount`) na primeira escrita. */
+  private buildRecord(
+    lote: NovoLotePlantel,
+    hatchEvents: HatchEvent[],
+    status: NovoLotePlantel['status'],
+  ): NovoLotePlantel {
+    return {
+      startDate: lote.startDate,
+      species: lote.species,
+      eggCount: lote.eggCount,
+      expectedHatchDate: lote.expectedHatchDate,
+      hatchEvents,
+      status,
+      eggCost: lote.eggCost,
+      feedCost: lote.feedCost,
+      notes: lote.notes,
+    };
   }
 
   protected urgencyClass(item: NovoLotePlantel): UrgencyClass {
@@ -158,8 +216,7 @@ export class GestaoPlantel {
       species,
       eggCount: Number(d['eggCount']),
       expectedHatchDate: addDays(startDate, HATCH_DAYS[species]),
-      actualHatchDate: previous?.actualHatchDate ?? null,
-      hatchedCount: previous?.hatchedCount ?? null,
+      hatchEvents: previous ? migrateLegacyHatchEvents(previous) : [],
       status: previous?.status ?? 'incubando',
       eggCost: d['eggCost'] === '' || d['eggCost'] === null ? null : Number(d['eggCost']),
       feedCost: d['feedCost'] === '' || d['feedCost'] === null ? null : Number(d['feedCost']),
@@ -174,44 +231,78 @@ export class GestaoPlantel {
     this.formOpen.set(false);
   }
 
-  protected askHatch(item: WithId<NovoLotePlantel>): void {
-    this.hatchTarget = item;
-    this.hatchDraft = {
-      actualHatchDate: new Date().toISOString().slice(0, 10),
-      hatchedCount: 0,
-    };
-    this.hatchOpen.set(true);
+  /** Abre o form pra registrar um novo nascimento (eclosão não é instantânea — cada lote pode ter vários registros ao longo dos dias). */
+  protected openAddHatchEvent(item: WithId<NovoLotePlantel>): void {
+    this.hatchLoteTarget = item;
+    this.editingHatchEventId = null;
+    this.hatchFormTitle.set('Registrar nascimento');
+    this.hatchDraft = { date: new Date().toISOString().slice(0, 10), count: 0, notes: '' };
+    this.hatchFormOpen.set(true);
   }
 
-  protected cancelHatch(): void {
-    this.hatchOpen.set(false);
+  /** Abre o form pra editar um registro de nascimento já existente (histórico editável, mesmo em lote já "eclodido"). */
+  protected openEditHatchEvent(item: WithId<NovoLotePlantel>, event: HatchEvent): void {
+    this.hatchLoteTarget = item;
+    this.editingHatchEventId = event.id;
+    this.hatchFormTitle.set('Editar registro de nascimento');
+    this.hatchDraft = { date: event.date, count: event.count, notes: event.notes ?? '' };
+    this.hatchFormOpen.set(true);
   }
 
-  protected async saveHatch(): Promise<void> {
-    const target = this.hatchTarget;
+  protected cancelHatchForm(): void {
+    this.hatchFormOpen.set(false);
+  }
+
+  protected async saveHatchForm(): Promise<void> {
+    const target = this.hatchLoteTarget;
     if (!target) return;
 
-    const actualHatchDate = String(this.hatchDraft['actualHatchDate']);
-    const hatchedCount = Number(this.hatchDraft['hatchedCount']);
+    const date = String(this.hatchDraft['date']);
+    const count = Number(this.hatchDraft['count']);
+    const notes = this.hatchDraft['notes'] ? String(this.hatchDraft['notes']) : undefined;
 
-    const record: NovoLotePlantel = {
-      startDate: target.startDate,
-      species: target.species,
-      eggCount: target.eggCount,
-      expectedHatchDate: target.expectedHatchDate,
-      actualHatchDate,
-      hatchedCount,
-      status: 'eclodido',
-      eggCost: target.eggCost,
-      feedCost: target.feedCost,
-      notes: target.notes,
-    };
+    const currentEvents = migrateLegacyHatchEvents(target);
+    const events = this.editingHatchEventId
+      ? updateHatchEvent(currentEvents, this.editingHatchEventId, { date, count, notes })
+      : addHatchEvent(currentEvents, { id: crypto.randomUUID(), date, count, notes });
+    const status = deriveStatusAfterHatchChange(target.status, target.eggCount, events);
+    const acabouDeFechar = target.status === 'incubando' && status === 'eclodido';
 
-    await this.store.update(target.id, record);
-    this.hatchOpen.set(false);
+    await this.store.update(target.id, this.buildRecord(target, events, status));
+    this.hatchFormOpen.set(false);
+
+    const total = totalHatched(events);
     this.hatchNotice.set(
-      `${hatchedCount} ave(s) nascida(s) em ${ptDate(actualHatchDate)} — lance no Plantel manualmente quando decidir que já faz parte do plantel adulto.`,
+      `${count} ave(s) registrada(s) em ${ptDate(date)} — total do lote: ${total}/${target.eggCount}` +
+        (acabouDeFechar
+          ? '. Lote marcado como eclodido — lance no Plantel manualmente quando decidir que já fazem parte do plantel adulto.'
+          : '.'),
     );
+  }
+
+  /** Fecha o lote manualmente mesmo sem todos os ovos terem chocado (ex.: parte deles não vingou). */
+  protected async concluirLote(item: WithId<NovoLotePlantel>): Promise<void> {
+    await this.store.update(item.id, this.buildRecord(item, migrateLegacyHatchEvents(item), 'eclodido'));
+  }
+
+  protected askDeleteHatchEvent(item: WithId<NovoLotePlantel>, event: HatchEvent): void {
+    this.deleteHatchEventTarget.set({ lote: item, event });
+  }
+
+  protected cancelDeleteHatchEvent(): void {
+    this.deleteHatchEventTarget.set(null);
+  }
+
+  protected async confirmDeleteHatchEvent(): Promise<void> {
+    const target = this.deleteHatchEventTarget();
+    if (!target) return;
+
+    const currentEvents = migrateLegacyHatchEvents(target.lote);
+    const events = removeHatchEvent(currentEvents, target.event.id);
+    const status = deriveStatusAfterHatchChange(target.lote.status, target.lote.eggCount, events);
+
+    await this.store.update(target.lote.id, this.buildRecord(target.lote, events, status));
+    this.deleteHatchEventTarget.set(null);
   }
 
   protected closeHatchNotice(): void {

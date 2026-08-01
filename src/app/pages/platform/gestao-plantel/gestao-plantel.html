@@ -66,6 +66,7 @@
             >
               Investimento até 45 dias
             </th>
+            <th class="num" title="Total de aves nascidas registradas até agora, de vários dias de eclosão">Nascidos</th>
             <th>Status</th>
             <th>Ações</th>
           </tr>
@@ -84,6 +85,7 @@
               >
                 {{ brl(investimento(item)) }}
               </td>
+              <td class="num" data-label="Nascidos">{{ num(totalHatched(item.hatchEvents)) }}/{{ num(item.eggCount) }}</td>
               <td data-label="Status">
                 @if (item.status === 'eclodido') {
                   <span class="badge badge--ok">Eclodido</span>
@@ -100,20 +102,72 @@
               </td>
               <td>
                 <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Registrar nascimento" (click)="openAddHatchEvent(item)">
+                    <i class="pi pi-plus-circle"></i>
+                  </button>
                   @if (item.status === 'incubando') {
-                    <button type="button" class="btn btn--icon" title="Marcar eclosão" (click)="askHatch(item)">
+                    <button type="button" class="btn btn--icon" title="Concluir lote (fecha mesmo sem todos os ovos terem chocado)" (click)="concluirLote(item)">
                       <i class="pi pi-check-circle"></i>
                     </button>
                   }
-                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(item)">
+                  <button
+                    type="button"
+                    class="btn btn--icon"
+                    [title]="isHistoryOpen(item.id) ? 'Fechar histórico' : 'Ver histórico de nascimentos'"
+                    (click)="toggleHistory(item.id)"
+                  >
+                    <i class="pi" [class.pi-chevron-up]="isHistoryOpen(item.id)" [class.pi-chevron-down]="!isHistoryOpen(item.id)"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon" title="Editar lote" (click)="openEdit(item)">
                     <i class="pi pi-pencil"></i>
                   </button>
-                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(item)">
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir lote" (click)="askDelete(item)">
                     <i class="pi pi-trash"></i>
                   </button>
                 </div>
               </td>
             </tr>
+            @if (isHistoryOpen(item.id)) {
+              <tr class="row--detail">
+                <td colspan="8">
+                  @if (item.hatchEvents.length === 0) {
+                    <div class="empty">Nenhum nascimento registrado ainda pra esse lote.</div>
+                  } @else {
+                    <div class="tbl-wrap">
+                      <table class="tbl" style="min-width: 500px">
+                        <thead>
+                          <tr>
+                            <th>Data</th>
+                            <th class="num">Aves nascidas</th>
+                            <th>Observações</th>
+                            <th>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (event of item.hatchEvents; track event.id) {
+                            <tr>
+                              <td data-label="Data">{{ ptDate(event.date) }}</td>
+                              <td class="num" data-label="Aves nascidas">{{ num(event.count) }}</td>
+                              <td data-label="Observações">{{ event.notes || '—' }}</td>
+                              <td>
+                                <div class="row-actions">
+                                  <button type="button" class="btn btn--icon" title="Editar registro" (click)="openEditHatchEvent(item, event)">
+                                    <i class="pi pi-pencil"></i>
+                                  </button>
+                                  <button type="button" class="btn btn--icon btn--danger" title="Excluir registro" (click)="askDeleteHatchEvent(item, event)">
+                                    <i class="pi pi-trash"></i>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
@@ -136,13 +190,13 @@
 />
 
 <app-crud-form-modal
-  [open]="hatchOpen()"
-  title="Marcar eclosão"
-  [fields]="hatchFields"
+  [open]="hatchFormOpen()"
+  [title]="hatchFormTitle()"
+  [fields]="hatchEventFields"
   [model]="hatchDraft"
-  note="Isso registra a eclosão deste lote. As aves nascidas NÃO entram automaticamente no Plantel — lance lá manualmente quando decidir que já fazem parte do plantel adulto."
-  (saved)="saveHatch()"
-  (cancelled)="cancelHatch()"
+  note="Registra um nascimento parcial — a eclosão leva vários dias, então dá pra ir lançando aos poucos. O lote só fecha quando o total nascido atingir a quantidade de ovos ou quando você clicar em 'Concluir lote'. As aves nascidas NÃO entram automaticamente no Plantel — lance lá manualmente quando decidir que já fazem parte do plantel adulto."
+  (saved)="saveHatchForm()"
+  (cancelled)="cancelHatchForm()"
 />
 
 <app-confirm-modal
@@ -152,11 +206,18 @@
   (cancelled)="cancelDelete()"
 />
 
+<app-confirm-modal
+  [open]="!!deleteHatchEventTarget()"
+  [text]="'Excluir o registro de ' + num(deleteHatchEventTarget()?.event?.count ?? 0) + ' ave(s) nascida(s) em ' + ptDate(deleteHatchEventTarget()?.event?.date ?? '') + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDeleteHatchEvent()"
+  (cancelled)="cancelDeleteHatchEvent()"
+/>
+
 @if (hatchNotice(); as notice) {
   <div class="modal-overlay">
     <div class="modal">
       <div class="modal__icon modal__icon--ok"><i class="pi pi-check-circle"></i></div>
-      <h2 class="modal__title">Eclosão registrada</h2>
+      <h2 class="modal__title">Nascimento registrado</h2>
       <p class="modal__text">{{ notice }}</p>
       <div class="modal__actions">
         <button type="button" class="btn btn--primary" (click)="closeHatchNotice()">OK</button>
