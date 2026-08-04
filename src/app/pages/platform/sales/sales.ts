@@ -6,6 +6,7 @@ import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
+import { todayLocalISO } from '@core/utils/date-diff';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -120,7 +121,7 @@ export class Sales {
     this.editingId = null;
     this.formTitle.set('Nova venda');
     this.draft = {
-      date: new Date().toISOString().slice(0, 10),
+      date: todayLocalISO(),
       product: '',
       quantity: 1,
       unitPrice: 0,

@@ -4,7 +4,7 @@ import { HatchEvent, NovoLotePlantel, Species } from '@core/interfaces/novo-lote
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num, ptDate } from '@core/utils/format';
-import { addDays, daysUntil } from '@core/utils/date-diff';
+import { addDays, daysUntil, todayLocalISO } from '@core/utils/date-diff';
 import {
   addHatchEvent,
   deriveStatusAfterHatchChange,
@@ -182,7 +182,7 @@ export class GestaoPlantel {
     this.editingId = null;
     this.formTitle.set('Novo lote');
     this.draft = {
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: todayLocalISO(),
       species: 'quail',
       eggCount: 0,
       eggCost: 0,
@@ -236,7 +236,7 @@ export class GestaoPlantel {
     this.hatchLoteTarget = item;
     this.editingHatchEventId = null;
     this.hatchFormTitle.set('Registrar nascimento');
-    this.hatchDraft = { date: new Date().toISOString().slice(0, 10), count: 0, notes: '' };
+    this.hatchDraft = { date: todayLocalISO(), count: 0, notes: '' };
     this.hatchFormOpen.set(true);
   }
 

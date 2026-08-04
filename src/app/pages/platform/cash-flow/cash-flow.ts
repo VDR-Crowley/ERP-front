@@ -16,6 +16,7 @@ import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, ptDate } from '@core/utils/format';
+import { todayLocalISO } from '@core/utils/date-diff';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -136,7 +137,7 @@ export class CashFlow {
     this.editingId = null;
     this.formTitle.set('Novo lançamento');
     this.draft = {
-      date: new Date().toISOString().slice(0, 10),
+      date: todayLocalISO(),
       description: '',
       inflow: 'true',
       amount: 0,

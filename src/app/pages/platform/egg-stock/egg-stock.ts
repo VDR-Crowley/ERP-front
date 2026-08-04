@@ -6,6 +6,7 @@ import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
+import { todayLocalISO } from '@core/utils/date-diff';
 import { latestByDate } from '@core/utils/latest-by-date';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -170,7 +171,7 @@ export class EggStock {
     this.editingId = null;
     this.formTitle.set('Novo registro');
     this.draft = {
-      date: new Date().toISOString().slice(0, 10),
+      date: todayLocalISO(),
       quailEggs: 0,
       chickenEggs: 0,
       quailPacks: 0,

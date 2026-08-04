@@ -23,6 +23,7 @@ import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ThemeService } from '@core/utils/theme.service';
+import { todayLocalISO } from '@core/utils/date-diff';
 import { brl, num, ptDate } from '@core/utils/format';
 import {
   buildBusinessLineReport,
@@ -246,7 +247,7 @@ export class AnaliseLinhaNegocio {
     await this.excludedSalesStore.add({
       saleId: sale.id,
       reason: MOTIVO_PADRAO,
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: todayLocalISO(),
     });
   }
 
@@ -277,7 +278,7 @@ export class AnaliseLinhaNegocio {
       expenseId: expense.id,
       species: choice,
       reason: MOTIVO_OVERRIDE_PADRAO,
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: todayLocalISO(),
     };
 
     if (existing) {

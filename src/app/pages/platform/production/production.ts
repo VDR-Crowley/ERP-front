@@ -5,6 +5,7 @@ import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { num, ptDate } from '@core/utils/format';
+import { todayLocalISO } from '@core/utils/date-diff';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -102,7 +103,7 @@ export class Production {
   protected openNew(): void {
     this.editingId = null;
     this.formTitle.set('Novo registro');
-    this.draft = { date: new Date().toISOString().slice(0, 10), quailEggs: 0, chickenEggs: 0 };
+    this.draft = { date: todayLocalISO(), quailEggs: 0, chickenEggs: 0 };
     this.formOpen.set(true);
   }
 
