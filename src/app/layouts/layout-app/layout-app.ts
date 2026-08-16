@@ -147,6 +147,18 @@ export class LayoutApp {
       sub: 'Catálogo e preços',
     },
     {
+      path: '/platform/vendedores',
+      icon: 'pi-id-card',
+      label: 'Vendedores',
+      sub: 'Cadastro de vendedores/revendedores',
+    },
+    {
+      path: '/platform/stock-transfers',
+      icon: 'pi-arrow-right-arrow-left',
+      label: 'Transferência de Estoque',
+      sub: 'Estoque por local e transferência entre Plantel e vendedores',
+    },
+    {
       path: '/platform/users',
       icon: 'pi-user',
       label: 'Usuários',

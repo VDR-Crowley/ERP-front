@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { IndexedDbService } from './idb.service';
 
 export const DB_NAME = 'minierp-db';
-export const DB_VERSION = 6;
+export const DB_VERSION = 7;
 
 export const IDB_STORES = {
   sales: 'sales',
@@ -24,6 +24,12 @@ export const IDB_STORES = {
   excludedSales: 'excludedSales',
   /** Overrides manuais de espécie por despesa — ver `ExpenseSpeciesOverride`. */
   expenseSpeciesOverrides: 'expenseSpeciesOverrides',
+  /** Lista reaproveitável de vendedores/revendedores — ver `Vendedor`. */
+  vendedores: 'vendedores',
+  /** Saldo de produto por vendedor (estoque fora do Plantel) — ver `VendorStock`. */
+  vendorStock: 'vendorStock',
+  /** Histórico de transferências de estoque entre locais — ver `StockTransfer`. */
+  stockTransfers: 'stockTransfers',
 } as const;
 
 /**

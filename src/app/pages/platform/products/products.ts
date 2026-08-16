@@ -2,10 +2,12 @@ import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '@core/interfaces/product.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
+import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num } from '@core/utils/format';
 import { latestByDate } from '@core/utils/latest-by-date';
+import { totalStockAllLocations } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -35,6 +37,7 @@ export class Products {
 
   private readonly store = createEntityStore<Product>(IDB_STORES.products, []);
   private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
+  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name'];
@@ -76,9 +79,15 @@ export class Products {
     return p.stock;
   }
 
+  /** Estoque total do produto = Plantel (estoqueReal) + soma do que está com cada vendedor. */
+  protected estoqueTotal(p: Product): number {
+    return totalStockAllLocations(this.estoqueReal(p), this.vendorStockStore.items(), p.name);
+  }
+
   protected readonly totalProdutos = computed(() => this.store.items().length);
+  // Valor total de estoque = soma de todos os locais (Plantel + cada Vendedor), não só o Plantel.
   protected readonly valorEstoque = computed(() =>
-    this.store.items().reduce((s, p) => s + p.unitPrice * this.estoqueReal(p), 0),
+    this.store.items().reduce((s, p) => s + p.unitPrice * this.estoqueTotal(p), 0),
   );
   protected readonly precoMedio = computed(() => {
     const items = this.store.items();

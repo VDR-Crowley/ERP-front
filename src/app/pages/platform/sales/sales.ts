@@ -2,11 +2,20 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
+import { Vendedor } from '@core/interfaces/vendedor.interface';
+import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
+import {
+  PLANTEL_LOCATION,
+  buildLocationOptions,
+  isPlantelLocation,
+  locationLabel,
+  vendedorIdFromLocation,
+} from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -15,7 +24,11 @@ import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof Venda;
 
-function buildFields(productOptions: { value: string; label: string }[], products: WithId<Product>[]): CrudField[] {
+function buildFields(
+  productOptions: { value: string; label: string }[],
+  products: WithId<Product>[],
+  vendedores: WithId<Vendedor>[],
+): CrudField[] {
   return [
   { key: 'date', label: 'Data', type: 'date', required: true },
   {
@@ -33,8 +46,21 @@ function buildFields(productOptions: { value: string; label: string }[], product
   },
   { key: 'quantity', label: 'Quantidade', type: 'number', step: 1, required: true },
   { key: 'unitPrice', label: 'Preço unitário', type: 'number', step: 0.01, required: true },
+  {
+    key: 'stockLocation',
+    label: 'Local do estoque (baixa ao salvar)',
+    type: 'select',
+    required: true,
+    optionsFor: () => buildLocationOptions(vendedores),
+  },
   { key: 'buyer', label: 'Comprador', type: 'text', required: true },
-  { key: 'seller', label: 'Vendedor', type: 'text', required: true },
+  {
+    key: 'seller',
+    label: 'Vendedor',
+    type: 'autocomplete',
+    options: vendedores.map((v) => ({ value: v.name, label: v.name })),
+    required: true,
+  },
   {
     key: 'paymentPending',
     label: 'Status Pagamento',
@@ -72,12 +98,14 @@ export class Sales {
 
   private readonly store = createEntityStore<Venda>(IDB_STORES.sales, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly vendedoresStore = createEntityStore<Vendedor>(IDB_STORES.vendedores, []);
+  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
     const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
-    return buildFields(productOptions, products);
+    return buildFields(productOptions, products, this.vendedoresStore.items());
   });
 
   protected readonly search = signal('');
@@ -91,6 +119,8 @@ export class Sales {
   protected readonly formTitle = signal('Nova venda');
   protected draft: Record<string, unknown> = {};
   private editingId: string | null = null;
+  /** Venda original sendo editada — usada pra desfazer a baixa de estoque antiga antes de aplicar a nova. */
+  private editingOriginal: WithId<Venda> | null = null;
   protected readonly deleteTarget = signal<WithId<Venda> | null>(null);
 
   /** Vendas do store restritas ao período selecionado no DatePicker/chips da topbar. */
@@ -117,14 +147,20 @@ export class Sales {
     sortRows(this.vendasNoPeriodo(), this.sortField(), this.sortDir()),
   );
 
+  protected locationLabelFor(v: Venda): string {
+    return locationLabel(v.stockLocation ?? PLANTEL_LOCATION, this.vendedoresStore.items());
+  }
+
   protected openNew(): void {
     this.editingId = null;
+    this.editingOriginal = null;
     this.formTitle.set('Nova venda');
     this.draft = {
       date: todayLocalISO(),
       product: '',
       quantity: 1,
       unitPrice: 0,
+      stockLocation: PLANTEL_LOCATION,
       buyer: '',
       seller: '',
       paymentPending: 'F',
@@ -136,9 +172,11 @@ export class Sales {
 
   protected openEdit(v: WithId<Venda>): void {
     this.editingId = v.id;
+    this.editingOriginal = v;
     this.formTitle.set('Editar venda');
     this.draft = {
       ...v,
+      stockLocation: v.stockLocation ?? PLANTEL_LOCATION,
       paymentPending: v.paymentPending ? 'F' : 'PAGO',
       deliveryPending: v.deliveryPending ? 'FALTA' : 'ENTREGUE',
       deliveryDate: v.deliveryDate ?? '',
@@ -150,13 +188,44 @@ export class Sales {
     this.formOpen.set(false);
   }
 
+  /**
+   * Ajusta o saldo de estoque de um produto num local (Plantel ou vendedor).
+   * `delta` negativo baixa (venda), positivo devolve (edição/exclusão de venda,
+   * ou entrada de transferência). Não bloqueia estoque negativo — mesmo
+   * comportamento lenient do resto do app (ex.: Controle de Ração).
+   */
+  private async adjustStock(location: string, product: string, delta: number): Promise<void> {
+    if (!product || !delta) return;
+    if (isPlantelLocation(location)) {
+      const p = this.productsStore.items().find((x) => x.name === product);
+      if (!p) return;
+      await this.productsStore.update(p.id, { ...p, stock: p.stock + delta });
+      return;
+    }
+    const vendedorId = vendedorIdFromLocation(location);
+    if (!vendedorId) return;
+    const existing = this.vendorStockStore
+      .items()
+      .find((vs) => vs.product === product && vs.vendedorId === vendedorId);
+    if (existing) {
+      await this.vendorStockStore.update(existing.id, {
+        ...existing,
+        quantity: existing.quantity + delta,
+      });
+    } else {
+      await this.vendorStockStore.add({ product, vendedorId, quantity: delta });
+    }
+  }
+
   protected async saveForm(): Promise<void> {
     const d = this.draft;
     const quantity = Number(d['quantity']);
     const unitPrice = Number(d['unitPrice']);
+    const stockLocation = String(d['stockLocation'] || PLANTEL_LOCATION);
+    const product = String(d['product']);
     const venda: Venda = {
       date: String(d['date']),
-      product: String(d['product']),
+      product,
       quantity,
       unitPrice,
       total: quantity * unitPrice,
@@ -165,13 +234,26 @@ export class Sales {
       seller: String(d['seller']),
       deliveryPending: d['deliveryPending'] === 'FALTA',
       deliveryDate: d['deliveryDate'] ? String(d['deliveryDate']) : null,
+      stockLocation,
     };
+
+    const original = this.editingOriginal;
+    if (original) {
+      // Desfaz a baixa antiga (mesmo se produto/local/quantidade mudaram) antes de aplicar a nova.
+      await this.adjustStock(
+        original.stockLocation ?? PLANTEL_LOCATION,
+        original.product,
+        original.quantity,
+      );
+    }
+    await this.adjustStock(stockLocation, product, -quantity);
 
     if (this.editingId) {
       await this.store.update(this.editingId, venda);
     } else {
       await this.store.add(venda);
     }
+    this.editingOriginal = null;
     this.formOpen.set(false);
   }
 
@@ -186,6 +268,8 @@ export class Sales {
   protected async confirmDelete(): Promise<void> {
     const target = this.deleteTarget();
     if (!target) return;
+    // Devolve a quantidade baixada por essa venda pro local de onde saiu.
+    await this.adjustStock(target.stockLocation ?? PLANTEL_LOCATION, target.product, target.quantity);
     await this.store.remove(target.id);
     this.deleteTarget.set(null);
   }

@@ -56,6 +56,15 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./products/products').then((m) => m.Products),
   },
   {
+    path: 'vendedores',
+    loadComponent: () => import('./vendedores/vendedores').then((m) => m.Vendedores),
+  },
+  {
+    path: 'stock-transfers',
+    loadComponent: () =>
+      import('./stock-transfers/stock-transfers').then((m) => m.StockTransfers),
+  },
+  {
     path: 'users',
     loadComponent: () => import('./users/users').then((m) => m.Users),
   },

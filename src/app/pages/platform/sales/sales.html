@@ -103,6 +103,7 @@
               Vendedor
               <app-sort-icon [active]="sortField() === 'seller'" [dir]="sortDir()" />
             </th>
+            <th>Local do estoque</th>
             <th class="sortable" (click)="sortBy('paymentPending')">
               Situação
               <app-sort-icon [active]="sortField() === 'paymentPending'" [dir]="sortDir()" />
@@ -128,6 +129,7 @@
               <td class="num strong" data-label="Total">{{ brl(v.total) }}</td>
               <td data-label="Comprador">{{ v.buyer }}</td>
               <td data-label="Vendedor">{{ v.seller }}</td>
+              <td data-label="Local do estoque">{{ locationLabelFor(v) }}</td>
               <td data-label="Situação">
                 @if (v.paymentPending) {
                   <span class="badge badge--warn">Pendente</span>

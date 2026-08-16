@@ -54,8 +54,11 @@
               title="Pra produto de ovo de uma espécie só, calculado a partir do Estoque de Ovos mais recente. Kit misto e produtos que não são ovo usam o valor cadastrado."
               (click)="sortBy('stock')"
             >
-              Estoque
+              Estoque no Plantel
               <app-sort-icon [active]="sortField() === 'stock'" [dir]="sortDir()" />
+            </th>
+            <th class="num" title="Plantel + estoque com todos os vendedores. Ver Vendedores/Transferência de Estoque pro detalhe por local.">
+              Estoque total
             </th>
             <th>Ações</th>
           </tr>
@@ -66,7 +69,8 @@
               <td class="strong" data-label="Produto">{{ p.name }}</td>
               <td data-label="Unidade">{{ p.unit }}</td>
               <td class="num strong" data-label="Preço">{{ brl(p.unitPrice) }}</td>
-              <td class="num" data-label="Estoque">{{ num(estoqueReal(p)) }}</td>
+              <td class="num" data-label="Estoque no Plantel">{{ num(estoqueReal(p)) }}</td>
+              <td class="num strong" data-label="Estoque total">{{ num(estoqueTotal(p)) }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(p)">

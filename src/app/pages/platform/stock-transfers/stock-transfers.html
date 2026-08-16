@@ -1,0 +1,92 @@
+<div class="page">
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Estoque por local</h2>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-arrow-right-arrow-left"></i> Nova transferência
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 480px">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Local</th>
+            <th class="num">Quantidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of overviewRows(); track row.product + row.location) {
+            <tr>
+              <td class="strong" data-label="Produto">{{ row.product }}</td>
+              <td data-label="Local">{{ row.locationLabel }}</td>
+              <td class="num" data-label="Quantidade">{{ num(row.quantity) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (overviewRows().length === 0) {
+      <div class="empty">Nenhum produto cadastrado ainda.</div>
+    }
+  </div>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Histórico de transferências</h2>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 620px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('product')">
+              Produto
+              <app-sort-icon [active]="sortField() === 'product'" [dir]="sortDir()" />
+            </th>
+            <th class="num sortable" (click)="sortBy('quantity')">
+              Quantidade
+              <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
+            </th>
+            <th>De</th>
+            <th>Para</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (t of historyRows(); track t.id) {
+            <tr>
+              <td data-label="Data">{{ ptDate(t.date) }}</td>
+              <td class="strong" data-label="Produto">{{ t.product }}</td>
+              <td class="num" data-label="Quantidade">{{ num(t.quantity) }}</td>
+              <td data-label="De">{{ locationLabelFor(t.fromLocation) }}</td>
+              <td data-label="Para">{{ locationLabelFor(t.toLocation) }}</td>
+              <td data-label="Observação">{{ t.note }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (historyRows().length === 0) {
+      <div class="empty">Nenhuma transferência registrada ainda.</div>
+    }
+    <div class="tbl-foot">{{ historyRows().length }} transferência(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  title="Nova transferência de estoque"
+  [fields]="fields()"
+  [model]="draft"
+  note="Não é venda — só move o produto entre locais, sem gerar receita. Histórico não pode ser editado nem excluído; pra corrigir, lance uma transferência de volta."
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
