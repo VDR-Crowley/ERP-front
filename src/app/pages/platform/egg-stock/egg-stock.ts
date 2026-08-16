@@ -37,9 +37,13 @@ export class EggStock {
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
   private readonly periodFilter = inject(PeriodFilterService);
 
-  // Mesma fonte de conversão/preço usada em Produtos.estoqueReal() — se o
-  // usuário mudar preço ou "ovos por unidade" no cadastro, o cálculo aqui
-  // acompanha em vez de duplicar valores soltos.
+  // Lê tamanho do pack/preço direto do cadastro de Produtos (por nome) — se o
+  // usuário mudar preço ou "ovos por unidade" lá, o cálculo aqui acompanha em
+  // vez de duplicar valores soltos. Essa tela guarda a apuração diária real
+  // de ovos coletados/pack (fonte primária); Produtos guarda o "Estoque no
+  // Plantel" como número solto, editável e movimentável por Transferência de
+  // Estoque/Vendas — as duas se sobrepõem hoje pros 2 produtos de ovo, sem
+  // sincronizar uma com a outra (ver nota maior em products.ts).
   private readonly quailPackSize = computed(
     () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.eggsPerUnit ?? 50,
   );

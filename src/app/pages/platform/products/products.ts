@@ -1,12 +1,10 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '@core/interfaces/product.interface';
-import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num } from '@core/utils/format';
-import { latestByDate } from '@core/utils/latest-by-date';
 import { totalStockAllLocations } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -36,7 +34,6 @@ export class Products {
   protected readonly fields = FIELDS;
 
   private readonly store = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
   private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
 
   protected readonly search = signal('');
@@ -52,36 +49,23 @@ export class Products {
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<WithId<Product> | null>(null);
 
-  // Carry-forward igual Estoque de Ovos/Dashboard: sempre a linha mais
-  // recente por data, ignorando linhas "molde" sem produção nenhuma.
-  private readonly ultimoEstoqueOvos = computed(() =>
-    latestByDate(
-      this.eggStockStore.items().filter((e) => e.quailEggs !== null || e.chickenEggs !== null),
-    ),
-  );
-
-  // "Estoque" cadastrado no produto é um número solto (digitado à mão ou
-  // vindo do import) — pra produto de uma espécie só, dá pra calcular quantas
-  // unidades cabem no estoque real de ovos. Kit misto (mistura codorna +
-  // galinha numa proporção que o modelo de Produto não guarda) e produtos que
-  // não são ovo (ex: carne de codorna abatida, que não tem tela de estoque
-  // própria ainda) continuam usando o campo cadastrado, sem dado real pra
-  // puxar.
-  protected estoqueReal(p: Product): number {
-    const estoque = this.ultimoEstoqueOvos();
-    if (!estoque || !p.eggsPerUnit) return p.stock;
-    if (p.name === '50 ovos de codorna' && estoque.quailEggs !== null) {
-      return Math.floor(estoque.quailEggs / p.eggsPerUnit);
-    }
-    if (p.name === '1 Bandeja de ovos de galinha' && estoque.chickenEggs !== null) {
-      return Math.floor(estoque.chickenEggs / p.eggsPerUnit);
-    }
-    return p.stock;
-  }
-
-  /** Estoque total do produto = Plantel (estoqueReal) + soma do que está com cada vendedor. */
+  /**
+   * "Estoque no Plantel" é sempre `p.stock` puro — o mesmo campo que
+   * Transferência de Estoque e Vendas movimentam. Até essa feature, os 2
+   * produtos de ovo de espécie única tinham esse número TROCADO na tela por
+   * um cálculo derivado do Estoque de Ovos mais recente (`estoqueReal`,
+   * removido aqui) — editar "Estoque" nesses 2 produtos não tinha efeito
+   * nenhum na coluna, porque ela ignorava `p.stock` e recalculava sozinha
+   * (bug relatado em produção: "editei o estoque e não mudou nada"). Ver
+   * `products.spec.ts` pra reprodução. A visão calculada a partir do Estoque
+   * de Ovos continua existindo, só que na tela própria (Estoque de Ovos) —
+   * as duas telas hoje se sobrepõem pros produtos de ovo; Produtos passa a
+   * ser sempre a fonte editável/transferível.
+   *
+   * Estoque total do produto = Plantel (p.stock) + soma do que está com cada vendedor.
+   */
   protected estoqueTotal(p: Product): number {
-    return totalStockAllLocations(this.estoqueReal(p), this.vendorStockStore.items(), p.name);
+    return totalStockAllLocations(p.stock, this.vendorStockStore.items(), p.name);
   }
 
   protected readonly totalProdutos = computed(() => this.store.items().length);
