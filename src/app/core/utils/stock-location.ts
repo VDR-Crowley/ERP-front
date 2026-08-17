@@ -85,3 +85,30 @@ export function totalStockAllLocations(
     .reduce((soma, i) => soma + i.quantity, 0);
   return plantelQty + vendorTotal;
 }
+
+export interface ProductLike {
+  name: string;
+  unitPrice: number;
+  stock: number;
+}
+
+/**
+ * Multiplicação quantidade × preço unitário — trivial isolada, mas é a ÚNICA
+ * função que faz essa conta no app. Card "Valor em estoque" (Produtos) e
+ * tabela "Estoque por local" (Transferência de Estoque) chamam essa mesma
+ * função em vez de reimplementar `qtd * preço` cada um no seu canto, pra
+ * nunca divergir (ver invariante em stock-location.spec.ts).
+ */
+export function stockValue(quantity: number, unitPrice: number): number {
+  return quantity * unitPrice;
+}
+
+/** Valor de estoque de UM produto = soma de todos os locais × preço unitário. Mesma fonte usada linha a linha na Transferência de Estoque e somada no card de Produtos. */
+export function productStockValue(product: ProductLike, vendorStockItems: VendorStockLike[]): number {
+  return stockValue(totalStockAllLocations(product.stock, vendorStockItems, product.name), product.unitPrice);
+}
+
+/** Valor total de estoque de TODOS os produtos, todos os locais — fonte única do card "Valor em estoque". */
+export function totalStockValue(products: ProductLike[], vendorStockItems: VendorStockLike[]): number {
+  return products.reduce((soma, p) => soma + productStockValue(p, vendorStockItems), 0);
+}

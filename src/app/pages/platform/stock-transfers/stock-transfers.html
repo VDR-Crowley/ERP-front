@@ -1,4 +1,11 @@
 <div class="page">
+  <section class="kpi-grid kpi-grid--compact">
+    <article class="kpi kpi--blue">
+      <div class="kpi__label">Valor total em estoque</div>
+      <div class="kpi__value kpi__value--sm">{{ brl(valorTotalEstoque()) }}</div>
+    </article>
+  </section>
+
   <div class="panel">
     <div class="panel__head">
       <h2 class="panel__title">Estoque por local</h2>
@@ -8,12 +15,13 @@
     </div>
 
     <div class="tbl-wrap">
-      <table class="tbl" style="min-width: 480px">
+      <table class="tbl" style="min-width: 560px">
         <thead>
           <tr>
             <th>Produto</th>
             <th>Local</th>
             <th class="num">Quantidade</th>
+            <th class="num" title="Quantidade × preço unitário cadastrado em Produtos.">Valor</th>
           </tr>
         </thead>
         <tbody>
@@ -22,6 +30,7 @@
               <td class="strong" data-label="Produto">{{ row.product }}</td>
               <td data-label="Local">{{ row.locationLabel }}</td>
               <td class="num" data-label="Quantidade">{{ num(row.quantity) }}</td>
+              <td class="num strong" data-label="Valor">{{ brl(row.value) }}</td>
             </tr>
           }
         </tbody>
@@ -31,6 +40,7 @@
     @if (overviewRows().length === 0) {
       <div class="empty">Nenhum produto cadastrado ainda.</div>
     }
+    <div class="tbl-foot">Total: {{ brl(valorTotalEstoque()) }}</div>
   </div>
 
   <div class="panel">

@@ -5,7 +5,7 @@ import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { brl, num } from '@core/utils/format';
-import { totalStockAllLocations } from '@core/utils/stock-location';
+import { totalStockAllLocations, totalStockValue } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -69,9 +69,11 @@ export class Products {
   }
 
   protected readonly totalProdutos = computed(() => this.store.items().length);
-  // Valor total de estoque = soma de todos os locais (Plantel + cada Vendedor), não só o Plantel.
+  // Fonte única do valor de estoque (soma de todos os locais, todos os
+  // produtos) — a mesma função usada linha a linha em Transferência de
+  // Estoque, pra nunca divergir entre as duas telas.
   protected readonly valorEstoque = computed(() =>
-    this.store.items().reduce((s, p) => s + p.unitPrice * this.estoqueTotal(p), 0),
+    totalStockValue(this.store.items(), this.vendorStockStore.items()),
   );
   protected readonly precoMedio = computed(() => {
     const items = this.store.items();

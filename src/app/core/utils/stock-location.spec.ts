@@ -1,12 +1,16 @@
 import {
   PLANTEL_LOCATION,
+  ProductLike,
   VendedorLike,
   VendorStockLike,
   buildLocationOptions,
   isPlantelLocation,
   locationLabel,
+  productStockValue,
   quantityAtLocation,
+  stockValue,
   totalStockAllLocations,
+  totalStockValue,
   vendedorIdFromLocation,
   vendedorLocation,
   vendorStockQuantity,
@@ -113,5 +117,77 @@ describe('totalStockAllLocations', () => {
 
   it('retorna só o Plantel quando não há vendorStock pro produto', () => {
     expect(totalStockAllLocations(50, [], 'Ovos')).toBe(50);
+  });
+});
+
+function product(overrides: Partial<ProductLike> = {}): ProductLike {
+  return { name: 'Ovos', unitPrice: 15, stock: 20, ...overrides };
+}
+
+describe('stockValue', () => {
+  it('multiplica quantidade por preço unitário', () => {
+    expect(stockValue(10, 2.5)).toBe(25);
+  });
+
+  it('zero em qualquer lado dá zero', () => {
+    expect(stockValue(0, 99)).toBe(0);
+    expect(stockValue(99, 0)).toBe(0);
+  });
+});
+
+describe('productStockValue', () => {
+  it('soma todos os locais do produto antes de multiplicar pelo preço', () => {
+    const p = product({ name: 'Ovos', unitPrice: 15, stock: 20 });
+    const vendorStockItems: VendorStockLike[] = [{ product: 'Ovos', vendedorId: 'v1', quantity: 10 }];
+    // (20 Plantel + 10 vendedor) * 15 = 450
+    expect(productStockValue(p, vendorStockItems)).toBe(450);
+  });
+
+  it('ignora vendorStock de outro produto', () => {
+    const p = product({ name: 'Ovos', unitPrice: 15, stock: 20 });
+    const vendorStockItems: VendorStockLike[] = [{ product: 'Ração', vendedorId: 'v1', quantity: 999 }];
+    expect(productStockValue(p, vendorStockItems)).toBe(300);
+  });
+});
+
+describe('totalStockValue', () => {
+  it('soma o valor de todos os produtos', () => {
+    const products = [product({ name: 'Ovos', unitPrice: 15, stock: 20 }), product({ name: 'Ração', unitPrice: 4, stock: 50 })];
+    const vendorStockItems: VendorStockLike[] = [{ product: 'Ovos', vendedorId: 'v1', quantity: 10 }];
+    // Ovos: (20+10)*15 = 450 | Ração: 50*4 = 200
+    expect(totalStockValue(products, vendorStockItems)).toBe(650);
+  });
+
+  it('retorna 0 pra lista de produtos vazia', () => {
+    expect(totalStockValue([], [])).toBe(0);
+  });
+});
+
+describe('invariante: valor total (Produtos) === soma linha a linha por local (Transferência de Estoque)', () => {
+  it('somar stockValue() de cada linha "produto × local" (igual a tabela Estoque por local) bate exatamente com totalStockValue() (o card Valor em estoque) — nunca duas contas separadas', () => {
+    const products = [
+      product({ name: '50 ovos de codorna', unitPrice: 15, stock: 40 }),
+      product({ name: '1 Bandeja de ovos de galinha', unitPrice: 20, stock: 12 }),
+      product({ name: 'Ração extra', unitPrice: 4, stock: 0 }), // sem estoque em lugar nenhum
+    ];
+    const vendorStockItems: VendorStockLike[] = [
+      { product: '50 ovos de codorna', vendedorId: 'karol', quantity: 8 },
+      { product: '50 ovos de codorna', vendedorId: 'bruno', quantity: 3 },
+      { product: '1 Bandeja de ovos de galinha', vendedorId: 'karol', quantity: 5 },
+    ];
+
+    // Exatamente a mesma montagem de linhas que StockTransfers.overviewRows faz:
+    // 1 linha Plantel por produto + 1 linha por vendedor com quantity > 0.
+    const rowValues: number[] = [];
+    for (const p of products) {
+      rowValues.push(stockValue(p.stock, p.unitPrice));
+      for (const vs of vendorStockItems.filter((v) => v.product === p.name)) {
+        if (vs.quantity === 0) continue;
+        rowValues.push(stockValue(vs.quantity, p.unitPrice));
+      }
+    }
+    const somaLinhaALinha = rowValues.reduce((s, v) => s + v, 0);
+
+    expect(somaLinhaALinha).toBe(totalStockValue(products, vendorStockItems));
   });
 });

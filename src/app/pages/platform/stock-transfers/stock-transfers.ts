@@ -6,13 +6,15 @@ import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { StockTransfer } from '@core/interfaces/stock-transfer.interface';
 import { createEntityStore, WithId } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
-import { num, ptDate } from '@core/utils/format';
+import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import {
   PLANTEL_LOCATION,
   buildLocationOptions,
   isPlantelLocation,
   locationLabel,
+  stockValue,
+  totalStockValue,
   vendedorIdFromLocation,
 } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -24,6 +26,7 @@ interface StockOverviewRow {
   location: string;
   locationLabel: string;
   quantity: number;
+  value: number;
 }
 
 type TransferSortField = keyof StockTransfer;
@@ -36,6 +39,7 @@ type TransferSortField = keyof StockTransfer;
 })
 export class StockTransfers {
   protected readonly num = num;
+  protected readonly brl = brl;
   protected readonly ptDate = ptDate;
 
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
@@ -43,7 +47,12 @@ export class StockTransfers {
   private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
   private readonly transferStore = createEntityStore<StockTransfer>(IDB_STORES.stockTransfers, []);
 
-  /** Visão de "quanto de cada produto está em cada local", Plantel + cada vendedor com saldo. */
+  /**
+   * Visão de "quanto de cada produto está em cada local" (Plantel + cada
+   * vendedor com saldo), com o valor em R$ de cada linha. O "Valor" usa
+   * `stockValue()` — a mesma função (não uma conta nova) que o card "Valor em
+   * estoque" de Produtos soma no total, pra nunca divergir entre as telas.
+   */
   protected readonly overviewRows = computed<StockOverviewRow[]>(() => {
     const products = this.productsStore.items();
     const vendedores = this.vendedoresStore.items();
@@ -56,6 +65,7 @@ export class StockTransfers {
         location: PLANTEL_LOCATION,
         locationLabel: 'Plantel',
         quantity: p.stock,
+        value: stockValue(p.stock, p.unitPrice),
       });
       for (const vs of vendorStock.filter((v) => v.product === p.name)) {
         if (vs.quantity === 0) continue;
@@ -64,11 +74,17 @@ export class StockTransfers {
           location: `vendedor:${vs.vendedorId}`,
           locationLabel: locationLabel(`vendedor:${vs.vendedorId}`, vendedores),
           quantity: vs.quantity,
+          value: stockValue(vs.quantity, p.unitPrice),
         });
       }
     }
     return rows;
   });
+
+  /** Fonte única com Produtos.valorEstoque — mesma função `totalStockValue()`. */
+  protected readonly valorTotalEstoque = computed(() =>
+    totalStockValue(this.productsStore.items(), this.vendorStockStore.items()),
+  );
 
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
