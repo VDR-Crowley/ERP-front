@@ -16,6 +16,7 @@ import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Product } from '@core/interfaces/product.interface';
+import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { NovoLotePlantel } from '@core/interfaces/novo-lote-plantel.interface';
@@ -26,6 +27,7 @@ import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { latestByDate } from '@core/utils/latest-by-date';
 import { daysUntil } from '@core/utils/date-diff';
+import { totalStockValue } from '@core/utils/stock-location';
 import { sortRows } from '@shared/table-sort/table-sort';
 
 interface DonutChartOptions {
@@ -104,6 +106,7 @@ export class Dashboard {
   private readonly flockStore = createEntityStore<Plantel>(IDB_STORES.flock, []);
   private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
   private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
   private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
   private readonly dashboardStore = createEntityStore<DashboardResumo>(IDB_STORES.dashboard, []);
   private readonly flockIncubationStore = createEntityStore<NovoLotePlantel>(
@@ -118,8 +121,8 @@ export class Dashboard {
   // Cards de produção/vendas/saldo respeitam o período selecionado no
   // DatePicker/chips da topbar — diferente dos cards de estoque
   // (ovosCodornaEstoque/ovosGalinhaEstoque/bandejasProntasCodorna/
-  // bandejasProntasGalinha/valorEstoque), que são snapshot do saldo mais
-  // recente e continuam intencionalmente fora do filtro (ver comentário em
+  // bandejasProntasGalinha/valorEstoque), que são saldo atual (não soma de
+  // período) e continuam intencionalmente fora do filtro (ver comentário em
   // ultimoQuailEstoque/ultimaProducao).
   protected readonly producaoNoPeriodo = computed(() =>
     this.productionStore.items().filter((p) => this.periodFilter.includes(p.date)),
@@ -275,20 +278,14 @@ export class Dashboard {
   protected readonly ovosCodornaEstoque = computed(() => this.ultimoQuailEstoque()?.quailEggs ?? 0);
   protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
 
-  // Recalcula ao vivo (packs da linha mais recente × preço ATUAL do produto
-  // cadastrado), mesmo padrão de EggStock.valorPacksCodorna()/valorPacksGalinha()
-  // — não usa quailStockValue/chickenStockValue gravados na linha, que são
-  // snapshot do preço no dia do lançamento e ficariam desatualizados se o
-  // preço do produto mudar depois.
-  protected readonly valorEstoqueCodorna = computed(
-    () => Math.round((this.ultimoQuailEstoque()?.quailPacks ?? 0) * this.quailPackPrice() * 100) / 100,
-  );
-  protected readonly valorEstoqueGalinha = computed(
-    () =>
-      Math.round((this.ultimoChickenEstoque()?.chickenPacks ?? 0) * this.chickenPackPrice() * 100) / 100,
-  );
-  protected readonly valorEstoque = computed(
-    () => this.valorEstoqueCodorna() + this.valorEstoqueGalinha(),
+  // Fonte única com Produtos/Transferência de Estoque — mesma função
+  // totalStockValue() (preço cadastrado em Produtos × Plantel + todos os
+  // vendedores, pros 5 produtos, não só os 2 ligados a ovo). Antes esse card
+  // usava valorEstoqueCodorna/Galinha calculado a partir do Estoque de Ovos
+  // (packs × preço), cobrindo só 2 produtos e divergindo do total real da
+  // granja — bug relatado pelo Ytallo.
+  protected readonly valorEstoque = computed(() =>
+    totalStockValue(this.productsStore.items(), this.vendorStockStore.items()),
   );
 
   protected readonly totalOvosVendidos = computed(() =>
