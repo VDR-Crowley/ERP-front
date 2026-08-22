@@ -9,9 +9,9 @@
  *   - Credenciais de banco de dados
  *   - Qualquer segredo que precise ficar só no backend (ERP-Backend/.env)
  *
- * "apiUrl" é a base da API Laravel (ERP-Backend). Nenhum serviço de auth
- * (AuthSession, UsersService) consome isso ainda — infraestrutura só, a
- * integração real vem em outra etapa.
+ * "apiUrl" é a base da API Laravel (ERP-Backend). Consumida por
+ * `AuthApiService` (login/registro/logout/refresh/reset de senha) — ver
+ * `src/app/core/auth/`.
  */
 export interface Environment {
   /** true no build de produção (`ng build`), false em dev (`ng serve`). */

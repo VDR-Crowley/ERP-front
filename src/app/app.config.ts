@@ -5,6 +5,7 @@ import {
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { providePrimeNG } from 'primeng/config';
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
@@ -14,7 +15,9 @@ import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { IdbSeedService } from '@core/idb/idb-seed.service';
-import { OwnerBootstrapService } from '@core/services/owner-bootstrap.service';
+import { authInterceptor } from '@core/auth/auth.interceptor';
+import { AuthApiService } from '@core/auth/auth-api.service';
+import { TokenStore } from '@core/auth/token-store.service';
 
 // Aura's default light primary.color ({primary.500}) fails WCAG AA contrast
 // (2.53:1) against its white contrastColor. Bumped to {primary.700} (5.48:1).
@@ -36,6 +39,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
+    provideHttpClient(withInterceptors([authInterceptor])),
     provideClientHydration(withEventReplay()),
     provideAnimationsAsync(),
     providePrimeNG({
@@ -67,8 +71,19 @@ export const appConfig: ApplicationConfig = {
     }),
     provideAppInitializer(() => {
       const idbSeed = inject(IdbSeedService);
-      const ownerBootstrap = inject(OwnerBootstrapService);
-      return firstValueFrom(idbSeed.seed()).then(() => ownerBootstrap.run());
+      const tokens = inject(TokenStore);
+      const authApi = inject(AuthApiService);
+
+      const seed$ = firstValueFrom(idbSeed.seed());
+      // Se há um refresh_token guardado (login anterior), tenta renovar a
+      // sessão silenciosamente antes do router avaliar o `authGuard` — evita
+      // mandar pro /login quem só deu F5 na página. Se falhar (token
+      // expirado/revogado), limpa tudo e o guard cuida do redirect.
+      const authBoot$ = tokens.hasRefreshToken()
+        ? firstValueFrom(authApi.refreshSession$()).catch(() => authApi.clearSession())
+        : Promise.resolve();
+
+      return Promise.all([seed$, authBoot$]);
     }),
   ],
 };

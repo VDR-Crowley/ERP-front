@@ -1,8 +1,8 @@
 import { environment } from './environment';
 
-// Testa a infraestrutura de environment em si — nenhum serviço de auth
-// (AuthSession, UsersService) consome environment.apiUrl ainda, isso é
-// preparação pra integração com o ERP-Backend (Laravel) numa etapa futura.
+// Testa a infraestrutura de environment em si — `AuthApiService` (ver
+// src/app/core/auth/) consome environment.apiUrl pra falar com o
+// ERP-Backend.
 describe('environment', () => {
   it('define apiUrl como uma URL http(s) válida', () => {
     expect(environment.apiUrl).toBeTruthy();
