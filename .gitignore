@@ -29,6 +29,9 @@ yarn-error.log
 !.vscode/mcp.json
 .history/*
 
+# Environment overrides locais (não versionar)
+src/environments/environment.local.ts
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/
