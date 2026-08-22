@@ -1,8 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { IndexedDbService } from '@core/idb/idb.service';
 import { AuthSession } from '@core/services/auth-session.service';
+import { AuthApiService } from '@core/auth/auth-api.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { DatePicker, DateRange } from '@shared/components-ds/date-picker/date-picker';
 import { MonthTabs } from '@shared/components-ds/month-tabs/month-tabs';
@@ -29,6 +31,7 @@ export class LayoutApp {
   private readonly router = inject(Router);
   private readonly idb = inject(IndexedDbService);
   private readonly session = inject(AuthSession);
+  private readonly authApi = inject(AuthApiService);
   protected readonly periodFilter = inject(PeriodFilterService);
 
   /** `null` = clique em "Limpar" no calendário — remove o filtro (mostra tudo). */
@@ -50,8 +53,10 @@ export class LayoutApp {
     return (this.user()?.name ?? 'Usuário').trim().split(/\s+/)[0];
   }
 
-  protected sair(): void {
-    this.session.clear();
+  protected async sair(): Promise<void> {
+    // authApi.logout() já limpa TokenStore/AuthSession mesmo se a API falhar
+    // (ver AuthApiService.logout — best-effort).
+    await firstValueFrom(this.authApi.logout());
     this.router.navigate(['/login']);
   }
 
