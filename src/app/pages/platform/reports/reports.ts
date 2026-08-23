@@ -17,7 +17,6 @@ import {
 import { TopBuyer } from '@core/interfaces/report.interface';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
-import { Expense } from '@core/interfaces/expense.interface';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';

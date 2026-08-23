@@ -80,7 +80,9 @@ export function createStockTransfersStore(): EntityStore<StockTransfer> {
         fetchRefs(),
       ]);
       items.set(list.map((api) => toFront(api, products)));
-    })().catch(() => {});
+    })().catch(() => {
+      // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+    });
   }
 
   async function add(item: StockTransfer): Promise<void> {

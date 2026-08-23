@@ -12,15 +12,7 @@ import {
   NgApexchartsModule,
 } from 'ng-apexcharts';
 import { Venda } from '@core/interfaces/venda.interface';
-import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
-import { Plantel } from '@core/interfaces/plantel.interface';
-import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
-import { Product } from '@core/interfaces/product.interface';
-import { VendorStock } from '@core/interfaces/vendor-stock.interface';
-import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
-import { NovoLotePlantel } from '@core/interfaces/novo-lote-plantel.interface';
-import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';

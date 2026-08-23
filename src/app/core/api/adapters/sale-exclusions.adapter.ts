@@ -43,7 +43,9 @@ export function createSaleExclusionsStore(): EntityStore<SaleExclusion> {
             .map((s) => toWithId(s.id, s.exclusion)),
         );
       },
-      error: () => {},
+      error: () => {
+        // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+      },
     });
   }
 

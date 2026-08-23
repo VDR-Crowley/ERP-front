@@ -80,7 +80,9 @@ export function createFeedStockStoreExtended(): FeedStockStore {
   function load(): void {
     http.get<FeedStockApi[]>(base).subscribe({
       next: (list) => items.set(list.map(toWithId)),
-      error: () => {},
+      error: () => {
+        // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+      },
     });
   }
 

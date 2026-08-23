@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EstoqueOvos as EstoqueOvosModel } from '@core/interfaces/estoque-ovos.interface';
-import { Product } from '@core/interfaces/product.interface';
 import { WithId } from '@core/api/entity-store';
 import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';

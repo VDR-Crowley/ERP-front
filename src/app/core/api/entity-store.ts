@@ -79,7 +79,9 @@ export function createReadOnlyEntityStore<T extends object, Api extends { id: nu
   function load(): void {
     list().subscribe({
       next: (res) => items.set(res.map((api) => ({ ...toFront(api), id: String(api.id) }))),
-      error: () => {},
+      error: () => {
+        // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+      },
     });
   }
 

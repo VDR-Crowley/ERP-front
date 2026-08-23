@@ -91,7 +91,9 @@ export function createFlockIncubationsStore(): EntityStore<NovoLotePlantel> {
   function load(): void {
     http.get<FlockIncubationApi[]>(base).subscribe({
       next: (list) => items.set(list.map(toFront)),
-      error: () => {},
+      error: () => {
+        // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+      },
     });
   }
 

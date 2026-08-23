@@ -1,7 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '@core/interfaces/product.interface';
-import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { WithId } from '@core/api/entity-store';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';

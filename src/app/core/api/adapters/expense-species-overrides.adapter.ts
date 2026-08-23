@@ -56,7 +56,9 @@ export function createExpenseSpeciesOverridesStore(): EntityStore<ExpenseSpecies
             .map((e) => toWithId(e.id, e.species_override)),
         );
       },
-      error: () => {},
+      error: () => {
+        // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+      },
     });
   }
 

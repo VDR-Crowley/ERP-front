@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Vendedor } from '@core/interfaces/vendedor.interface';
-import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { WithId } from '@core/api/entity-store';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';

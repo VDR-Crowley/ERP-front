@@ -42,7 +42,9 @@ export function createVendorStockStore(): EntityStore<VendorStock> {
           id: String(api.id),
         })),
       );
-    })().catch(() => {});
+    })().catch(() => {
+      // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+    });
   }
 
   async function add(item: VendorStock): Promise<void> {

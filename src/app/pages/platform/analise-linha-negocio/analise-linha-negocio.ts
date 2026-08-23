@@ -15,7 +15,6 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Expense } from '@core/interfaces/expense.interface';
-import { SaleExclusion } from '@core/interfaces/sale-exclusion.interface';
 import { ExpenseSpeciesOverride } from '@core/interfaces/expense-species-override.interface';
 import { BusinessLineReport, ProductLineResult, Species } from '@core/interfaces/business-line-report.interface';
 import { WithId } from '@core/api/entity-store';

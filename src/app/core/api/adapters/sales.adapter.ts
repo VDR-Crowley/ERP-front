@@ -99,7 +99,9 @@ export function createSalesStore(): EntityStore<Venda> {
     (async () => {
       const [list, refs] = await Promise.all([firstValueFrom(http.get<SaleApi[]>(base)), fetchRefs()]);
       items.set(list.map((api) => toFront(api, refs.products, refs.vendedores)));
-    })().catch(() => {});
+    })().catch(() => {
+      // Falha de rede/401 já tratada pelo authInterceptor — evita loading eterno.
+    });
   }
 
   async function add(item: Venda): Promise<void> {
