@@ -42,11 +42,19 @@ export class PeriodFilterService {
     this.active.set(false);
   }
 
-  /** `true` se a data ISO (`YYYY-MM-DD`) cair dentro do período selecionado, ou sempre `true` com o filtro limpo. */
+  /**
+   * `true` se a data cair dentro do período selecionado, ou sempre `true` com
+   * o filtro limpo. Aceita tanto `YYYY-MM-DD` quanto o ISO datetime completo
+   * que a API devolve (`2026-08-17T00:00:00.000000Z`) — `slice(0, 10)` pega
+   * só a parte da data antes de montar o horário local, senão
+   * `new Date('...Z' + 'T00:00:00')` vira string malformada e `Invalid Date`
+   * (toda comparação com `Invalid Date` é `false`, zerando o filtro pra
+   * qualquer período).
+   */
   includes(isoDate: string): boolean {
     if (!this.active()) return true;
     const [start, end] = this.range();
-    const date = new Date(`${isoDate}T00:00:00`);
+    const date = new Date(`${isoDate.slice(0, 10)}T00:00:00`);
     return date >= start && date <= end;
   }
 }
