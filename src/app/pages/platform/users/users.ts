@@ -24,8 +24,9 @@ const FIELDS: CrudField[] = [
 /**
  * Administração de usuários (`/api/users`) — diferente do cadastro público
  * (`/register`). "Excluir" desativa no backend (`is_active=false`), não
- * apaga de verdade; a lista só mostra usuários ativos, mesmo efeito visual
- * do delete de antes. Autodesativação é bloqueada (backend + botão desabilitado aqui).
+ * apaga de verdade; a lista mostra ativos e inativos (badge de status),
+ * com ação de reativar pra quem foi desativado. Autodesativação é
+ * bloqueada (backend + botão desabilitado aqui).
  */
 @Component({
   selector: 'app-users',
@@ -52,14 +53,16 @@ export class Users {
   protected readonly formErrors = signal<string[]>([]);
   protected draft: Record<string, unknown> = {};
   private editingId: string | null = null;
+  private editingTarget: WithId<UserAccount> | null = null;
   protected readonly deleteTarget = signal<WithId<UserAccount> | null>(null);
   protected readonly deleteError = signal('');
 
-  protected readonly activeRows = computed(() => this.store.items().filter((u) => u.isActive));
-  protected readonly totalUsuarios = computed(() => this.activeRows().length);
+  protected readonly totalUsuarios = computed(
+    () => this.store.items().filter((u) => u.isActive).length,
+  );
 
   protected readonly rows = computed<WithId<UserAccount>[]>(() =>
-    sortRows(this.activeRows(), this.sortField(), this.sortDir()),
+    sortRows(this.store.items(), this.sortField(), this.sortDir()),
   );
 
   protected isSelf(u: WithId<UserAccount>): boolean {
@@ -68,6 +71,7 @@ export class Users {
 
   protected openNew(): void {
     this.editingId = null;
+    this.editingTarget = null;
     this.formTitle.set('Novo usuário');
     this.formErrors.set([]);
     this.draft = { name: '', email: '', password: '', passwordConfirmation: '' };
@@ -76,6 +80,7 @@ export class Users {
 
   protected openEdit(u: WithId<UserAccount>): void {
     this.editingId = u.id;
+    this.editingTarget = u;
     this.formTitle.set('Editar usuário');
     this.formErrors.set([]);
     // Senha nunca vem pré-preenchida — em branco significa "não trocar" (ver UserAccount).
@@ -93,7 +98,9 @@ export class Users {
     const record: UserAccount = {
       name: String(d['name'] ?? '').trim(),
       email: String(d['email'] ?? '').trim(),
-      isActive: true,
+      // Edição preserva o status atual (não reativa por engano ao editar
+      // nome/e-mail de um usuário desativado) — criação sempre entra ativo.
+      isActive: this.editingTarget?.isActive ?? true,
       ...(password
         ? { password, passwordConfirmation: String(d['passwordConfirmation'] ?? '') }
         : {}),
@@ -126,11 +133,24 @@ export class Users {
     const target = this.deleteTarget();
     if (!target) return;
     try {
+      // DELETE desativa no backend (is_active=false), não apaga — a store
+      // genérica remove o item da lista local, então recarrega pra ele
+      // voltar a aparecer (agora inativo, com badge + botão de reativar).
       await this.store.remove(target.id);
+      this.store.reload();
       this.deleteTarget.set(null);
     } catch (err) {
       this.deleteTarget.set(null);
       this.deleteError.set(this.validationErrors(err)[0] ?? 'Não foi possível desativar o usuário.');
+    }
+  }
+
+  protected async reactivate(u: WithId<UserAccount>): Promise<void> {
+    this.deleteError.set('');
+    try {
+      await this.store.update(u.id, { name: u.name, email: u.email, isActive: true });
+    } catch {
+      this.deleteError.set('Não foi possível reativar o usuário.');
     }
   }
 

@@ -92,7 +92,7 @@ describe('Users — administração de usuários (API real, não IndexedDB)', ()
     expect(component['formErrors']()).toEqual(['The email has already been taken.']);
   });
 
-  it('desativa um usuário via DELETE /users/{id} (askDelete -> confirmDelete) e ele some da lista', async () => {
+  it('desativa um usuário via DELETE /users/{id} (askDelete -> confirmDelete) e ele continua na lista, inativo', async () => {
     const target = component['rows']().find((u) => u.id === '2')!;
     component['askDelete'](target);
     expect(component['deleteTarget']()).toEqual(target);
@@ -103,7 +103,53 @@ describe('Users — administração de usuários (API real, não IndexedDB)', ()
     req.flush(null, { status: 204, statusText: 'No Content' });
     await promise;
 
-    expect(component['rows']().find((u) => u.id === '2')).toBeUndefined();
+    // confirmDelete recarrega a lista (a store genérica remove o item local
+    // no DELETE, mas o backend só desativa — ele volta a aparecer, inativo).
+    httpMock
+      .expectOne(base)
+      .flush([
+        { id: 1, name: 'Admin Logado', email: 'admin@exemplo.com', role: 'ADMINISTRADOR', is_active: true, created_at: 'x' },
+        { id: 2, name: 'Outro Usuário', email: 'outro@exemplo.com', role: 'ADMINISTRADOR', is_active: false, created_at: 'x' },
+      ]);
+
+    expect(component['rows']().find((u) => u.id === '2')?.isActive).toBe(false);
+  });
+
+  it('reativa um usuário via PUT /users/{id} com is_active: true', async () => {
+    const target = component['rows']().find((u) => u.id === '2')!;
+    const promise = component['reactivate'](target);
+
+    const req = httpMock.expectOne(`${base}/2`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ name: target.name, email: target.email, is_active: true });
+    req.flush({ id: 2, name: target.name, email: target.email, role: 'ADMINISTRADOR', is_active: true, created_at: 'x' });
+    await promise;
+
+    expect(component['rows']().find((u) => u.id === '2')?.isActive).toBe(true);
+  });
+
+  it('editar um usuário inativo preserva o status (não reativa por engano)', async () => {
+    const target = component['rows']().find((u) => u.id === '2')!;
+    // Marca o alvo como inativo direto no signal, sem depender do fluxo de desativação.
+    component['store']['items'].update((list: any[]) =>
+      list.map((u) => (u.id === '2' ? { ...u, isActive: false } : u)),
+    );
+
+    component['openEdit'](component['rows']().find((u) => u.id === '2')!);
+    component['draft']['name'] = 'Outro Editado';
+    const promise = component['saveForm']();
+
+    const req = httpMock.expectOne(`${base}/2`);
+    expect(req.request.body).toEqual({ name: 'Outro Editado', email: 'outro@exemplo.com', is_active: false });
+    req.flush({ id: 2, name: 'Outro Editado', email: 'outro@exemplo.com', role: 'ADMINISTRADOR', is_active: false, created_at: 'x' });
+    await promise;
+  });
+
+  it('exibe badge de status (ativo/inativo) na lista', () => {
+    fixture.detectChanges();
+
+    const badges = fixture.debugElement.queryAll(By.css('.badge'));
+    expect(badges.some((b) => b.nativeElement.textContent.includes('Ativo'))).toBe(true);
   });
 
   it('não permite pedir a desativação da própria conta (askDelete é no-op)', () => {
