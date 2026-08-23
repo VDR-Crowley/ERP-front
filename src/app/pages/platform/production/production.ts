@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -32,7 +32,7 @@ export class Production {
   protected readonly ptDate = ptDate;
   protected readonly fields = FIELDS;
 
-  private readonly store = createEntityStore<ProducaoDiaria>(IDB_STORES.dailyProduction, []);
+  private readonly store = createDailyProductionsStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');

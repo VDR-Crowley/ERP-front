@@ -1,8 +1,8 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Vendedor } from '@core/interfaces/vendedor.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { num } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -28,7 +28,7 @@ export class Vendedores {
   protected readonly num = num;
   protected readonly fields = FIELDS;
 
-  private readonly store = createEntityStore<Vendedor>(IDB_STORES.vendedores, []);
+  private readonly store = createVendedoresStore();
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name', 'contact'];

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, resource, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ApexAxisChartSeries,
@@ -12,28 +12,34 @@ import {
   ApexYAxis,
   NgApexchartsModule,
 } from 'ng-apexcharts';
+import { firstValueFrom } from 'rxjs';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Expense } from '@core/interfaces/expense.interface';
-import { Plantel } from '@core/interfaces/plantel.interface';
-import { Product } from '@core/interfaces/product.interface';
 import { SaleExclusion } from '@core/interfaces/sale-exclusion.interface';
 import { ExpenseSpeciesOverride } from '@core/interfaces/expense-species-override.interface';
-import { ProductLineResult, Species } from '@core/interfaces/business-line-report.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { BusinessLineReport, ProductLineResult, Species } from '@core/interfaces/business-line-report.interface';
+import { WithId } from '@core/api/entity-store';
+import { createSalesStore } from '@core/api/adapters/sales.adapter';
+import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
+import { createSaleExclusionsStore } from '@core/api/adapters/sale-exclusions.adapter';
+import { createExpenseSpeciesOverridesStore } from '@core/api/adapters/expense-species-overrides.adapter';
+import { BusinessLineReportApiService, BusinessLineReportResult } from '@core/api/business-line-report-api.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ThemeService } from '@core/utils/theme.service';
-import { todayLocalISO } from '@core/utils/date-diff';
+import { todayLocalISO, toLocalISO } from '@core/utils/date-diff';
 import { brl, num, ptDate } from '@core/utils/format';
-import {
-  buildBusinessLineReport,
-  buildProductReport,
-  buildSpeciesRevenueSeries,
-  excludeSalesByIds,
-} from '@core/utils/business-line-report.util';
+import { excludeSalesByIds } from '@core/utils/business-line-report.util';
 import { createSortState, sortRows } from '@shared/table-sort/table-sort';
 import { SortIcon } from '@shared/sort-icon/sort-icon';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
+
+const EMPTY_SPECIES_TOTALS = { revenue: 0, cost: 0, profit: 0, marginPct: 0 };
+const EMPTY_REPORT: BusinessLineReport = {
+  codorna: EMPTY_SPECIES_TOTALS,
+  galinha: EMPTY_SPECIES_TOTALS,
+  galinhaCobreCustos: true,
+  diferencaCobertaPelaCodorna: 0,
+};
 
 type ProductSortField = keyof ProductLineResult;
 type ViewMode = 'especie' | 'produto';
@@ -66,12 +72,13 @@ const MOTIVO_PADRAO = 'Evento isolado / não recorrente (marcado manualmente na 
 const MOTIVO_OVERRIDE_PADRAO = 'Origem real diferente da categoria/descrição (marcado manualmente na Análise por Linha de Negócio)';
 
 /**
- * Tela "Análise por Linha de Negócio" — rentabilidade de codorna x galinha e por produto,
- * a partir dos dados já existentes em `sales`, `expenses`, `flock` e `products` (IndexedDB).
- * A lógica de rateio (despesa por menção/plantel, receita de produto misto por valor
- * implícito do ovo) vive em funções puras testáveis (`business-line-report.util.ts`); este
- * componente só busca os stores, filtra pelo período global e monta a apresentação.
+ * Tela "Análise por Linha de Negócio" — rentabilidade de codorna x galinha e por produto.
+ * O relatório em si (rateio, margem, série mensal) vem pronto de
+ * `GET /business-line-report` (ver `business-line-report-api.service.ts`); este componente
+ * só chama a API pelo período global e monta a apresentação — as listas de gerenciamento
+ * (exclusão de venda, override de despesa) continuam lendo `sales`/`expenses` reais direto.
  *
+
  * Vendas atípicas (ex.: uma venda única de um produto que não é recorrente) podem ser
  * marcadas como "desconsiderar da análise" — isso não apaga a venda de `sales`, só a remove
  * dos cálculos aqui, via um store separado (`excludedSales`, ver `SaleExclusion`). O
@@ -93,17 +100,30 @@ export class AnaliseLinhaNegocio {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
 
-  private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
-  private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
-  private readonly flockStore = createEntityStore<Plantel>(IDB_STORES.flock, []);
-  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly excludedSalesStore = createEntityStore<SaleExclusion>(IDB_STORES.excludedSales, []);
-  private readonly expenseOverridesStore = createEntityStore<ExpenseSpeciesOverride>(
-    IDB_STORES.expenseSpeciesOverrides,
-    [],
-  );
+  private readonly salesStore = createSalesStore();
+  private readonly expensesStore = createExpensesStore();
+  private readonly excludedSalesStore = createSaleExclusionsStore();
+  private readonly expenseOverridesStore = createExpenseSpeciesOverridesStore();
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
+  private readonly businessLineReportApi = inject(BusinessLineReportApiService);
+
+  /**
+   * Rateio/cálculo (codorna x galinha, por produto, série mensal) agora vem
+   * pronto de `GET /business-line-report?start=&end=` — o backend já lê
+   * `sales`/`sale_exclusions`/`expenses`/`expense_species_overrides`/`flock`/
+   * `products` reais (ver `business-line-report-api.service.ts`). Reavalia
+   * sozinho quando o período do DatePicker da topbar muda.
+   */
+  private readonly reportResource = resource({
+    params: () => ({ active: this.periodFilter.active(), range: this.periodFilter.range() }),
+    loader: ({ params }): Promise<BusinessLineReportResult> => {
+      const [start, end] = params.active
+        ? [toLocalISO(params.range[0]), toLocalISO(params.range[1])]
+        : [undefined, undefined];
+      return firstValueFrom(this.businessLineReportApi.get(start, end));
+    },
+  });
 
   protected readonly view = signal<ViewMode>('especie');
   protected setView(next: ViewMode): void {
@@ -136,10 +156,6 @@ export class AnaliseLinhaNegocio {
   protected readonly despesasFiltradas = computed(() =>
     this.expensesStore.items().filter((e) => this.periodFilter.includes(e.date)),
   );
-  /** Plantel não é filtrado por período — é o tamanho atual do plantel, usado só pro rateio. */
-  private readonly flockItems = computed(() => this.flockStore.items());
-  private readonly productsItems = computed(() => this.productsStore.items());
-
   /** `id`s de venda marcados como "evento isolado" (ver `SaleExclusion`). */
   protected readonly excludedSaleIds = computed(
     () => new Set(this.excludedSalesStore.items().map((e) => e.saleId)),
@@ -156,31 +172,20 @@ export class AnaliseLinhaNegocio {
     () => this.despesasFiltradas().filter((e) => this.expenseSpeciesOverrides().has(e.id)).length,
   );
 
-  /** Vendas do período, descontadas as marcadas como evento isolado — usadas em todos os cálculos abaixo. */
-  private readonly vendasConsideradas = computed(() =>
-    excludeSalesByIds(this.vendasNoPeriodo(), this.excludedSaleIds()),
+  /**
+   * "Tem venda considerada no período?" — só decide se mostra o relatório ou
+   * o estado vazio; olhar pras vendas não-excluídas do próprio `salesStore`
+   * (sem esperar `GET /business-line-report`) evita o piscar de "sem dados"
+   * durante o loading do resource.
+   */
+  protected readonly hasVendas = computed(
+    () => excludeSalesByIds(this.vendasNoPeriodo(), this.excludedSaleIds()).length > 0,
   );
 
-  protected readonly hasVendas = computed(() => this.vendasConsideradas().length > 0);
+  protected readonly report = computed(() => this.reportResource.value()?.report ?? EMPTY_REPORT);
 
-  protected readonly report = computed(() =>
-    buildBusinessLineReport(
-      this.vendasConsideradas(),
-      this.despesasFiltradas(),
-      this.flockItems(),
-      this.productsItems(),
-      this.expenseSpeciesOverrides(),
-    ),
-  );
-
-  protected readonly productResults = computed<ProductLineResult[]>(() =>
-    buildProductReport(
-      this.vendasConsideradas(),
-      this.despesasFiltradas(),
-      this.flockItems(),
-      this.productsItems(),
-      this.expenseSpeciesOverrides(),
-    ),
+  protected readonly productResults = computed<ProductLineResult[]>(
+    () => this.reportResource.value()?.byProduct ?? [],
   );
 
   private readonly sortState = createSortState<ProductSortField>('marginPct', 1);
@@ -205,7 +210,7 @@ export class AnaliseLinhaNegocio {
   });
 
   protected readonly revenueOverTimeChart = computed<LineChartOptions>(() => {
-    const series = buildSpeciesRevenueSeries(this.vendasConsideradas(), this.productsItems());
+    const series = this.reportResource.value()?.monthly ?? [];
     const textColor = this.themeService.isDark() ? '#e9eef3' : '#10151c';
     const categories = series.map((p) => {
       const [, month] = p.month.split('-');
@@ -237,18 +242,19 @@ export class AnaliseLinhaNegocio {
     return this.excludedSaleIds().has(saleId);
   }
 
-  /** Marca/desmarca uma venda como "evento isolado" — não apaga o registro de `sales`, só grava/remove a marca em `excludedSales`. */
+  /** Marca/desmarca uma venda como "evento isolado" — não apaga o registro de `sales`, só grava/remove a marca em `excludedSales`. `GET /business-line-report` já exclui a marcada, então recarrega o relatório em seguida. */
   protected async toggleExclusion(sale: WithId<Venda>): Promise<void> {
     const existing = this.excludedSalesStore.items().find((e) => e.saleId === sale.id);
     if (existing) {
       await this.excludedSalesStore.remove(existing.id);
-      return;
+    } else {
+      await this.excludedSalesStore.add({
+        saleId: sale.id,
+        reason: MOTIVO_PADRAO,
+        createdAt: todayLocalISO(),
+      });
     }
-    await this.excludedSalesStore.add({
-      saleId: sale.id,
-      reason: MOTIVO_PADRAO,
-      createdAt: todayLocalISO(),
-    });
+    this.reportResource.reload();
   }
 
   /** Opção atual do seletor pra uma despesa: `auto` quando não há override gravado. */
@@ -270,6 +276,7 @@ export class AnaliseLinhaNegocio {
     if (choice === 'auto') {
       if (existing) {
         await this.expenseOverridesStore.remove(existing.id);
+        this.reportResource.reload();
       }
       return;
     }
@@ -286,5 +293,6 @@ export class AnaliseLinhaNegocio {
     } else {
       await this.expenseOverridesStore.add(override);
     }
+    this.reportResource.reload();
   }
 }

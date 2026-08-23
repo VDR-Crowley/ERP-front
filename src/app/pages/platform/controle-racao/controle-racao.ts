@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createFeedStockStoreExtended } from '@core/api/adapters/feed-stocks.adapter';
+import { createFeedOpenLogsStore } from '@core/api/adapters/feed-open-logs.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -81,8 +82,8 @@ export class ControleRacao {
   protected readonly replenishFields = REPLENISH_FIELDS;
   protected readonly openBagFields = OPEN_BAG_FIELDS;
 
-  private readonly store = createEntityStore<FeedStock>(IDB_STORES.feedStock, []);
-  private readonly logStore = createEntityStore<FeedOpenLog>(IDB_STORES.feedOpenLog, []);
+  private readonly store = createFeedStockStoreExtended();
+  private readonly logStore = createFeedOpenLogsStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');
@@ -222,6 +223,7 @@ export class ControleRacao {
     this.replenishOpen.set(false);
   }
 
+  /** `POST /feed-stocks/{id}/replenish` — o backend soma sacos/kg ao saldo, não faz mais a conta no front (ver `feed-stocks.adapter.ts`). */
   protected async saveReplenish(): Promise<void> {
     const target = this.replenishTarget;
     if (!target) return;
@@ -230,16 +232,9 @@ export class ControleRacao {
     const bagWeightKg = Number(this.replenishDraft['bagWeightKg']);
     const expirationDate = this.replenishDraft['expirationDate']
       ? String(this.replenishDraft['expirationDate'])
-      : null;
+      : todayLocalISO();
 
-    const record: FeedStock = {
-      type: target.type,
-      bagsInStock: target.bagsInStock + bags,
-      kgInStock: target.kgInStock + bags * bagWeightKg,
-      lastBagWeightKg: bagWeightKg,
-      expirationDate,
-    };
-    await this.store.update(target.id, record);
+    await this.store.replenish(target.id, { bags, bagWeightKg, expirationDate });
     this.replenishOpen.set(false);
   }
 
@@ -256,6 +251,12 @@ export class ControleRacao {
     this.openBagOpen.set(false);
   }
 
+  /**
+   * `POST /feed-stocks/{id}/open-bag` — decrementa o saldo E cria o
+   * `feed_open_logs` correspondente no backend, atômico (ver
+   * `feed-stocks.adapter.ts`). Não existe `POST /feed-open-logs` direto, por
+   * isso `logStore` só recarrega depois em vez de `.add()`.
+   */
   protected async saveOpenBag(): Promise<void> {
     const target = this.openBagTarget;
     if (!target) return;
@@ -263,19 +264,8 @@ export class ControleRacao {
     const weightKg = Number(this.openBagDraft['weightKg']);
     const date = String(this.openBagDraft['date']);
 
-    const record: FeedStock = {
-      type: target.type,
-      bagsInStock: target.bagsInStock - 1,
-      kgInStock: target.kgInStock - weightKg,
-      lastBagWeightKg: target.lastBagWeightKg,
-      expirationDate: target.expirationDate,
-    };
-    await this.store.update(target.id, record);
-    await this.logStore.add({
-      feedType: target.type,
-      date,
-      weightKg,
-    });
+    await this.store.openBag(target.id, { date, weightKg });
+    this.logStore.reload();
     this.openBagOpen.set(false);
   }
 

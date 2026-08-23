@@ -18,8 +18,9 @@ import { TopBuyer } from '@core/interfaces/report.interface';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
-import { createEntityStore } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { createSalesStore } from '@core/api/adapters/sales.adapter';
+import { createProductsStore } from '@core/api/adapters/products.adapter';
+import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ThemeService } from '@core/utils/theme.service';
 import { brl, num } from '@core/utils/format';
@@ -138,9 +139,9 @@ export class Reports {
   protected readonly brl = brl;
   protected readonly num = num;
 
-  private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
-  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
+  private readonly salesStore = createSalesStore();
+  private readonly productsStore = createProductsStore();
+  private readonly expensesStore = createExpensesStore();
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
 

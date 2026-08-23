@@ -13,8 +13,8 @@ import {
   NgApexchartsModule,
 } from 'ng-apexcharts';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createCashFlowsStore } from '@core/api/adapters/cash-flows.adapter';
 import { brl, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -71,7 +71,7 @@ export class CashFlow {
   protected readonly ptDate = ptDate;
   protected readonly fields = FIELDS;
 
-  private readonly store = createEntityStore<CashEntry>(IDB_STORES.cashFlow, []);
+  private readonly store = createCashFlowsStore();
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description'];

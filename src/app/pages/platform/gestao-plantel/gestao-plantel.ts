@@ -1,8 +1,8 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HatchEvent, NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubations.adapter';
 import { brl, num, ptDate } from '@core/utils/format';
 import { addDays, daysUntil, todayLocalISO } from '@core/utils/date-diff';
 import {
@@ -67,7 +67,7 @@ export class GestaoPlantel {
   protected readonly speciesLabel = (s: Species) => (s === 'quail' ? 'Codorna' : 'Galinha');
   protected readonly totalHatched = totalHatched;
 
-  private readonly store = createEntityStore<NovoLotePlantel>(IDB_STORES.flockIncubation, []);
+  private readonly store = createFlockIncubationsStore();
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['startDate', 'notes'];

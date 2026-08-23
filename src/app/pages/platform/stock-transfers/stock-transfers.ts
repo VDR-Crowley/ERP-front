@@ -4,18 +4,19 @@ import { Product } from '@core/interfaces/product.interface';
 import { Vendedor } from '@core/interfaces/vendedor.interface';
 import { VendorStock } from '@core/interfaces/vendor-stock.interface';
 import { StockTransfer } from '@core/interfaces/stock-transfer.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createProductsStore } from '@core/api/adapters/products.adapter';
+import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
+import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { createStockTransfersStore } from '@core/api/adapters/stock-transfers.adapter';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import {
   PLANTEL_LOCATION,
   buildLocationOptions,
-  isPlantelLocation,
   locationLabel,
   stockValue,
   totalStockValue,
-  vendedorIdFromLocation,
 } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { createSortState, sortRows } from '@shared/table-sort/table-sort';
@@ -42,10 +43,10 @@ export class StockTransfers {
   protected readonly brl = brl;
   protected readonly ptDate = ptDate;
 
-  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly vendedoresStore = createEntityStore<Vendedor>(IDB_STORES.vendedores, []);
-  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
-  private readonly transferStore = createEntityStore<StockTransfer>(IDB_STORES.stockTransfers, []);
+  private readonly productsStore = createProductsStore();
+  private readonly vendedoresStore = createVendedoresStore();
+  private readonly vendorStockStore = createVendorStockStore();
+  private readonly transferStore = createStockTransfersStore();
 
   /**
    * Visão de "quanto de cada produto está em cada local" (Plantel + cada
@@ -134,31 +135,14 @@ export class StockTransfers {
   }
 
   /**
-   * Ajusta o saldo de estoque de um produto num local (Plantel ou vendedor).
-   * Não bloqueia estoque negativo — mesmo comportamento lenient do resto do
-   * app (ex.: Controle de Ração, Vendas).
+   * O backend move o estoque de origem->destino sozinho a cada create/
+   * update/delete de transferência (ver `POST /stock-transfers` no
+   * openapi.yaml). O antigo `adjustStock` daqui foi removido — duplicaria o
+   * movimento; só recarrega os stores dependentes depois de salvar.
    */
-  private async adjustStock(location: string, product: string, delta: number): Promise<void> {
-    if (!product || !delta) return;
-    if (isPlantelLocation(location)) {
-      const p = this.productsStore.items().find((x) => x.name === product);
-      if (!p) return;
-      await this.productsStore.update(p.id, { ...p, stock: p.stock + delta });
-      return;
-    }
-    const vendedorId = vendedorIdFromLocation(location);
-    if (!vendedorId) return;
-    const existing = this.vendorStockStore
-      .items()
-      .find((vs) => vs.product === product && vs.vendedorId === vendedorId);
-    if (existing) {
-      await this.vendorStockStore.update(existing.id, {
-        ...existing,
-        quantity: existing.quantity + delta,
-      });
-    } else {
-      await this.vendorStockStore.add({ product, vendedorId, quantity: delta });
-    }
+  private reloadStock(): void {
+    this.productsStore.reload();
+    this.vendorStockStore.reload();
   }
 
   protected async saveForm(): Promise<void> {
@@ -172,9 +156,6 @@ export class StockTransfers {
       return;
     }
 
-    await this.adjustStock(fromLocation, product, -quantity);
-    await this.adjustStock(toLocation, product, quantity);
-
     await this.transferStore.add({
       date: String(d['date']),
       product,
@@ -185,5 +166,6 @@ export class StockTransfers {
     });
 
     this.formOpen.set(false);
+    this.reloadStock();
   }
 }
