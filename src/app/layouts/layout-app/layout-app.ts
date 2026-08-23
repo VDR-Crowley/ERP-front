@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, Injector, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -30,6 +30,7 @@ const COLLAPSE_KEY = 'erp-nav-collapsed';
 export class LayoutApp {
   private readonly router = inject(Router);
   private readonly idb = inject(IndexedDbService);
+  private readonly injector = inject(Injector);
   private readonly session = inject(AuthSession);
   private readonly authApi = inject(AuthApiService);
   protected readonly periodFilter = inject(PeriodFilterService);
@@ -70,6 +71,8 @@ export class LayoutApp {
   protected readonly importState = signal<ImportState>('idle');
   protected readonly importErrors = signal<string[]>([]);
   protected readonly importSummary = signal<Record<string, number>>({});
+  protected readonly importFailed = signal<Record<string, number>>({});
+  protected readonly importRowErrors = signal<string[]>([]);
   private pendingFile: File | null = null;
 
   protected readonly nav: NavItem[] = [
@@ -267,7 +270,7 @@ export class LayoutApp {
       return;
     }
     const { importWorkbookFile } = await import('@core/utils/import');
-    const result = await importWorkbookFile(this.idb, file);
+    const result = await importWorkbookFile(this.injector, file);
     this.pendingFile = null;
 
     if (!result.success) {
@@ -276,6 +279,8 @@ export class LayoutApp {
       return;
     }
     this.importSummary.set(result.summary);
+    this.importFailed.set(result.failed);
+    this.importRowErrors.set(result.rowErrors);
     this.importState.set('success');
   }
 

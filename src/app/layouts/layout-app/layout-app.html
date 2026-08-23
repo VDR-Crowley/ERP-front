@@ -132,15 +132,16 @@
         @switch (importState()) {
           @case ('confirm') {
             <div class="modal__icon modal__icon--warn"><i class="pi pi-exclamation-triangle"></i></div>
-            <h2 class="modal__title">Substituir dados existentes?</h2>
+            <h2 class="modal__title">Importar planilha?</h2>
             <p class="modal__text">
-              Importar essa planilha vai apagar e substituir os dados atuais das abas presentes no
-              arquivo. Essa ação não pode ser desfeita.
+              Cada linha das abas presentes no arquivo vai ser criada como um novo registro no
+              sistema. Linhas com erro ou referência a Produto/Vendedor não cadastrado são
+              rejeitadas — as demais são importadas normalmente.
             </p>
             <div class="modal__actions">
               <button class="btn btn--ghost" type="button" (click)="cancelarImportacao()">Cancelar</button>
               <button class="btn btn--primary" type="button" (click)="confirmarImportacao()">
-                Substituir dados
+                Importar
               </button>
             </div>
           }
@@ -160,12 +161,28 @@
           @case ('success') {
             <div class="modal__icon modal__icon--ok"><i class="pi pi-check-circle"></i></div>
             <h2 class="modal__title">Importação concluída</h2>
-            <p class="modal__text">Dados atualizados:</p>
+            <p class="modal__text">Dados importados:</p>
             <ul class="modal__summary-list">
               @for (item of importSummary() | keyvalue; track item.key) {
-                <li><span>{{ item.key }}</span><strong>{{ item.value }} registro(s)</strong></li>
+                <li>
+                  <span>{{ item.key }}</span>
+                  <strong>
+                    {{ item.value }} importado(s)
+                    @if (importFailed()[item.key]) {
+                      · {{ importFailed()[item.key] }} falhou(aram)
+                    }
+                  </strong>
+                </li>
               }
             </ul>
+            @if (importRowErrors().length > 0) {
+              <p class="modal__text">Linhas não importadas:</p>
+              <ul class="modal__error-list">
+                @for (err of importRowErrors(); track err) {
+                  <li>{{ err }}</li>
+                }
+              </ul>
+            }
             <div class="modal__actions">
               <button class="btn btn--primary" type="button" (click)="concluirImportacao()">
                 Recarregar página
