@@ -1,7 +1,9 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { ptDate } from '@core/utils/format';
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Casa 'aaaa-mm-dd' plano e datetime ISO completo do backend
+// ('aaaa-mm-ddTHH:mm:ss[.ssssss]Z'), mesmo formato aceito por ptDate().
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 // Marcas de acento combinantes (U+0300–U+036F) resultantes de string.normalize('NFD').
 const DIACRITICS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g');
 
