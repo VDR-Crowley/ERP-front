@@ -23,6 +23,10 @@
       </button>
     </div>
 
+    @if (deleteError()) {
+      <p class="modal__note" style="color: var(--erp-red)">{{ deleteError() }}</p>
+    }
+
     @let filtered = rows() | filterBy: search() : searchKeys;
 
     <div class="tbl-wrap">
@@ -50,7 +54,13 @@
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(u)">
                     <i class="pi pi-pencil"></i>
                   </button>
-                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(u)">
+                  <button
+                    type="button"
+                    class="btn btn--icon btn--danger"
+                    [disabled]="isSelf(u)"
+                    [attr.title]="isSelf(u) ? 'Você não pode desativar a própria conta' : 'Excluir'"
+                    (click)="askDelete(u)"
+                  >
                     <i class="pi pi-trash"></i>
                   </button>
                 </div>
@@ -73,6 +83,7 @@
   [title]="formTitle()"
   [fields]="fields"
   [model]="draft"
+  [errors]="formErrors()"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"
 />

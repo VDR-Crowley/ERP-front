@@ -62,6 +62,8 @@ export class CrudFormModal implements OnChanges {
   @Input() model: Record<string, unknown> = {};
   /** Nota fixa exibida abaixo dos campos (ex.: explicar pra onde o dado vai depois de salvar). */
   @Input() note = '';
+  /** Erros de validação do backend (422) — ex.: `Object.values(err.error.errors).flat()`. */
+  @Input() errors: string[] = [];
 
   @Output() saved = new EventEmitter<void>();
   @Output() cancelled = new EventEmitter<void>();
