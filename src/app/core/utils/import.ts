@@ -138,9 +138,20 @@ function createImportContext(injector: Injector): ImportContext {
   };
 }
 
-/** Traduz erro de `store.add()`/API pra uma mensagem de 1 linha — usada no `rowErrors` de cada linha que falhou. */
-function describeImportError(e: unknown): string {
+/**
+ * Traduz erro de `store.add()`/API (ou qualquer exceção inesperada — rede, parse,
+ * timeout) pra uma mensagem de 1 linha. Usada no `rowErrors` de cada linha que
+ * falhou e reaproveitada pelo caller (`layout-app.ts`) pro catch-all do fluxo de
+ * import inteiro, garantindo mensagem consistente pra falha de rede/CORS.
+ */
+export function describeImportError(e: unknown): string {
   if (e instanceof HttpErrorResponse) {
+    // status 0 = requisição nunca chegou a ter resposta HTTP (CORS bloqueado,
+    // servidor fora do ar, DNS/rede) — status/mensagem de servidor não existem
+    // aqui, então dar uma mensagem específica em vez de "Erro 0 ao salvar.".
+    if (e.status === 0) {
+      return 'Falha de conexão com o servidor (rede ou CORS). Verifique sua internet e tente novamente.';
+    }
     if (e.status === 422) {
       const apiErrors = e.error?.errors as Record<string, string[]> | undefined;
       if (apiErrors) return Object.values(apiErrors).flat().join(' ');
@@ -165,8 +176,14 @@ interface EntityImporter {
  * Uma linha que falha (validação de planilha OU erro 422 da API, ex.: nome de
  * Produto/Vendedor não encontrado) vira 1 entrada em `rowErrors` e NÃO trava as
  * demais linhas — cada linha é `add()`ada e tratada isoladamente. Retorna
- * `undefined` só quando a aba nem pôde ser lida (coluna obrigatória faltando);
- * nesse caso a aba inteira é pulada, mas as outras abas do arquivo seguem normais.
+ * `undefined` quando a aba nem pôde ser lida — coluna obrigatória faltando, OU
+ * `parse()` lançou uma exceção inesperada (célula com formato que os helpers de
+ * `toNumber`/`parseDate`/etc não previram) — nesse caso a aba inteira é pulada,
+ * mas as outras abas do arquivo seguem normais. Antes o throw de `parse()`
+ * escapava sem try/catch e subia até `confirmarImportacao()` (`layout-app.ts`),
+ * que também não tinha catch — a Promise rejeitava sem nunca tocar os signals de
+ * estado, e o modal ficava travado em "confirm" pra sempre (raiz do bug do loop
+ * de carregamento infinito).
  */
 function makeImporter<T>(
   label: string,
@@ -176,7 +193,13 @@ function makeImporter<T>(
   return {
     label,
     async process(ws, rowErrors, ctx) {
-      const rows = parse(ws, rowErrors);
+      let rows: RowItem<T>[] | undefined;
+      try {
+        rows = parse(ws, rowErrors);
+      } catch (e) {
+        rowErrors.push(`Aba "${label}": erro ao processar (${describeImportError(e)}).`);
+        return undefined;
+      }
       if (rows === undefined) return undefined;
 
       let imported = 0;

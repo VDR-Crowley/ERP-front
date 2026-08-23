@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { Injector } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
@@ -249,5 +250,57 @@ describe('importWorkbookFile', () => {
     expect(result.rowErrors.some((e) => e.includes('Vendas'))).toBe(true);
 
     httpMock.expectNone({ url: salesBase, method: 'GET' });
+  });
+
+  // Regressão: bug reportado do "loop de carregamento infinito" no botão
+  // Importar — uma exceção inesperada durante o parse de uma aba (não coberta
+  // por validação, ex.: célula de data corrompida quebrando o parser do xlsx)
+  // escapava sem try/catch, rejeitava a Promise de `importWorkbookFile` e
+  // nunca resolvia `importState` em `layout-app.ts`, travando o modal em
+  // "confirm" pra sempre sem mostrar erro. Agora a aba com erro é pulada
+  // (mesmo padrão de "coluna obrigatória faltando") e as outras seguem normais.
+  it('exceção inesperada durante parse de uma aba não trava a Promise — aba é pulada e as outras seguem', async () => {
+    const file = buildFile({
+      Despesas: [
+        {
+          Data: 46203, // serial numérico de data — passa pelo branch que aciona XLSX.SSF.parse_date_code
+          Descrição: 'Ração codornas',
+          Categoria: 'Ração',
+          'Qtd.': 1,
+          'Valor unit.': 106,
+          Valor: 106,
+          Pago: 'Sim',
+        },
+      ],
+      Produtos: [{ Produto: 'Ovo', Unidade: 'dz', 'Preço Unitário': 5, Estoque: 10, 'Ovos por Unidade': 12 }],
+    });
+
+    const parseDateCodeSpy = vi.spyOn(XLSX.SSF, 'parse_date_code').mockImplementation(() => {
+      throw new Error('planilha corrompida');
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    // "Produtos" vem antes de "Despesas" em IMPORTERS — segue normal mesmo com
+    // a outra aba quebrando.
+    (await expectRequest(httpMock, productsBase, 'GET')).flush([]);
+    (await expectRequest(httpMock, productsBase, 'POST')).flush({
+      id: 1,
+      name: 'Ovo',
+      unit: 'dz',
+      unit_price: '5.00',
+      stock: 10,
+      eggs_per_unit: 12,
+    });
+
+    const result = await promise;
+    parseDateCodeSpy.mockRestore();
+
+    // Acima de tudo: a Promise RESOLVE (nunca fica pendente pra sempre — essa
+    // era a causa do loop infinito de loading na UI).
+    expect(result.success).toBe(true);
+    expect(result.summary['Produtos']).toBe(1);
+    expect(result.summary['Despesas']).toBeUndefined();
+    expect(result.rowErrors.some((e) => e.startsWith('Aba "Despesas": erro ao processar'))).toBe(true);
   });
 });

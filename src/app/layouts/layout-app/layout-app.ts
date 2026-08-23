@@ -264,24 +264,38 @@ export class LayoutApp {
     this.importState.set('idle');
   }
 
+  /**
+   * `try/catch` cobrindo o import inteiro é a raiz do bug do loop de carregamento
+   * infinito: sem ele, qualquer exceção fora do tratamento por linha de
+   * `import.ts` (rede/CORS, parse de planilha, timeout) rejeitava a Promise sem
+   * nunca tocar `importState` — o modal ficava travado em "confirm" pra sempre,
+   * sem erro visível. Agora QUALQUER falha cai no `catch` e sempre resolve pro
+   * estado 'errors', nunca trava.
+   */
   protected async confirmarImportacao(): Promise<void> {
     const file = this.pendingFile;
     if (!file) {
       return;
     }
-    const { importWorkbookFile } = await import('@core/utils/import');
-    const result = await importWorkbookFile(this.injector, file);
     this.pendingFile = null;
+    try {
+      const { importWorkbookFile } = await import('@core/utils/import');
+      const result = await importWorkbookFile(this.injector, file);
 
-    if (!result.success) {
-      this.importErrors.set(result.errors);
+      if (!result.success) {
+        this.importErrors.set(result.errors);
+        this.importState.set('errors');
+        return;
+      }
+      this.importSummary.set(result.summary);
+      this.importFailed.set(result.failed);
+      this.importRowErrors.set(result.rowErrors);
+      this.importState.set('success');
+    } catch (e) {
+      const { describeImportError } = await import('@core/utils/import');
+      this.importErrors.set([`Falha inesperada ao importar: ${describeImportError(e)}`]);
       this.importState.set('errors');
-      return;
     }
-    this.importSummary.set(result.summary);
-    this.importFailed.set(result.failed);
-    this.importRowErrors.set(result.rowErrors);
-    this.importState.set('success');
   }
 
   protected fecharErros(): void {
