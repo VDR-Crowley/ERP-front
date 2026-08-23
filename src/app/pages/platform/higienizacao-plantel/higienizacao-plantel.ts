@@ -2,11 +2,11 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.interface';
 import { Species } from '@core/interfaces/novo-lote-plantel.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createFlockCleaningsStore } from '@core/api/adapters/flock-cleanings.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ptDate } from '@core/utils/format';
-import { daysUntil, todayLocalISO } from '@core/utils/date-diff';
+import { daysSince, todayLocalISO } from '@core/utils/date-diff';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -80,7 +80,7 @@ export class HigienizacaoPlantel {
   protected readonly speciesLabel = (s: Species) => (s === 'quail' ? 'Codorna' : 'Galinha');
   protected readonly cleaningTypeLabel = (t: CleaningType) => CLEANING_TYPE_LABELS[t];
 
-  private readonly store = createEntityStore<FlockCleaning>(IDB_STORES.flockCleaning, []);
+  private readonly store = createFlockCleaningsStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');
@@ -115,7 +115,7 @@ export class HigienizacaoPlantel {
   }
 
   protected diasAtrasLabel(date: string): string {
-    const dias = -daysUntil(date);
+    const dias = daysSince(date);
     if (dias <= 0) return 'Hoje';
     return `${dias} dia${dias === 1 ? '' : 's'} atrás`;
   }

@@ -3,19 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Vendedor } from '@core/interfaces/vendedor.interface';
-import { VendorStock } from '@core/interfaces/vendor-stock.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createSalesStore } from '@core/api/adapters/sales.adapter';
+import { createProductsStore } from '@core/api/adapters/products.adapter';
+import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
+import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
-import {
-  PLANTEL_LOCATION,
-  buildLocationOptions,
-  isPlantelLocation,
-  locationLabel,
-  vendedorIdFromLocation,
-} from '@core/utils/stock-location';
+import { PLANTEL_LOCATION, buildLocationOptions, locationLabel } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -96,10 +92,10 @@ export class Sales {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
 
-  private readonly store = createEntityStore<Venda>(IDB_STORES.sales, []);
-  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly vendedoresStore = createEntityStore<Vendedor>(IDB_STORES.vendedores, []);
-  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
+  private readonly store = createSalesStore();
+  private readonly productsStore = createProductsStore();
+  private readonly vendedoresStore = createVendedoresStore();
+  private readonly vendorStockStore = createVendorStockStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly fields = computed<CrudField[]>(() => {
@@ -189,32 +185,17 @@ export class Sales {
   }
 
   /**
-   * Ajusta o saldo de estoque de um produto num local (Plantel ou vendedor).
-   * `delta` negativo baixa (venda), positivo devolve (edição/exclusão de venda,
-   * ou entrada de transferência). Não bloqueia estoque negativo — mesmo
-   * comportamento lenient do resto do app (ex.: Controle de Ração).
+   * A baixa/devolução de estoque agora é feita pelo backend a cada
+   * create/update/delete de venda (ver `POST/PUT/DELETE /sales` no
+   * openapi.yaml — "baixa o estoque do produto no local informado"). O
+   * antigo `adjustStock` daqui (que recalculava `productsStore`/
+   * `vendorStockStore` no front) foi removido porque duplicaria o ajuste —
+   * em vez disso, só recarrega os dois stores depois de mexer numa venda,
+   * pra refletir o que o backend já moveu.
    */
-  private async adjustStock(location: string, product: string, delta: number): Promise<void> {
-    if (!product || !delta) return;
-    if (isPlantelLocation(location)) {
-      const p = this.productsStore.items().find((x) => x.name === product);
-      if (!p) return;
-      await this.productsStore.update(p.id, { ...p, stock: p.stock + delta });
-      return;
-    }
-    const vendedorId = vendedorIdFromLocation(location);
-    if (!vendedorId) return;
-    const existing = this.vendorStockStore
-      .items()
-      .find((vs) => vs.product === product && vs.vendedorId === vendedorId);
-    if (existing) {
-      await this.vendorStockStore.update(existing.id, {
-        ...existing,
-        quantity: existing.quantity + delta,
-      });
-    } else {
-      await this.vendorStockStore.add({ product, vendedorId, quantity: delta });
-    }
+  private reloadStock(): void {
+    this.productsStore.reload();
+    this.vendorStockStore.reload();
   }
 
   protected async saveForm(): Promise<void> {
@@ -237,17 +218,6 @@ export class Sales {
       stockLocation,
     };
 
-    const original = this.editingOriginal;
-    if (original) {
-      // Desfaz a baixa antiga (mesmo se produto/local/quantidade mudaram) antes de aplicar a nova.
-      await this.adjustStock(
-        original.stockLocation ?? PLANTEL_LOCATION,
-        original.product,
-        original.quantity,
-      );
-    }
-    await this.adjustStock(stockLocation, product, -quantity);
-
     if (this.editingId) {
       await this.store.update(this.editingId, venda);
     } else {
@@ -255,6 +225,7 @@ export class Sales {
     }
     this.editingOriginal = null;
     this.formOpen.set(false);
+    this.reloadStock();
   }
 
   protected askDelete(v: WithId<Venda>): void {
@@ -268,9 +239,9 @@ export class Sales {
   protected async confirmDelete(): Promise<void> {
     const target = this.deleteTarget();
     if (!target) return;
-    // Devolve a quantidade baixada por essa venda pro local de onde saiu.
-    await this.adjustStock(target.stockLocation ?? PLANTEL_LOCATION, target.product, target.quantity);
+    // O backend devolve a quantidade baixada por essa venda pro local de origem (ver DELETE /sales/{sale}).
     await this.store.remove(target.id);
     this.deleteTarget.set(null);
+    this.reloadStock();
   }
 }

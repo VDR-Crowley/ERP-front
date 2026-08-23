@@ -1,9 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EstoqueOvos as EstoqueOvosModel } from '@core/interfaces/estoque-ovos.interface';
-import { Product } from '@core/interfaces/product.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
+import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -33,8 +33,8 @@ export class EggStock {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
 
-  private readonly store = createEntityStore<EstoqueOvosModel>(IDB_STORES.eggStock, []);
-  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
+  private readonly store = createEggStocksStore();
+  private readonly productsStore = createProductsStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   // Lê tamanho do pack/preço direto do cadastro de Produtos (por nome) — se o

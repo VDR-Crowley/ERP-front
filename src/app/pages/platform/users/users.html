@@ -1,7 +1,7 @@
 <div class="page">
   <section class="kpi-grid kpi-grid--compact">
     <article class="kpi kpi--green">
-      <div class="kpi__label">Total de usuários</div>
+      <div class="kpi__label">Usuários ativos</div>
       <div class="kpi__value">{{ num(totalUsuarios()) }}</div>
     </article>
   </section>
@@ -23,6 +23,10 @@
       </button>
     </div>
 
+    @if (deleteError()) {
+      <p class="modal__note" style="color: var(--erp-red)">{{ deleteError() }}</p>
+    }
+
     @let filtered = rows() | filterBy: search() : searchKeys;
 
     <div class="tbl-wrap">
@@ -37,6 +41,7 @@
               E-mail
               <app-sort-icon [active]="sortField() === 'email'" [dir]="sortDir()" />
             </th>
+            <th>Status</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -45,14 +50,38 @@
             <tr>
               <td class="strong" data-label="Nome">{{ u.name }}</td>
               <td data-label="E-mail">{{ u.email }}</td>
+              <td data-label="Status">
+                @if (u.isActive) {
+                  <span class="badge badge--ok">Ativo</span>
+                } @else {
+                  <span class="badge badge--out">Inativo</span>
+                }
+              </td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(u)">
                     <i class="pi pi-pencil"></i>
                   </button>
-                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(u)">
-                    <i class="pi pi-trash"></i>
-                  </button>
+                  @if (u.isActive) {
+                    <button
+                      type="button"
+                      class="btn btn--icon btn--danger"
+                      [disabled]="isSelf(u)"
+                      [attr.title]="isSelf(u) ? 'Você não pode desativar a própria conta' : 'Excluir'"
+                      (click)="askDelete(u)"
+                    >
+                      <i class="pi pi-trash"></i>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="btn btn--icon"
+                      title="Reativar"
+                      (click)="reactivate(u)"
+                    >
+                      <i class="pi pi-refresh"></i>
+                    </button>
+                  }
                 </div>
               </td>
             </tr>
@@ -73,13 +102,18 @@
   [title]="formTitle()"
   [fields]="fields"
   [model]="draft"
+  [errors]="formErrors()"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"
 />
 
 <app-confirm-modal
   [open]="!!deleteTarget()"
-  [text]="'Excluir o usuário ' + (deleteTarget()?.name ?? '') + '? Essa ação não pode ser desfeita.'"
+  [text]="
+    'Desativar o usuário ' +
+    (deleteTarget()?.name ?? '') +
+    '? Ele não vai mais conseguir fazer login, mas pode ser reativado depois.'
+  "
   (confirmed)="confirmDelete()"
   (cancelled)="cancelDelete()"
 />

@@ -1,11 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputOtpModule } from 'primeng/inputotp';
 import { PasswordModule } from 'primeng/password';
 import { MessageModule } from 'primeng/message';
+import { AuthApiService } from '@core/auth/auth-api.service';
 
 @Component({
   selector: 'app-forgot-password',
@@ -23,8 +25,9 @@ import { MessageModule } from 'primeng/message';
 })
 export class ForgotPassword {
   private readonly router = inject(Router);
+  private readonly authApi = inject(AuthApiService);
 
-  /** 1 = e-mail, 2 = token, 3 = nova senha */
+  /** 1 = e-mail, 2 = código, 3 = nova senha */
   protected readonly step = signal(1);
 
   protected email = '';
@@ -32,36 +35,67 @@ export class ForgotPassword {
   protected novaSenha = '';
   protected confirmarSenha = '';
 
+  protected readonly enviando = signal(false);
+  protected readonly erro = signal('');
+
   protected readonly tokenValido = computed(() => this.token.length === 6);
   protected readonly senhasConferem = computed(
     () => this.novaSenha.length >= 6 && this.novaSenha === this.confirmarSenha,
   );
 
-  protected enviarEmail(): void {
-    if (!this.email.trim()) {
+  protected async enviarEmail(): Promise<void> {
+    if (!this.email.trim() || this.enviando()) {
       return;
     }
-    // TODO: chamar serviço de envio de token
-    this.step.set(2);
+    this.erro.set('');
+    this.enviando.set(true);
+    try {
+      // A API sempre responde OK genérico aqui (não revela se o e-mail existe).
+      await firstValueFrom(this.authApi.forgotPassword(this.email.trim()));
+      this.step.set(2);
+    } catch {
+      this.erro.set('Não foi possível enviar o código. Tente novamente.');
+    } finally {
+      this.enviando.set(false);
+    }
   }
 
-  protected validarToken(): void {
-    if (!this.tokenValido()) {
+  protected async validarToken(): Promise<void> {
+    if (!this.tokenValido() || this.enviando()) {
       return;
     }
-    // TODO: validar token no backend
-    this.step.set(3);
+    this.erro.set('');
+    this.enviando.set(true);
+    try {
+      await firstValueFrom(this.authApi.verifyResetCode(this.email.trim(), this.token));
+      this.step.set(3);
+    } catch {
+      this.erro.set('Código inválido ou expirado.');
+    } finally {
+      this.enviando.set(false);
+    }
   }
 
-  protected redefinir(): void {
-    if (!this.senhasConferem()) {
+  protected async redefinir(): Promise<void> {
+    if (!this.senhasConferem() || this.enviando()) {
       return;
     }
-    // TODO: enviar nova senha ao backend
-    this.router.navigate(['/login']);
+    this.erro.set('');
+    this.enviando.set(true);
+    try {
+      await firstValueFrom(
+        this.authApi.resetPassword(this.email.trim(), this.token, this.novaSenha, this.confirmarSenha),
+      );
+      this.router.navigate(['/login']);
+    } catch {
+      this.erro.set('Não foi possível redefinir a senha. Tente novamente.');
+    } finally {
+      this.enviando.set(false);
+    }
   }
 
   protected voltar(): void {
+    this.erro.set('');
     if (this.step() === 1) {
       this.router.navigate(['/login']);
       return;

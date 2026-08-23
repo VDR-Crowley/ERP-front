@@ -1,10 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Products } from './products';
-import { IndexedDbService } from '@core/idb/idb.service';
-import { Product } from '@core/interfaces/product.interface';
-import { WithId } from '@core/idb/entity-store';
+import { environment } from '../../../../environments/environment';
+
+interface ProductApiRow {
+  id: number;
+  name: string;
+  unit: string;
+  unit_price: string;
+  stock: number;
+  eggs_per_unit: number;
+}
 
 /**
  * Reproduz e depois cobre a correção do bug relatado em produção: editar o
@@ -15,44 +23,46 @@ import { WithId } from '@core/idb/entity-store';
 describe('Products — edição de estoque (bug reportado em produção)', () => {
   let component: Products;
   let fixture: ComponentFixture<Products>;
-  let saved: Record<string, unknown>[];
-  let productsInIdb: WithId<Product>[];
+  let httpMock: HttpTestingController;
+  const productsUrl = `${environment.apiUrl}/products`;
+  const vendorStockUrl = `${environment.apiUrl}/vendor-stock`;
 
-  function product(overrides: Partial<Product> & { id: string }): WithId<Product> {
-    return { name: 'Produto', unit: 'un', unitPrice: 10, stock: 0, eggsPerUnit: 0, ...overrides };
+  function apiProduct(overrides: Partial<ProductApiRow> & { id: number }): ProductApiRow {
+    return { name: 'Produto', unit: 'un', unit_price: '10.00', stock: 0, eggs_per_unit: 0, ...overrides };
   }
 
+  let productsInApi: ProductApiRow[];
+
   beforeEach(async () => {
-    saved = [];
     // 5 produtos, igual ao relato: 2 ligados a ovo (nome batia com o antigo
     // override de estoqueReal, hoje removido) e 3 "normais".
-    productsInIdb = [
-      product({ id: 'p1', name: '50 ovos de codorna', eggsPerUnit: 50, stock: 20 }),
-      product({ id: 'p2', name: '1 Bandeja de ovos de galinha', eggsPerUnit: 30, stock: 15 }),
-      product({ id: 'p3', name: 'Ração extra', stock: 5 }),
-      product({ id: 'p4', name: 'Kit misto', stock: 8 }),
-      product({ id: 'p5', name: 'Carne de codorna', stock: 3 }),
+    productsInApi = [
+      apiProduct({ id: 1, name: '50 ovos de codorna', eggs_per_unit: 50, stock: 20 }),
+      apiProduct({ id: 2, name: '1 Bandeja de ovos de galinha', eggs_per_unit: 30, stock: 15 }),
+      apiProduct({ id: 3, name: 'Ração extra', stock: 5 }),
+      apiProduct({ id: 4, name: 'Kit misto', stock: 8 }),
+      apiProduct({ id: 5, name: 'Carne de codorna', stock: 3 }),
     ];
-
-    const fakeIdb = {
-      getAll: (storeName: string) => of(storeName === 'products' ? productsInIdb : []),
-      save: (_storeName: string, id: string, data: unknown) => {
-        saved.push({ id, ...(data as object) });
-        return of(undefined);
-      },
-    } as unknown as IndexedDbService;
 
     await TestBed.configureTestingModule({
       imports: [Products],
-      providers: [provideRouter([]), { provide: IndexedDbService, useValue: fakeIdb }],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(Products);
     component = fixture.componentInstance;
+    httpMock = TestBed.inject(HttpTestingController);
+
+    // productsStore faz 1 GET /products; vendorStockStore faz 1 GET /vendor-stock
+    // + 1 GET /products (pra resolver product_id -> nome, ver vendor-stock.adapter.ts).
+    for (const req of httpMock.match(productsUrl)) req.flush(productsInApi);
+    httpMock.expectOne(vendorStockUrl).flush([]);
     await fixture.whenStable();
   });
 
-  it.each(['p1', 'p2', 'p3', 'p4', 'p5'])(
+  afterEach(() => httpMock.verify());
+
+  it.each(['1', '2', '3', '4', '5'])(
     'edita o estoque do produto %s e a coluna Estoque no Plantel (p.stock) reflete o novo valor',
     async (id) => {
       const target = component['rows']().find((p) => p.id === id)!;
@@ -60,7 +70,11 @@ describe('Products — edição de estoque (bug reportado em produção)', () =>
 
       component['openEdit'](target);
       component['draft']['stock'] = 777;
-      await component['saveForm']();
+      const promise = component['saveForm']();
+
+      const req = httpMock.expectOne(`${productsUrl}/${id}`);
+      req.flush({ ...productsInApi.find((p) => p.id === Number(id))!, stock: 777 });
+      await promise;
 
       const updated = component['rows']().find((p) => p.id === id)!;
       expect(updated.stock).toBe(777);
@@ -72,7 +86,12 @@ describe('Products — edição de estoque (bug reportado em produção)', () =>
   it('cria um produto novo e depois consegue editar o estoque dele', async () => {
     component['openNew']();
     component['draft'] = { name: 'Produto Novo', unit: 'un', unitPrice: 1, stock: 50, eggsPerUnit: 0 };
-    await component['saveForm']();
+    const createPromise = component['saveForm']();
+
+    httpMock
+      .expectOne(productsUrl)
+      .flush({ id: 6, name: 'Produto Novo', unit: 'un', unit_price: '1.00', stock: 50, eggs_per_unit: 0 });
+    await createPromise;
 
     const created = component['rows']().find((p) => p.name === 'Produto Novo');
     expect(created).toBeTruthy();
@@ -80,7 +99,12 @@ describe('Products — edição de estoque (bug reportado em produção)', () =>
 
     component['openEdit'](created!);
     component['draft']['stock'] = 999;
-    await component['saveForm']();
+    const updatePromise = component['saveForm']();
+
+    httpMock
+      .expectOne(`${productsUrl}/6`)
+      .flush({ id: 6, name: 'Produto Novo', unit: 'un', unit_price: '1.00', stock: 999, eggs_per_unit: 0 });
+    await updatePromise;
 
     const updated = component['rows']().find((p) => p.name === 'Produto Novo');
     expect(updated!.stock).toBe(999);

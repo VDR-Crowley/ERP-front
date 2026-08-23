@@ -12,17 +12,18 @@ import {
   NgApexchartsModule,
 } from 'ng-apexcharts';
 import { Venda } from '@core/interfaces/venda.interface';
-import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
-import { Plantel } from '@core/interfaces/plantel.interface';
-import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
-import { Product } from '@core/interfaces/product.interface';
-import { VendorStock } from '@core/interfaces/vendor-stock.interface';
-import { Expense } from '@core/interfaces/expense.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
-import { NovoLotePlantel } from '@core/interfaces/novo-lote-plantel.interface';
-import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { createEntityStore } from '@core/idb/entity-store';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { createSalesStore } from '@core/api/adapters/sales.adapter';
+import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
+import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
+import { createProductsStore } from '@core/api/adapters/products.adapter';
+import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
+import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubations.adapter';
+import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { latestByDate } from '@core/utils/latest-by-date';
@@ -98,22 +99,19 @@ export class Dashboard {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
 
-  private readonly salesStore = createEntityStore<Venda>(IDB_STORES.sales, []);
-  private readonly productionStore = createEntityStore<ProducaoDiaria>(
-    IDB_STORES.dailyProduction,
-    [],
-  );
-  private readonly flockStore = createEntityStore<Plantel>(IDB_STORES.flock, []);
-  private readonly eggStockStore = createEntityStore<EstoqueOvos>(IDB_STORES.eggStock, []);
-  private readonly productsStore = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
-  private readonly expensesStore = createEntityStore<Expense>(IDB_STORES.expenses, []);
+  private readonly salesStore = createSalesStore();
+  private readonly productionStore = createDailyProductionsStore();
+  private readonly flockStore = createFlockStore();
+  private readonly eggStockStore = createEggStocksStore();
+  private readonly productsStore = createProductsStore();
+  private readonly vendorStockStore = createVendorStockStore();
+  private readonly expensesStore = createExpensesStore();
+  // `dashboard` não é entidade persistida no backend (ver plano-entidades.md) — nunca foi
+  // escrito nem pelo antigo store do IndexedDB, `resumo` sempre cai no fallback `RESUMO_VAZIO`.
+  // Mantido como estava (IDB inerte) só pra não quebrar a leitura abaixo.
   private readonly dashboardStore = createEntityStore<DashboardResumo>(IDB_STORES.dashboard, []);
-  private readonly flockIncubationStore = createEntityStore<NovoLotePlantel>(
-    IDB_STORES.flockIncubation,
-    [],
-  );
-  private readonly feedStockStore = createEntityStore<FeedStock>(IDB_STORES.feedStock, []);
+  private readonly flockIncubationStore = createFlockIncubationsStore();
+  private readonly feedStockStore = createFeedStockStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly resumo = computed(() => this.dashboardStore.items()[0] ?? RESUMO_VAZIO);

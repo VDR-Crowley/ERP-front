@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Expense } from '@core/interfaces/expense.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -64,7 +64,7 @@ export class Expenses {
   protected readonly ptDate = ptDate;
   protected readonly fields = FIELDS;
 
-  private readonly store = createEntityStore<Expense>(IDB_STORES.expenses, []);
+  private readonly store = createExpensesStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
   protected readonly search = signal('');

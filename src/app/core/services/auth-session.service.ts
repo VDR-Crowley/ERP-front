@@ -1,60 +1,75 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-import { IndexedDbService } from '@core/idb/idb.service';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
-import { User } from '@core/interfaces/user.interface';
+import { AuthUser } from '@core/auth/auth.model';
+import { LOCAL_STORAGE } from '@core/auth/browser-storage';
 
-export type StoredUser = User & { id: string };
+const PROFILE_OVERLAY_KEY = 'erp-profile-overlay';
 
-const STORAGE_KEY = 'erp-current-user';
+/** Campos cosméticos sem contrapartida no backend hoje (não existe PATCH /user na API). */
+interface ProfileOverlay {
+  phone?: string;
+  farm?: string;
+}
+
+export type SessionUser = AuthUser & ProfileOverlay;
 
 /**
- * Sessão do usuário logado. Guarda o registro completo (com uuid) em
- * localStorage e expõe via signal, pra consumir em qualquer tela sem reler o
- * IndexedDB. Alterações (`patch`) gravam no IDB e sincronizam o localStorage.
+ * Sessão do usuário autenticado. O usuário em si (id/name/email/role/
+ * created_at) vem sempre da API — login, registro, refresh ou GET /user —
+ * nunca é inventado localmente.
+ *
+ * `phone`/`farm` são só um overlay cosmético local (tela de Configurações),
+ * porque a API não expõe endpoint pra atualizar perfil ainda. Ficam em
+ * localStorage indexados por e-mail e nunca são enviados ao backend — ver
+ * `patch()`.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthSession {
-  private readonly idb = inject(IndexedDbService);
+  private readonly localStorage = inject(LOCAL_STORAGE);
 
-  readonly user = signal<StoredUser | null>(this.read());
+  readonly user = signal<SessionUser | null>(null);
   readonly userId = computed(() => this.user()?.id ?? null);
+  readonly isAuthenticated = computed(() => this.user() !== null);
 
-  private read(): StoredUser | null {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as StoredUser;
-    } catch {
-      return null;
-    }
+  setCurrent(user: AuthUser): void {
+    const overlay = this.readOverlay(user.email);
+    this.user.set({ ...user, ...overlay });
   }
 
-  private write(user: StoredUser | null): void {
-    if (typeof localStorage === 'undefined') return;
-    if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }
-
-  setCurrent(user: StoredUser): void {
-    this.user.set(user);
-    this.write(user);
-  }
-
-  /** Aplica mudanças no usuário logado: grava no IDB e sincroniza localStorage/signal. */
-  async patch(changes: Partial<User>): Promise<void> {
+  /** Só atualiza os campos cosméticos locais (ver docstring da classe) — nunca chama a API. */
+  patch(changes: ProfileOverlay): void {
     const current = this.user();
     if (!current) return;
-    await firstValueFrom(this.idb.update(IDB_STORES.users, current.id, changes));
-    this.setCurrent({ ...current, ...changes });
+    const next: SessionUser = { ...current, ...changes };
+    this.user.set(next);
+    this.writeOverlay(current.email, { phone: next.phone, farm: next.farm });
   }
 
   clear(): void {
     this.user.set(null);
-    this.write(null);
+  }
+
+  private readOverlay(email: string): ProfileOverlay {
+    try {
+      const all = JSON.parse(this.localStorage.getItem(PROFILE_OVERLAY_KEY) ?? '{}') as Record<
+        string,
+        ProfileOverlay
+      >;
+      return all[email] ?? {};
+    } catch {
+      return {};
+    }
+  }
+
+  private writeOverlay(email: string, overlay: ProfileOverlay): void {
+    try {
+      const all = JSON.parse(this.localStorage.getItem(PROFILE_OVERLAY_KEY) ?? '{}') as Record<
+        string,
+        ProfileOverlay
+      >;
+      all[email] = overlay;
+      this.localStorage.setItem(PROFILE_OVERLAY_KEY, JSON.stringify(all));
+    } catch {
+      /* storage indisponível — overlay fica só na sessão atual */
+    }
   }
 }

@@ -1,10 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { PasswordModule } from 'primeng/password';
-import { UsersService } from '@core/services/users.service';
+import { AuthApiService } from '@core/auth/auth-api.service';
 
 @Component({
   selector: 'app-register',
@@ -14,7 +16,7 @@ import { UsersService } from '@core/services/users.service';
 })
 export class Register {
   private readonly router = inject(Router);
-  private readonly users = inject(UsersService);
+  private readonly authApi = inject(AuthApiService);
 
   protected nome = '';
   protected email = '';
@@ -38,17 +40,29 @@ export class Register {
     }
     this.erro.set('');
     this.salvando.set(true);
-    const result = await this.users.register({
-      name: this.nome,
-      email: this.email,
-      password: this.senha,
-    });
-    this.salvando.set(false);
-
-    if (!result.ok) {
-      this.erro.set(result.error ?? 'Não foi possível cadastrar.');
-      return;
+    try {
+      // API loga automaticamente no registro (ver openapi.yaml: /register).
+      await firstValueFrom(
+        this.authApi.register({
+          name: this.nome.trim(),
+          email: this.email.trim(),
+          password: this.senha,
+          password_confirmation: this.confirmarSenha,
+        }),
+      );
+      this.router.navigate(['/platform/dashboard']);
+    } catch (err) {
+      this.erro.set(this.mensagemErro(err));
+    } finally {
+      this.salvando.set(false);
     }
-    this.router.navigate(['/login']);
+  }
+
+  private mensagemErro(err: unknown): string {
+    if (err instanceof HttpErrorResponse && err.status === 422) {
+      const errors = err.error?.errors as Record<string, string[]> | undefined;
+      return errors?.['email']?.[0] ?? err.error?.message ?? 'Não foi possível cadastrar.';
+    }
+    return 'Não foi possível cadastrar. Tente novamente.';
   }
 }

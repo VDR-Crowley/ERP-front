@@ -1,8 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { UsersService } from '@core/services/users.service';
-import { AuthSession } from '@core/services/auth-session.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { AuthApiService } from '@core/auth/auth-api.service';
 
 @Component({
   selector: 'app-login',
@@ -12,8 +13,7 @@ import { AuthSession } from '@core/services/auth-session.service';
 })
 export class Login {
   private readonly router = inject(Router);
-  private readonly users = inject(UsersService);
-  private readonly session = inject(AuthSession);
+  private readonly authApi = inject(AuthApiService);
 
   protected email = '';
   protected password = '';
@@ -33,14 +33,25 @@ export class Login {
     }
     this.erro.set('');
     this.entrando.set(true);
-    const user = await this.users.validate(this.email, this.password);
-    this.entrando.set(false);
-
-    if (!user) {
-      this.erro.set('E-mail ou senha inválidos.');
-      return;
+    try {
+      await firstValueFrom(this.authApi.login(this.email.trim(), this.password, this.remember));
+      this.router.navigate(['/platform/dashboard']);
+    } catch (err) {
+      this.erro.set(this.mensagemErro(err));
+    } finally {
+      this.entrando.set(false);
     }
-    this.session.setCurrent(user);
-    this.router.navigate(['/platform/dashboard']);
+  }
+
+  private mensagemErro(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 422) {
+        return err.error?.message ?? 'E-mail ou senha inválidos.';
+      }
+      if (err.status === 429) {
+        return 'Muitas tentativas. Aguarde um instante e tente novamente.';
+      }
+    }
+    return 'Não foi possível entrar. Tente novamente.';
   }
 }

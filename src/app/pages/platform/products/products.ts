@@ -1,9 +1,9 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '@core/interfaces/product.interface';
-import { VendorStock } from '@core/interfaces/vendor-stock.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createProductsStore } from '@core/api/adapters/products.adapter';
+import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { brl, num } from '@core/utils/format';
 import { totalStockAllLocations, totalStockValue } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -33,8 +33,8 @@ export class Products {
   protected readonly num = num;
   protected readonly fields = FIELDS;
 
-  private readonly store = createEntityStore<Product>(IDB_STORES.products, []);
-  private readonly vendorStockStore = createEntityStore<VendorStock>(IDB_STORES.vendorStock, []);
+  private readonly store = createProductsStore();
+  private readonly vendorStockStore = createVendorStockStore();
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name'];

@@ -2,8 +2,9 @@ import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Plantel as PlantelModel } from '@core/interfaces/plantel.interface';
 import { FeedStock } from '@core/interfaces/feed-stock.interface';
-import { createEntityStore, WithId } from '@core/idb/entity-store';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
+import { WithId } from '@core/api/entity-store';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
+import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { brl, num } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -43,8 +44,8 @@ export class Plantel {
   protected readonly num = num;
   protected readonly fields = FIELDS;
 
-  private readonly store = createEntityStore<PlantelModel>(IDB_STORES.flock, []);
-  private readonly feedStockStore = createEntityStore<FeedStock>(IDB_STORES.feedStock, []);
+  private readonly store = createFlockStore();
+  private readonly feedStockStore = createFeedStockStore();
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['species'];

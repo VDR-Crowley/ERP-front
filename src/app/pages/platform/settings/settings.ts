@@ -4,12 +4,8 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { SkeletonModule } from 'primeng/skeleton';
-import { firstValueFrom } from 'rxjs';
 import { ThemeService } from '@core/utils/theme.service';
 import { AuthSession } from '@core/services/auth-session.service';
-import { IndexedDbService } from '@core/idb/idb.service';
-import { IDB_STORES } from '@core/idb/idb-seed.service';
-import { User } from '@core/interfaces/user.interface';
 
 interface Pref {
   key: string;
@@ -26,9 +22,8 @@ interface Pref {
 export class Settings implements OnInit {
   private readonly theme = inject(ThemeService);
   private readonly session = inject(AuthSession);
-  private readonly idb = inject(IndexedDbService);
 
-  /** Usuário logado (lido do localStorage via AuthSession). */
+  /** Usuário logado (vem da API — ver AuthSession). */
   protected readonly user = this.session.user;
 
   protected nome = '';
@@ -38,51 +33,33 @@ export class Settings implements OnInit {
 
   protected readonly salvando = signal(false);
   protected readonly salvo = signal(false);
-  /** Enquanto true, mostra skeleton no lugar dos campos (evita "—"/vazio piscando). */
   protected readonly carregando = signal(true);
 
   ngOnInit(): void {
     this.carregarPerfil();
   }
 
-  private async carregarPerfil(): Promise<void> {
+  private carregarPerfil(): void {
     this.carregando.set(true);
-    try {
-      const cached = this.user();
-      if (!cached) return;
-
-      // Fonte autoritativa: relê o registro do IDB pelo uuid (localStorage pode
-      // estar de uma sessão antiga/incompleta). Cai pro cache se o IDB falhar.
-      let user = cached;
-      try {
-        const fresh = await firstValueFrom(
-          this.idb.get<User & { id: string }>(IDB_STORES.users, cached.id),
-        );
-        if (fresh) {
-          user = fresh;
-          if (fresh.email !== cached.email || fresh.name !== cached.name) {
-            this.session.setCurrent(fresh);
-          }
-        }
-      } catch {
-        // IDB indisponível (SSR) — usa o cache do localStorage.
-      }
-
+    const user = this.user();
+    if (user) {
       this.nome = user.name;
       this.email = user.email;
       this.telefone = user.phone ?? '';
       this.granja = user.farm ?? '';
-    } finally {
-      this.carregando.set(false);
     }
+    this.carregando.set(false);
   }
 
-  protected async salvar(): Promise<void> {
+  /**
+   * name/email não têm endpoint de atualização na API ainda — só phone/farm
+   * são persistidos (localmente, via `AuthSession.patch`, ver docstring lá).
+   */
+  protected salvar(): void {
     if (!this.user() || this.salvando()) return;
     this.salvo.set(false);
     this.salvando.set(true);
-    await this.session.patch({
-      name: this.nome.trim(),
+    this.session.patch({
       phone: this.telefone.trim(),
       farm: this.granja.trim(),
     });
