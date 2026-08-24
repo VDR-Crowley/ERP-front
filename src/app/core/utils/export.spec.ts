@@ -25,7 +25,6 @@ const urls = {
   feedStocks: `${api}/feed-stocks`,
   feedOpenLogs: `${api}/feed-open-logs`,
   flockCleanings: `${api}/flock-cleanings`,
-  eggLosses: `${api}/egg-losses`,
 };
 
 describe('buildExportWorkbook', () => {
@@ -115,9 +114,6 @@ describe('buildExportWorkbook', () => {
     httpMock.expectOne(urls.flockCleanings).flush([
       { id: 1, date: '2026-07-01', species: 'quail', cleaning_type: 'total', notes: null },
     ]);
-    httpMock.expectOne(urls.eggLosses).flush([
-      { id: 1, date: '2026-07-01', species: 'quail', quantity: 5, reason: 'Quebrado' },
-    ]);
 
     const wb = await promise;
     const sheet = <T>(name: string) => XLSX.utils.sheet_to_json<T>(wb.Sheets[name]);
@@ -166,9 +162,6 @@ describe('buildExportWorkbook', () => {
     expect(sheet('Ração - Sacos Abertos')).toEqual([
       { ID: 1, Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 },
     ]);
-    expect(sheet('Perda de Ovos')).toEqual([
-      { ID: 1, Data: '01/07/2026', Espécie: 'Codorna', Quantidade: 5, Motivo: 'Quebrado' },
-    ]);
   });
 
   // Pedido do usuário: "ID" (id real do backend) precisa ser a 1ª coluna em TODA aba de
@@ -193,7 +186,6 @@ describe('buildExportWorkbook', () => {
       'Ração',
       'Ração - Sacos Abertos',
       'Higienização',
-      'Perda de Ovos',
     ];
     for (const name of sheetsWithId) {
       expect(firstHeaderCell(name), `aba "${name}" deveria ter "ID" como 1ª coluna`).toBe('ID');
@@ -251,7 +243,6 @@ describe('export -> reimport (ciclo completo)', () => {
     httpMock.expectOne(urls.feedStocks).flush([]);
     httpMock.expectOne(urls.feedOpenLogs).flush([]);
     httpMock.expectOne(urls.flockCleanings).flush([]);
-    httpMock.expectOne(urls.eggLosses).flush([]);
 
     const wb = await exportPromise;
     expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['Produtos'])[0]['ID']).toBe(1);
@@ -315,7 +306,6 @@ describe('export -> reimport (ciclo completo)', () => {
       Ração: 0,
       'Ração - Sacos Abertos': 0,
       Higienização: 0,
-      'Perda de Ovos': 0,
     });
     expect(result.failed).toEqual({});
     expect(result.rowErrors).toEqual([]);

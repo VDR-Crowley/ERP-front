@@ -16,7 +16,7 @@ export interface EntityStore<T> {
  * Configuração de uma entidade REST simples: 1 GET de lista, POST/PUT/DELETE
  * padrão, corpo/resposta mapeados por `toFront`/`toApi`. Cobre entidades sem
  * regra de negócio extra (products, vendedores, flock, daily-productions,
- * egg-stocks, expenses, cash-flows, flock-cleanings, egg-losses). Entidades com
+ * egg-stocks, expenses, cash-flows, flock-cleanings). Entidades com
  * side-effects (sales, stock-transfers, flock-incubations, feed-stocks) ou
  * sub-recursos derivados (sale-exclusions, expense-species-overrides) usam
  * fábricas próprias em `core/api/adapters/*` — não passam por aqui.

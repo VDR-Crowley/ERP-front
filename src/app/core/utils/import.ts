@@ -15,7 +15,6 @@ import { User } from '@core/interfaces/user.interface';
 import { Vendedor } from '@core/interfaces/vendedor.interface';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
 import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.interface';
-import { EggLoss } from '@core/interfaces/egg-loss.interface';
 import { createSalesStore, SalesRefs } from '@core/api/adapters/sales.adapter';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
@@ -28,7 +27,6 @@ import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubations.adapter';
 import { createFeedStockStore, createFeedStockStoreExtended } from '@core/api/adapters/feed-stocks.adapter';
 import { createFlockCleaningsStore } from '@core/api/adapters/flock-cleanings.adapter';
-import { createEggLossesStore } from '@core/api/adapters/egg-loss.adapter';
 import { environment } from '../../../environments/environment';
 
 export interface ImportResult {
@@ -77,7 +75,6 @@ const SHEET_NAMES = {
   feedStock: 'Ração',
   feedOpenLog: 'Ração - Sacos Abertos',
   flockCleaning: 'Higienização',
-  eggLoss: 'Perda de Ovos',
 } as const;
 
 /**
@@ -106,7 +103,6 @@ interface ImportContext {
   feedStockStore: () => ReturnType<typeof createFeedStockStore>;
   feedStockStoreExtended: () => ReturnType<typeof createFeedStockStoreExtended>;
   flockCleaningsStore: () => ReturnType<typeof createFlockCleaningsStore>;
-  eggLossesStore: () => ReturnType<typeof createEggLossesStore>;
   /** "Tipo" (Ração) -> id do `feed_stock`, resolvido uma única vez pra aba Ração-Sacos Abertos. */
   feedStockIdByType: () => Promise<Map<string, number>>;
   /** `HttpClient` cru, pra chamadas que nenhum adapter cobre (GET de 1 `flock-incubation` pra preservar `hatchEvents` num update, listar ids de `feed-open-logs`). */
@@ -170,7 +166,6 @@ function createImportContext(injector: Injector): ImportContext {
     feedStockStore: memo(() => run(() => createFeedStockStore())),
     feedStockStoreExtended: memo(() => run(() => createFeedStockStoreExtended())),
     flockCleaningsStore: memo(() => run(() => createFlockCleaningsStore())),
-    eggLossesStore: memo(() => run(() => createEggLossesStore())),
     feedStockIdByType: memoAsync(() => fetchFeedStockIdByType(http())),
     httpClient: http,
     feedOpenLogIds: memoAsync(() => fetchFeedOpenLogIds(http())),
@@ -466,9 +461,9 @@ async function runFeedOpenLog(
  *   "Vendedor" dentro de Vendas, sem aba própria), daí essa aba existir no export/import.
  * - "Ração" roda antes de "Ração - Sacos Abertos": resolve o tipo recém-criado (`feedStockIdByType`).
  * As demais abas (Produção, Estoque de Ovos, Plantel, Despesas, Fluxo de Caixa, Usuários, Novo
- * Plantel, Higienização, Perda de Ovos) não têm FK nem resolução por nome entre si — checado nas
+ * Plantel, Higienização) não têm FK nem resolução por nome entre si — checado nas
  * migrations do backend (`flock`, `flock_incubations`, `daily_productions`, `egg_stocks`,
- * `expenses`, `cash_flows`, `flock_cleanings`, `egg_losses` não têm `foreignId`/`constrained` uns
+ * `expenses`, `cash_flows`, `flock_cleanings` não têm `foreignId`/`constrained` uns
  * pros outros) — por isso a ordem delas é livre.
  *
  * "ID" (update-vs-create, ver `upsert`) é ortogonal a essa ordem: não introduz nenhuma
@@ -505,12 +500,9 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.flockCleaning, parseFlockCleaning, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.flockCleaningsStore(), SHEET_NAMES.flockCleaning, row, warnings),
   ),
-  makeImporter(SHEET_NAMES.eggLoss, parseEggLoss, (item, ctx, id, row, warnings) =>
-    upsert(id, item, ctx.eggLossesStore(), SHEET_NAMES.eggLoss, row, warnings),
-  ),
 ];
 
-/** Lê o arquivo e cria/atualiza, via API, cada linha válida nas 14 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
+/** Lê o arquivo e cria/atualiza, via API, cada linha válida nas 13 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
 export async function importWorkbookFile(
   injector: Injector,
   file: File,
@@ -1227,34 +1219,6 @@ function parseFlockCleaning(ws: XLSX.WorkSheet, errors: string[]): RowItem<Flock
 
     if (idRaw !== undefined && date && species && cleaningType && compatible) {
       result.push({ row: r, id: idRaw ?? undefined, item: { date, species, cleaningType, ...(notes ? { notes } : {}) } });
-    }
-  });
-  return result;
-}
-
-function parseEggLoss(ws: XLSX.WorkSheet, errors: string[]): RowItem<EggLoss>[] | undefined {
-  const label = SHEET_NAMES.eggLoss;
-  const header = readHeader(ws);
-  const required = ['Data', 'Espécie', 'Quantidade', 'Motivo'];
-  if (!requireColumns(header, label, required, errors)) return undefined;
-
-  const rows = readRows(ws);
-  const result: RowItem<EggLoss>[] = [];
-  rows.forEach((row, i) => {
-    const r = rowRef(i);
-    const idRaw = parseId(row['ID']);
-    const date = parseDate(row['Data']);
-    const species = parseSpecies(row['Espécie']);
-    const quantity = toNumber(row['Quantidade']);
-    const reason = toRequiredString(row['Motivo']);
-
-    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
-    if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
-    if (!species) errors.push(`${label} linha ${r}: "Espécie" deve ser Codorna ou Galinha (veio "${row['Espécie']}").`);
-    if (quantity === undefined) errors.push(`${label} linha ${r}: "Quantidade" inválida.`);
-
-    if (idRaw !== undefined && date && species && quantity !== undefined) {
-      result.push({ row: r, id: idRaw ?? undefined, item: { date, species, quantity, ...(reason ? { reason } : {}) } });
     }
   });
   return result;

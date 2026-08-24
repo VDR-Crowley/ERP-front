@@ -229,14 +229,5 @@ export function downloadImportTemplate(filename: string): void {
     'Higienização',
   );
 
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet([
-      { Data: '01/07/2026', Espécie: 'Codorna', Quantidade: 5, Motivo: 'Quebrado' },
-      { Data: '02/07/2026', Espécie: 'Galinha', Quantidade: 2, Motivo: 'Consumo próprio' },
-    ]),
-    'Perda de Ovos',
-  );
-
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }
