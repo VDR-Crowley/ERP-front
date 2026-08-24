@@ -2,7 +2,6 @@ import { Component, Injector, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { IndexedDbService } from '@core/idb/idb.service';
 import { AuthSession } from '@core/services/auth-session.service';
 import { AuthApiService } from '@core/auth/auth-api.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
@@ -29,7 +28,6 @@ const COLLAPSE_KEY = 'erp-nav-collapsed';
 })
 export class LayoutApp {
   private readonly router = inject(Router);
-  private readonly idb = inject(IndexedDbService);
   private readonly injector = inject(Injector);
   private readonly session = inject(AuthSession);
   private readonly authApi = inject(AuthApiService);
@@ -241,7 +239,7 @@ export class LayoutApp {
 
   protected async exportar(): Promise<void> {
     const { exportWorkbook } = await import('@core/utils/export');
-    await exportWorkbook('MiniERP', this.idb);
+    await exportWorkbook('MiniERP', this.injector);
   }
 
   protected async baixarModelo(): Promise<void> {
