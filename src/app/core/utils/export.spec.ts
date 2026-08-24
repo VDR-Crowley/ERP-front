@@ -150,11 +150,12 @@ describe('buildExportWorkbook', () => {
         Status: 'eclodido',
         'Custo Ovos': 25,
         'Custo Ração': 10,
+        Observações: '',
       },
     ]);
     // API nunca devolve senha nem telefone — sai em branco de propósito (ver comentário em
     // `export.ts`), reimportar essa aba falha por linha com "Senha vazia", não silenciosamente.
-    expect(sheet('Usuários')).toEqual([{ Nome: 'Karol', 'E-mail': 'karol@x.com' }]);
+    expect(sheet('Usuários')).toEqual([{ Nome: 'Karol', 'E-mail': 'karol@x.com', Senha: '', Telefone: '' }]);
     expect(sheet('Ração - Sacos Abertos')).toEqual([
       { Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 },
     ]);
@@ -246,7 +247,24 @@ describe('export -> reimport (ciclo completo)', () => {
     const result = await importPromise;
 
     expect(result.success).toBe(true);
-    expect(result.summary).toEqual({ Produtos: 1, Vendedores: 1, Vendas: 1 });
+    // As outras 10 abas vieram vazias de "local" (`[]` flushado acima) — o export ainda assim
+    // escreve o cabeçalho (ver `header` explícito em cada `json_to_sheet` de `export.ts`), então
+    // o reimport reconhece a aba e conta 0 linhas em vez de "coluna(s) faltando".
+    expect(result.summary).toEqual({
+      Produtos: 1,
+      Vendedores: 1,
+      Vendas: 1,
+      Produção: 0,
+      'Estoque de Ovos': 0,
+      Plantel: 0,
+      Despesas: 0,
+      'Fluxo de Caixa': 0,
+      Usuários: 0,
+      'Novo Plantel': 0,
+      Ração: 0,
+      'Ração - Sacos Abertos': 0,
+      Higienização: 0,
+    });
     expect(result.failed).toEqual({});
     expect(result.rowErrors).toEqual([]);
 
