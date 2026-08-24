@@ -1,11 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { Dashboard } from './dashboard';
 import { Products } from '../products/products';
 import { flushAllPendingGets } from '@core/testing/http-settle';
+import { dedupeGetInterceptor } from '@core/api/dedupe-get.interceptor';
 import { environment } from '../../../../environments/environment';
 
 // jsdom (ambiente de teste) não implementa ResizeObserver, usado pelo ApexCharts
@@ -40,6 +41,41 @@ describe('Dashboard', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+});
+
+/**
+ * Bug relatado: `GET /products` disparava 3x ao montar o Dashboard —
+ * productsStore, salesStore e vendorStockStore cada um resolve nome<->id de
+ * produto com seu próprio fetch independente (ver `_shared.ts`), todos ao
+ * mesmo tempo. `dedupeGetInterceptor` coalesce as chamadas concorrentes pra
+ * mesma URL em 1 única requisição real.
+ */
+describe('Dashboard — GET /products dispara só 1x ao montar (com dedupeGetInterceptor)', () => {
+  const productsUrl = `${environment.apiUrl}/products`;
+
+  it('só 1 requisição real pra /products mesmo com 3 stores pedindo ao mesmo tempo', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(withInterceptors([dedupeGetInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    // productsStore, salesStore e vendorStockStore chamam http.get(productsUrl)
+    // de forma síncrona na construção (dentro de Promise.all antes do 1º
+    // await) — nesse ponto já deve haver só 1 requisição pendente, não 3.
+    const pendingProducts = httpMock.match(productsUrl);
+    expect(pendingProducts.length).toBe(1);
+    pendingProducts.forEach((req) => req.flush([]));
+
+    await flushAllPendingGets(httpMock);
+    await fixture.whenStable();
   });
 });
 

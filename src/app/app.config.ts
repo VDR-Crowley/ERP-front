@@ -16,6 +16,7 @@ import { provideClientHydration, withEventReplay } from '@angular/platform-brows
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { IdbSeedService } from '@core/idb/idb-seed.service';
 import { authInterceptor } from '@core/auth/auth.interceptor';
+import { dedupeGetInterceptor } from '@core/api/dedupe-get.interceptor';
 import { AuthApiService } from '@core/auth/auth-api.service';
 import { TokenStore } from '@core/auth/token-store.service';
 
@@ -39,7 +40,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, dedupeGetInterceptor])),
     provideClientHydration(withEventReplay()),
     provideAnimationsAsync(),
     providePrimeNG({
