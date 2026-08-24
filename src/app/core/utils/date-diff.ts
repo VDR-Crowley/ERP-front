@@ -55,3 +55,17 @@ export function daysUntil(iso: string): number {
 export function daysSince(iso: string): number {
   return -daysUntil(iso) || 0; // evita -0 quando a data é hoje
 }
+
+/**
+ * 'YYYY-MM-DD' ou datetime ISO completo do backend (Laravel/Carbon) -> sempre
+ * 'YYYY-MM-DD' puro (ou `null`/`undefined` intactos). Necessário antes de
+ * jogar um valor de data num `<input type="date">`: o input nativo só aceita
+ * o formato exato, e um datetime completo (ex. '2026-08-19T00:00:00.000000Z')
+ * faz o binding falhar em silêncio, deixando o campo vazio (mesmo motivo de
+ * `parseIsoDateParts` acima).
+ */
+export function toDateOnly<T extends string | null | undefined>(iso: T): T {
+  if (!iso) return iso;
+  const match = ISO_DATE_PREFIX.exec(iso);
+  return (match ? `${match[1]}-${match[2]}-${match[3]}` : iso) as T;
+}

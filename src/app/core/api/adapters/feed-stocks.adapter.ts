@@ -5,6 +5,7 @@ import { signal } from '@angular/core';
 import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { environment } from '../../../../environments/environment';
 import { createRestEntityStore, decimalToNumber, EntityStore, WithId } from '../entity-store';
+import { toDateOnly } from '@core/utils/date-diff';
 
 interface FeedStockApi {
   id: number;
@@ -21,7 +22,7 @@ function toFront(api: FeedStockApi): FeedStock {
     bagsInStock: api.bags_in_stock,
     kgInStock: decimalToNumber(api.kg_in_stock),
     lastBagWeightKg: decimalToNumber(api.last_bag_weight_kg),
-    expirationDate: api.expiration_date,
+    expirationDate: toDateOnly(api.expiration_date),
   };
 }
 

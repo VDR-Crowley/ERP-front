@@ -1,4 +1,4 @@
-import { addDays, daysSince, daysUntil, todayLocalISO } from './date-diff';
+import { addDays, daysSince, daysUntil, toDateOnly, todayLocalISO } from './date-diff';
 
 // Estes testes assumem o fuso do Brasil (UTC-3, o ambiente onde rodam) — é
 // perto da meia-noite UTC (21h local) que o bug de usar
@@ -79,5 +79,24 @@ describe('addDays', () => {
 
   it('mantém comportamento original com data pura YYYY-MM-DD', () => {
     expect(addDays('2026-08-19', 18)).toBe('2026-09-06');
+  });
+});
+
+// Regressão: campo "Validade" vazio ao abrir "Editar tipo" em controle-racao —
+// a API manda datetime ISO completo pro `expiration_date`, e o
+// `<input type="date">` só aceita 'YYYY-MM-DD' exato, então o binding falhava
+// em silêncio.
+describe('toDateOnly', () => {
+  it('extrai YYYY-MM-DD de um datetime ISO completo da API (Carbon/Laravel)', () => {
+    expect(toDateOnly('2026-08-19T00:00:00.000000Z')).toBe('2026-08-19');
+  });
+
+  it('mantém data pura YYYY-MM-DD intacta', () => {
+    expect(toDateOnly('2026-08-19')).toBe('2026-08-19');
+  });
+
+  it('preserva null/undefined', () => {
+    expect(toDateOnly(null)).toBeNull();
+    expect(toDateOnly(undefined)).toBeUndefined();
   });
 });
