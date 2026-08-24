@@ -17,7 +17,7 @@ interface NavItem {
   sub: string;
 }
 
-type ImportState = 'idle' | 'confirm' | 'errors' | 'success';
+type ImportState = 'idle' | 'confirm' | 'loading' | 'errors' | 'success';
 
 const COLLAPSE_KEY = 'erp-nav-collapsed';
 
@@ -73,6 +73,7 @@ export class LayoutApp {
   protected readonly importSummary = signal<Record<string, number>>({});
   protected readonly importFailed = signal<Record<string, number>>({});
   protected readonly importRowErrors = signal<string[]>([]);
+  protected readonly importProgress = signal<{ label: string; row: number; total: number } | null>(null);
   private pendingFile: File | null = null;
 
   protected readonly nav: NavItem[] = [
@@ -278,9 +279,11 @@ export class LayoutApp {
       return;
     }
     this.pendingFile = null;
+    this.importState.set('loading');
+    this.importProgress.set(null);
     try {
       const { importWorkbookFile } = await import('@core/utils/import');
-      const result = await importWorkbookFile(this.injector, file);
+      const result = await importWorkbookFile(this.injector, file, (progress) => this.importProgress.set(progress));
 
       if (!result.success) {
         this.importErrors.set(result.errors);

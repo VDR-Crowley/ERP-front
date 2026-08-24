@@ -145,6 +145,17 @@
               </button>
             </div>
           }
+          @case ('loading') {
+            <div class="modal__icon"><i class="pi pi-spin pi-spinner"></i></div>
+            <h2 class="modal__title">Importando planilha…</h2>
+            @if (importProgress(); as progress) {
+              <p class="modal__text">
+                {{ progress.label }}: linha {{ progress.row }} de {{ progress.total }}
+              </p>
+            } @else {
+              <p class="modal__text">Lendo arquivo…</p>
+            }
+          }
           @case ('errors') {
             <div class="modal__icon modal__icon--error"><i class="pi pi-times-circle"></i></div>
             <h2 class="modal__title">Não foi possível importar</h2>

@@ -14,7 +14,7 @@ import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { User } from '@core/interfaces/user.interface';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
 import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.interface';
-import { createSalesStore } from '@core/api/adapters/sales.adapter';
+import { createSalesStore, SalesRefs } from '@core/api/adapters/sales.adapter';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
@@ -73,6 +73,8 @@ const SHEET_NAMES = {
  */
 interface ImportContext {
   salesStore: () => ReturnType<typeof createSalesStore>;
+  /** products+vendedores pra resolver Produto/Vendedor de cada linha de Vendas — memoizado, 1 GET de cada pro import inteiro (não 1 por linha, ver `salesStore().add`). */
+  salesRefs: () => Promise<SalesRefs>;
   dailyProductionsStore: () => ReturnType<typeof createDailyProductionsStore>;
   eggStocksStore: () => ReturnType<typeof createEggStocksStore>;
   flockStore: () => ReturnType<typeof createFlockStore>;
@@ -121,8 +123,11 @@ function createImportContext(injector: Injector): ImportContext {
   const run = <T,>(factory: () => T): T => runInInjectionContext(injector, factory);
   const http = memo(() => run(() => inject(HttpClient)));
 
+  const salesStore = memo(() => run(() => createSalesStore()));
+
   return {
-    salesStore: memo(() => run(() => createSalesStore())),
+    salesStore,
+    salesRefs: memoAsync(() => salesStore().fetchRefs()),
     dailyProductionsStore: memo(() => run(() => createDailyProductionsStore())),
     eggStocksStore: memo(() => run(() => createEggStocksStore())),
     flockStore: memo(() => run(() => createFlockStore())),
@@ -163,12 +168,20 @@ export function describeImportError(e: unknown): string {
   return 'Erro desconhecido ao salvar.';
 }
 
+/** Reporta progresso linha a linha durante o import — só pra feedback visual (ver `ImportProgress` no modal), não afeta o resultado. */
+export interface ImportProgress {
+  label: string;
+  row: number;
+  total: number;
+}
+
 interface EntityImporter {
   label: string;
   process(
     ws: XLSX.WorkSheet,
     rowErrors: string[],
     ctx: ImportContext,
+    onProgress?: (progress: ImportProgress) => void,
   ): Promise<{ imported: number; failed: number } | undefined>;
 }
 
@@ -192,7 +205,7 @@ function makeImporter<T>(
 ): EntityImporter {
   return {
     label,
-    async process(ws, rowErrors, ctx) {
+    async process(ws, rowErrors, ctx, onProgress) {
       let rows: RowItem<T>[] | undefined;
       try {
         rows = parse(ws, rowErrors);
@@ -204,6 +217,8 @@ function makeImporter<T>(
 
       let imported = 0;
       let failed = 0;
+      const total = rows.length;
+      let done = 0;
       for (const { row, item } of rows) {
         try {
           await run(item, ctx);
@@ -212,6 +227,8 @@ function makeImporter<T>(
           failed++;
           rowErrors.push(`${label} linha ${row}: ${describeImportError(e)}`);
         }
+        done++;
+        onProgress?.({ label, row: done, total });
       }
       return { imported, failed };
     },
@@ -247,7 +264,7 @@ async function runFeedOpenLog(item: FeedOpenLog, ctx: ImportContext): Promise<vo
 
 /** Ordem importa: "Ração" roda antes de "Ração - Sacos Abertos" pra resolver o tipo recém-criado. */
 const IMPORTERS: EntityImporter[] = [
-  makeImporter(SHEET_NAMES.sales, parseSales, (item, ctx) => ctx.salesStore().add(item)),
+  makeImporter(SHEET_NAMES.sales, parseSales, async (item, ctx) => ctx.salesStore().add(item, await ctx.salesRefs())),
   makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx) => ctx.dailyProductionsStore().add(item)),
   makeImporter(SHEET_NAMES.eggStock, parseEggStock, (item, ctx) => ctx.eggStocksStore().add(item)),
   makeImporter(SHEET_NAMES.flock, parseFlock, (item, ctx) => ctx.flockStore().add(item)),
@@ -262,7 +279,11 @@ const IMPORTERS: EntityImporter[] = [
 ];
 
 /** Lê o arquivo e cria, via API, cada linha válida nas 12 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
-export async function importWorkbookFile(injector: Injector, file: File): Promise<ImportResult> {
+export async function importWorkbookFile(
+  injector: Injector,
+  file: File,
+  onProgress?: (progress: ImportProgress) => void,
+): Promise<ImportResult> {
   const buffer = await file.arrayBuffer();
 
   let workbook: XLSX.WorkBook;
@@ -290,7 +311,7 @@ export async function importWorkbookFile(injector: Injector, file: File): Promis
 
   for (const importer of present) {
     const ws = getSheet(workbook, importer.label)!;
-    const result = await importer.process(ws, rowErrors, ctx);
+    const result = await importer.process(ws, rowErrors, ctx, onProgress);
     if (result === undefined) continue; // coluna obrigatória faltando — mensagem já em rowErrors, aba inteira pulada
     summary[importer.label] = result.imported;
     if (result.failed > 0) failed[importer.label] = result.failed;

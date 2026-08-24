@@ -190,6 +190,94 @@ describe('importWorkbookFile', () => {
     ]);
   });
 
+  // Regressão: `salesStore().add()` buscava products+vendedores via HTTP a cada
+  // linha (`fetchRefs()` sem cache) — com uma planilha de Vendas real (100+
+  // linhas), isso virava 200+ GETs sequenciais, lento a ponto de parecer
+  // travado. Agora `salesRefs()` do `ImportContext` memoiza a busca (1 GET de
+  // cada pro import inteiro) e `salesStore().add(item, refs)` reaproveita.
+  it('import de Vendas com múltiplas linhas busca products/vendedores exatamente 1 vez, não 1 por linha', async () => {
+    const file = buildFile({
+      Vendas: [
+        {
+          Data: '01/07/2026',
+          Produto: 'Ovo Real',
+          Quantidade: 1,
+          'Preço Unitário': 15,
+          Total: 15,
+          'Status Pagamento': 'PAGO',
+          Comprador: 'Cliente A',
+          Vendedor: 'Vendedor Um',
+          'Status da entrega': 'ENTREGUE',
+        },
+        {
+          Data: '02/07/2026',
+          Produto: 'Carne de Codorna',
+          Quantidade: 2,
+          'Preço Unitário': 20,
+          Total: 40,
+          'Status Pagamento': 'PAGO',
+          Comprador: 'Cliente B',
+          Vendedor: 'Vendedor Dois',
+          'Status da entrega': 'ENTREGUE',
+        },
+        {
+          Data: '03/07/2026',
+          Produto: 'Ovo Real',
+          Quantidade: 3,
+          'Preço Unitário': 15,
+          Total: 45,
+          'Status Pagamento': 'PAGO',
+          Comprador: 'Cliente C',
+          Vendedor: 'Vendedor Um',
+          'Status da entrega': 'ENTREGUE',
+        },
+      ],
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    await settleHttp(httpMock, salesBase, []);
+    await settleHttp(httpMock, productsBase, [
+      { id: 1, name: 'Ovo Real' },
+      { id: 2, name: 'Carne de Codorna' },
+    ]);
+    await settleHttp(httpMock, vendedoresBase, [
+      { id: 10, name: 'Vendedor Um' },
+      { id: 20, name: 'Vendedor Dois' },
+    ]);
+
+    for (let i = 0; i < 3; i++) {
+      const post = await expectRequest(httpMock, salesBase, 'POST');
+      post.flush({
+        id: i + 1,
+        date: '2026-07-01',
+        product_id: 1,
+        quantity: 1,
+        unit_price: '15.00',
+        total: '15.00',
+        payment_pending: false,
+        buyer: 'Cliente',
+        seller_id: 10,
+        delivery_pending: false,
+        delivery_date: null,
+        stock_location_type: 'plantel',
+        stock_location_vendedor_id: null,
+      });
+    }
+
+    const result = await promise;
+
+    // Se `add()` tivesse voltado a buscar refs por linha, sobraria um GET
+    // pendente aqui (a 3ª linha teria disparado outro) — `expectNone` confirma
+    // que só existiu o único GET já flushado acima pra cada URL.
+    httpMock.expectNone({ url: productsBase, method: 'GET' });
+    httpMock.expectNone({ url: vendedoresBase, method: 'GET' });
+
+    expect(result.success).toBe(true);
+    expect(result.summary['Vendas']).toBe(3);
+    expect(result.failed).toEqual({});
+  });
+
   it('arquivo corrompido (zip inválido) é bloqueante (nenhuma linha é tentada)', async () => {
     const file = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00])], 'teste.xlsx');
 

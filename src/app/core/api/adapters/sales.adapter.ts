@@ -12,6 +12,23 @@ import { environment } from '../../../../environments/environment';
 import { decimalToNumber, EntityStore, WithId } from '../entity-store';
 import { fetchNameIdMaps, NameIdMaps, resolveIdByName } from './_shared';
 
+export interface SalesRefs {
+  products: NameIdMaps;
+  vendedores: NameIdMaps;
+}
+
+/**
+ * `add`/`update` aceitam `refs` pré-carregado opcional pra quem processa muitas
+ * linhas de uma vez (ver `core/utils/import.ts`) e não quer 1 GET de
+ * products/vendedores por linha — sem isso, cada chamada busca de novo (comportamento
+ * padrão, mantido pro uso normal de tela: garante refs sempre atuais).
+ */
+export interface SalesStore extends EntityStore<Venda> {
+  add(item: Venda, refs?: SalesRefs): Promise<void>;
+  update(id: string, item: Venda, refs?: SalesRefs): Promise<void>;
+  fetchRefs(): Promise<SalesRefs>;
+}
+
 interface SaleApi {
   id: number;
   date: string;
@@ -41,7 +58,7 @@ interface SaleApi {
  * removido; o componente só recarrega `productsStore`/`vendorStockStore`
  * depois de cada mutação, pra refletir o que o backend já moveu).
  */
-export function createSalesStore(): EntityStore<Venda> {
+export function createSalesStore(): SalesStore {
   const http = inject(HttpClient);
   const base = `${environment.apiUrl}/sales`;
   const productsUrl = `${environment.apiUrl}/products`;
@@ -104,14 +121,14 @@ export function createSalesStore(): EntityStore<Venda> {
     });
   }
 
-  async function add(item: Venda): Promise<void> {
-    const refs = await fetchRefs();
+  async function add(item: Venda, preloadedRefs?: SalesRefs): Promise<void> {
+    const refs = preloadedRefs ?? (await fetchRefs());
     const created = await firstValueFrom(http.post<SaleApi>(base, toApi(item, refs.products, refs.vendedores)));
     items.update((list) => [...list, toFront(created, refs.products, refs.vendedores)]);
   }
 
-  async function update(id: string, item: Venda): Promise<void> {
-    const refs = await fetchRefs();
+  async function update(id: string, item: Venda, preloadedRefs?: SalesRefs): Promise<void> {
+    const refs = preloadedRefs ?? (await fetchRefs());
     const updated = await firstValueFrom(http.put<SaleApi>(`${base}/${id}`, toApi(item, refs.products, refs.vendedores)));
     items.update((list) => list.map((v) => (v.id === id ? toFront(updated, refs.products, refs.vendedores) : v)));
   }
@@ -123,5 +140,5 @@ export function createSalesStore(): EntityStore<Venda> {
 
   load();
 
-  return { items, reload: load, add, update, remove };
+  return { items, reload: load, add, update, remove, fetchRefs };
 }
