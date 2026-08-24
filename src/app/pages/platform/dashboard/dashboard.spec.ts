@@ -7,6 +7,7 @@ import { Dashboard } from './dashboard';
 import { Products } from '../products/products';
 import { flushAllPendingGets } from '@core/testing/http-settle';
 import { dedupeGetInterceptor } from '@core/api/dedupe-get.interceptor';
+import { PeriodFilterService } from '@core/services/period-filter.service';
 import { environment } from '../../../../environments/environment';
 
 // jsdom (ambiente de teste) não implementa ResizeObserver, usado pelo ApexCharts
@@ -137,5 +138,69 @@ describe('Dashboard.valorEstoque() — invariante com Products.valorEstoque()', 
     expect(dashboardValor).toBe(productsValor);
     // Confirma que NÃO é o valor antigo do Estoque de Ovos (150+100=250, só 2 produtos).
     expect(dashboardValor).not.toBe(250);
+  });
+});
+
+/**
+ * Bug relatado: em "Tudo", o card "Produção de hoje" do Dashboard (~10000)
+ * não batia com "Ovos vendidos" de Relatórios (~8000). Não é bug de cálculo —
+ * são métricas diferentes por definição: ovos COLETADOS (daily_productions,
+ * sempre >= vendidos) vs. ovos VENDIDOS (vendas × eggsPerUnit). Este teste
+ * trava a distinção (renomeado pra "Produção coletada" no template) e confirma
+ * que `totalOvosVendidos` — a métrica que de fato bate com Relatórios — usa a
+ * mesma fórmula de `resumo().eggsSold` em reports.ts.
+ */
+describe('Dashboard — ovos coletados (produção) vs. ovos vendidos são métricas distintas', () => {
+  const productsUrl = `${environment.apiUrl}/products`;
+  const salesUrl = `${environment.apiUrl}/sales`;
+  const dailyProductionsUrl = `${environment.apiUrl}/daily-productions`;
+
+  const PRODUCTS_API = [
+    { id: 1, name: '50 ovos de codorna', unit: 'pack', unit_price: '15.00', stock: 40, eggs_per_unit: 50 },
+    { id: 2, name: '1 Bandeja de ovos de galinha', unit: 'un', unit_price: '20.00', stock: 12, eggs_per_unit: 30 },
+  ];
+  const DAILY_PRODUCTIONS_API = [
+    { id: 1, date: '2026-08-01', quail_eggs: 300, chicken_eggs: 200 },
+    { id: 2, date: '2026-08-02', quail_eggs: 250, chicken_eggs: 150 },
+  ];
+  // Total coletado = 300+200+250+150 = 900. Total vendido = 4×50 + 2×30 = 260.
+  // Coletado > vendido de propósito (nem todo ovo do período virou venda ainda).
+  const SALES_API = [
+    {
+      id: 1, date: '2026-08-01', product_id: 1, quantity: 4, unit_price: '15.00', total: '60.00',
+      payment_pending: false, buyer: 'Maria', seller_id: 1, delivery_pending: false,
+      delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+    },
+    {
+      id: 2, date: '2026-08-02', product_id: 2, quantity: 2, unit_price: '20.00', total: '40.00',
+      payment_pending: false, buyer: 'João', seller_id: 1, delivery_pending: false,
+      delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+    },
+  ];
+
+  it('producaoHojeTotal soma ovos coletados; totalOvosVendidos soma ovos vendidos; não são o mesmo número', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    TestBed.inject(PeriodFilterService).clear(); // "Tudo" — sem filtro de período
+    const httpMock = TestBed.inject(HttpTestingController);
+    await flushAllPendingGets(httpMock, {
+      [productsUrl]: PRODUCTS_API,
+      [salesUrl]: SALES_API,
+      [dailyProductionsUrl]: DAILY_PRODUCTIONS_API,
+    });
+    await fixture.whenStable();
+
+    const dashboard = fixture.componentInstance as unknown as {
+      producaoHojeTotal: () => number;
+      totalOvosVendidos: () => number;
+    };
+
+    expect(dashboard.producaoHojeTotal()).toBe(900);
+    expect(dashboard.totalOvosVendidos()).toBe(260);
+    expect(dashboard.producaoHojeTotal()).not.toBe(dashboard.totalOvosVendidos());
   });
 });

@@ -206,6 +206,11 @@ export class Dashboard {
   protected readonly totalOvosColetadosGalinha = computed(() =>
     this.producaoNoPeriodo().reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0),
   );
+  // Ovos COLETADOS (produção bruta em daily_productions), não ovos VENDIDOS.
+  // Card "Produção coletada" mostra este número; ele é sempre >= totalOvosVendidos
+  // (nem todo ovo coletado no período já virou venda). Bug relatado: usuário
+  // comparava este card com "Ovos vendidos" de Relatórios (mesmo formato de
+  // totalOvosVendidos abaixo) achando que eram a mesma métrica — não são.
   protected readonly producaoHojeTotal = computed(
     () => this.totalOvosColetadosCodorna() + this.totalOvosColetadosGalinha(),
   );
@@ -256,6 +261,9 @@ export class Dashboard {
     totalStockValue(this.productsStore.items(), this.vendorStockStore.items()),
   );
 
+  // Mesma fórmula de resumo().eggsSold em Relatórios (produto.eggsPerUnit × quantidade,
+  // somado sobre as vendas do período) — deve bater com "Ovos vendidos" lá. Ver
+  // comentário de producaoHojeTotal acima pra distinção com ovos coletados.
   protected readonly totalOvosVendidos = computed(() =>
     this.vendasNoPeriodo().reduce((soma, venda) => {
       const produto = this.productsStore.items().find((p) => p.name === venda.product);
