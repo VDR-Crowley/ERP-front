@@ -41,6 +41,18 @@
     .p-datepicker-input-icon-container {
       color: var(--erp-dim) !important;
       left: 0.85rem;
+      // PrimeNG seta `inset-inline-end` (ícone à direita por padrão); nosso
+      // `left` acima move o ícone pra esquerda mas, sem isso, os dois offsets
+      // ficam ativos ao mesmo tempo e o container (sem width explícito)
+      // estica pra preencher o espaço entre eles — cobrindo quase o campo
+      // inteiro com `z-index: 1` (herdado do PrimeNG), por cima do <input>.
+      // Como o (click) só existe no <svg> interno, cliques no texto do
+      // período ou no chevron (que já é pointer-events:none) caem nessa
+      // faixa invisível e não abrem o calendário — só o ícone em si (pixels
+      // do svg) funciona. `inset-inline-end: auto` devolve o container ao
+      // tamanho do conteúdo (ícone), liberando o resto do campo pro
+      // (click)/(focus) nativos do input do PrimeNG.
+      inset-inline-end: auto;
     }
 
     .p-datepicker-input.p-inputtext {
