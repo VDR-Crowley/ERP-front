@@ -53,14 +53,13 @@ export class Products {
    * "Estoque no Plantel" é sempre `p.stock` puro — o mesmo campo que
    * Transferência de Estoque e Vendas movimentam. Até essa feature, os 2
    * produtos de ovo de espécie única tinham esse número TROCADO na tela por
-   * um cálculo derivado do Estoque de Ovos mais recente (`estoqueReal`,
+   * um cálculo derivado do antigo módulo Estoque de Ovos (`estoqueReal`,
    * removido aqui) — editar "Estoque" nesses 2 produtos não tinha efeito
    * nenhum na coluna, porque ela ignorava `p.stock` e recalculava sozinha
    * (bug relatado em produção: "editei o estoque e não mudou nada"). Ver
-   * `products.spec.ts` pra reprodução. A visão calculada a partir do Estoque
-   * de Ovos continua existindo, só que na tela própria (Estoque de Ovos) —
-   * as duas telas hoje se sobrepõem pros produtos de ovo; Produtos passa a
-   * ser sempre a fonte editável/transferível.
+   * `products.spec.ts` pra reprodução. O módulo Estoque de Ovos foi removido
+   * (duplicava/divergia deste campo sem sincronizar) — Produtos é a única
+   * fonte editável/transferível.
    *
    * Estoque total do produto = Plantel (p.stock) + soma do que está com cada vendedor.
    */

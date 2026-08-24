@@ -16,7 +16,6 @@ const urls = {
   vendedores: `${api}/vendedores`,
   sales: `${api}/sales`,
   dailyProductions: `${api}/daily-productions`,
-  eggStocks: `${api}/egg-stocks`,
   flock: `${api}/flock`,
   expenses: `${api}/expenses`,
   cashFlows: `${api}/cash-flows`,
@@ -77,12 +76,6 @@ describe('buildExportWorkbook', () => {
     ]);
     httpMock.expectOne(urls.dailyProductions).flush([
       { id: 1, date: '2026-07-01', quail_eggs: 100, chicken_eggs: 20 },
-    ]);
-    httpMock.expectOne(urls.eggStocks).flush([
-      {
-        id: 1, date: '2026-07-01', quail_eggs: 50, chicken_eggs: 10,
-        quail_packs: '5.00', chicken_packs: '2.00', quail_stock_value: '75.00', chicken_stock_value: '20.00',
-      },
     ]);
     httpMock.expectOne(urls.flock).flush([
       { id: 1, species: 'Codornas', quantity: 130, feed_bags_per_month: 3, bag_price: '106.00', monthly_total: '318.00' },
@@ -179,7 +172,6 @@ describe('buildExportWorkbook', () => {
       'Produtos',
       'Vendas',
       'Produção',
-      'Estoque de Ovos',
       'Plantel',
       'Despesas',
       'Novo Plantel',
@@ -234,7 +226,6 @@ describe('export -> reimport (ciclo completo)', () => {
       },
     ]);
     httpMock.expectOne(urls.dailyProductions).flush([]);
-    httpMock.expectOne(urls.eggStocks).flush([]);
     httpMock.expectOne(urls.flock).flush([]);
     httpMock.expectOne(urls.expenses).flush([]);
     httpMock.expectOne(urls.cashFlows).flush([]);
@@ -297,7 +288,6 @@ describe('export -> reimport (ciclo completo)', () => {
       Vendedores: 1,
       Vendas: 1,
       Produção: 0,
-      'Estoque de Ovos': 0,
       Plantel: 0,
       Despesas: 0,
       'Fluxo de Caixa': 0,

@@ -18,7 +18,6 @@ import { IDB_STORES } from '@core/idb/idb-seed.service';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
-import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
@@ -102,7 +101,6 @@ export class Dashboard {
   private readonly salesStore = createSalesStore();
   private readonly productionStore = createDailyProductionsStore();
   private readonly flockStore = createFlockStore();
-  private readonly eggStockStore = createEggStocksStore();
   private readonly productsStore = createProductsStore();
   private readonly vendorStockStore = createVendorStockStore();
   private readonly expensesStore = createExpensesStore();
@@ -118,10 +116,9 @@ export class Dashboard {
 
   // Cards de produção/vendas/saldo respeitam o período selecionado no
   // DatePicker/chips da topbar — diferente dos cards de estoque
-  // (ovosCodornaEstoque/ovosGalinhaEstoque/bandejasProntasCodorna/
-  // bandejasProntasGalinha/valorEstoque), que são saldo atual (não soma de
-  // período) e continuam intencionalmente fora do filtro (ver comentário em
-  // ultimoQuailEstoque/ultimaProducao).
+  // (bandejasProntasCodorna/bandejasProntasGalinha/valorEstoque), que são
+  // saldo atual (não soma de período) e continuam intencionalmente fora do
+  // filtro (ver comentário em ultimaProducao).
   protected readonly producaoNoPeriodo = computed(() =>
     this.productionStore.items().filter((p) => this.periodFilter.includes(p.date)),
   );
@@ -214,25 +211,10 @@ export class Dashboard {
   );
 
   // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
-  // um snapshot com data futura por erro de digitação não pode esconder o
-  // estoque real e zerar os cards. Ver latestByDate. Codorna e galinha são
-  // calculadas SEPARADAMENTE: cada uma pega sua própria data mais recente
-  // com o próprio campo preenchido, ignorando linhas onde só o campo dela
-  // está em branco — mesma correção aplicada em egg-stock.ts. Antes as duas
-  // compartilhavam uma única "linha mais recente geral", então um
-  // lançamento recente preenchendo só uma espécie zerava a outra mesmo
-  // tendo estoque real disponível.
-  private readonly ultimoQuailEstoque = computed(() =>
-    latestByDate(this.eggStockStore.items().filter((e) => e.quailEggs !== null)),
-  );
-  private readonly ultimoChickenEstoque = computed(() =>
-    latestByDate(this.eggStockStore.items().filter((e) => e.chickenEggs !== null)),
-  );
-
-  // Estoque de Ovos é preenchido à parte da Produção Diária — enquanto não
-  // houver nenhum snapshot lá, cai pra converter a produção mais recente em
-  // pacotes usando o tamanho de pacote dos próprios produtos cadastrados
-  // ("50 ovos de codorna" / "30 ovos galinha"), em vez de ficar sempre 0.
+  // um snapshot com data futura por erro de digitação não pode esconder a
+  // produção real e zerar os cards. Ver latestByDate. Converte a produção
+  // mais recente em pacotes usando o tamanho de pacote dos próprios produtos
+  // cadastrados ("50 ovos de codorna" / "30 ovos galinha").
   private readonly ultimaProducao = computed(() =>
     latestByDate(this.productionStore.items().filter((p) => p.quailEggs !== null || p.chickenEggs !== null)),
   );
@@ -250,38 +232,26 @@ export class Dashboard {
       this.productsStore.items().find((p) => p.name === '1 Bandeja de ovos de galinha')?.unitPrice ?? 20,
   );
 
-  // Cada espécie soma seu próprio "prontas" independente: pega o pack de
-  // Estoque de Ovos da própria espécie quando existe (arredondado pra baixo
-  // pra unidade — não dá pra vender 0,6 de um pack), e só cai pra converter
-  // a Produção Diária daquela espécie se ela nunca teve snapshot em Estoque
-  // de Ovos. Cards separados por espécie (não somados) — ver mesma separação
-  // já aplicada em ovosCodornaEstoque/ovosGalinhaEstoque.
-  protected readonly bandejasProntasCodorna = computed(() => {
-    const quailEstoque = this.ultimoQuailEstoque();
-    const quailPacks = quailEstoque
-      ? quailEstoque.quailPacks
-      : (this.ultimaProducao()?.quailEggs ?? 0) / this.quailPackSize();
-    return Math.floor(quailPacks);
-  });
-  protected readonly bandejasProntasGalinha = computed(() => {
-    const chickenEstoque = this.ultimoChickenEstoque();
-    const chickenPacks = chickenEstoque
-      ? chickenEstoque.chickenPacks
-      : (this.ultimaProducao()?.chickenEggs ?? 0) / this.chickenPackSize();
-    return Math.floor(chickenPacks);
-  });
+  // Cada espécie soma seu próprio "prontas" independente, convertendo a
+  // Produção Diária mais recente daquela espécie em pacotes (arredondado
+  // pra baixo pra unidade — não dá pra vender 0,6 de um pack). Cards
+  // separados por espécie (não somados).
+  protected readonly bandejasProntasCodorna = computed(() =>
+    Math.floor((this.ultimaProducao()?.quailEggs ?? 0) / this.quailPackSize()),
+  );
+  protected readonly bandejasProntasGalinha = computed(() =>
+    Math.floor((this.ultimaProducao()?.chickenEggs ?? 0) / this.chickenPackSize()),
+  );
   protected readonly prontasParaVendaTotal = computed(
     () => this.bandejasProntasCodorna() + this.bandejasProntasGalinha(),
   );
-  protected readonly ovosCodornaEstoque = computed(() => this.ultimoQuailEstoque()?.quailEggs ?? 0);
-  protected readonly ovosGalinhaEstoque = computed(() => this.ultimoChickenEstoque()?.chickenEggs ?? 0);
 
   // Fonte única com Produtos/Transferência de Estoque — mesma função
   // totalStockValue() (preço cadastrado em Produtos × Plantel + todos os
   // vendedores, pros 5 produtos, não só os 2 ligados a ovo). Antes esse card
-  // usava valorEstoqueCodorna/Galinha calculado a partir do Estoque de Ovos
-  // (packs × preço), cobrindo só 2 produtos e divergindo do total real da
-  // granja — bug relatado pelo Ytallo.
+  // usava valorEstoqueCodorna/Galinha calculado a partir do módulo Estoque
+  // de Ovos (packs × preço, removido), cobrindo só 2 produtos e divergindo
+  // do total real da granja — bug relatado pelo Ytallo.
   protected readonly valorEstoque = computed(() =>
     totalStockValue(this.productsStore.items(), this.vendorStockStore.items()),
   );

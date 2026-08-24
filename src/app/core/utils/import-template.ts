@@ -59,22 +59,6 @@ export function downloadImportTemplate(filename: string): void {
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet([
-      {
-        Data: '01/07/2026',
-        'Ovos Codorna': 335,
-        'Ovos Galinha': 70,
-        'Pack Codorna': 6.7,
-        'Pack Galinha': 2.33,
-        'Valor Estoque Codorna': 100.5,
-        'Valor Estoque Galinha': 46.67,
-      },
-    ]),
-    'Estoque de Ovos',
-  );
-
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.json_to_sheet([
       { Espécie: 'Codornas', Quantidade: 130, 'Sacos Ração/Mês': 3, 'Preço Saco': 106, 'Total Mês': 318 },
       {
         Espécie: 'Galinhas Embrapa 051',

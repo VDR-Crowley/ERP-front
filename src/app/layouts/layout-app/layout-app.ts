@@ -94,12 +94,6 @@ export class LayoutApp {
       sub: 'Todas as vendas realizadas',
     },
     {
-      path: '/platform/egg-stock',
-      icon: 'pi-database',
-      label: 'Estoque de Ovos',
-      sub: 'Saldo diário de ovos e packs',
-    },
-    {
       path: '/platform/plantel',
       icon: 'pi-users',
       label: 'Plantel',

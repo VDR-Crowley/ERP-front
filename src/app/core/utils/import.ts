@@ -4,7 +4,6 @@ import { Injector, inject, runInInjectionContext } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Venda } from '@core/interfaces/venda.interface';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
-import { EstoqueOvos } from '@core/interfaces/estoque-ovos.interface';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { NovoLotePlantel, Species } from '@core/interfaces/novo-lote-plantel.interface';
 import { migrateLegacyHatchEvents } from '@core/utils/hatch-tracking.util';
@@ -17,7 +16,6 @@ import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
 import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.interface';
 import { createSalesStore, SalesRefs } from '@core/api/adapters/sales.adapter';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
-import { createEggStocksStore } from '@core/api/adapters/egg-stocks.adapter';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
@@ -64,7 +62,6 @@ interface RowItem<T> {
 const SHEET_NAMES = {
   sales: 'Vendas',
   dailyProduction: 'Produção',
-  eggStock: 'Estoque de Ovos',
   flock: 'Plantel',
   products: 'Produtos',
   expenses: 'Despesas',
@@ -92,7 +89,6 @@ interface ImportContext {
   /** products+vendedores pra resolver Produto/Vendedor de cada linha de Vendas — memoizado, 1 GET de cada pro import inteiro (não 1 por linha, ver `salesStore().add`). */
   salesRefs: () => Promise<SalesRefs>;
   dailyProductionsStore: () => ReturnType<typeof createDailyProductionsStore>;
-  eggStocksStore: () => ReturnType<typeof createEggStocksStore>;
   flockStore: () => ReturnType<typeof createFlockStore>;
   productsStore: () => ReturnType<typeof createProductsStore>;
   expensesStore: () => ReturnType<typeof createExpensesStore>;
@@ -155,7 +151,6 @@ function createImportContext(injector: Injector): ImportContext {
     salesStore,
     salesRefs: memoAsync(() => salesStore().fetchRefs()),
     dailyProductionsStore: memo(() => run(() => createDailyProductionsStore())),
-    eggStocksStore: memo(() => run(() => createEggStocksStore())),
     flockStore: memo(() => run(() => createFlockStore())),
     productsStore: memo(() => run(() => createProductsStore())),
     expensesStore: memo(() => run(() => createExpensesStore())),
@@ -298,7 +293,7 @@ function makeImporter<T>(
 
 /**
  * Store mínimo que `upsert` precisa — qualquer `EntityStore<T>` real (products, vendedores,
- * flock, daily-productions, egg-stocks, expenses, feed-stocks simples, flock-cleanings) satisfaz
+ * flock, daily-productions, expenses, feed-stocks simples, flock-cleanings) satisfaz
  * essa forma estrutural, mesmo tendo mais membros (`items`, `reload`, `remove`).
  */
 interface UpsertableStore<T> {
@@ -460,9 +455,9 @@ async function runFeedOpenLog(
  *   nunca teve vendedor cadastrado (a planilha real do usuário só tinha uma coluna solta
  *   "Vendedor" dentro de Vendas, sem aba própria), daí essa aba existir no export/import.
  * - "Ração" roda antes de "Ração - Sacos Abertos": resolve o tipo recém-criado (`feedStockIdByType`).
- * As demais abas (Produção, Estoque de Ovos, Plantel, Despesas, Fluxo de Caixa, Usuários, Novo
+ * As demais abas (Produção, Plantel, Despesas, Fluxo de Caixa, Usuários, Novo
  * Plantel, Higienização) não têm FK nem resolução por nome entre si — checado nas
- * migrations do backend (`flock`, `flock_incubations`, `daily_productions`, `egg_stocks`,
+ * migrations do backend (`flock`, `flock_incubations`, `daily_productions`,
  * `expenses`, `cash_flows`, `flock_cleanings` não têm `foreignId`/`constrained` uns
  * pros outros) — por isso a ordem delas é livre.
  *
@@ -479,9 +474,6 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.sales, parseSales, runSales),
   makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.dailyProductionsStore(), SHEET_NAMES.dailyProduction, row, warnings),
-  ),
-  makeImporter(SHEET_NAMES.eggStock, parseEggStock, (item, ctx, id, row, warnings) =>
-    upsert(id, item, ctx.eggStocksStore(), SHEET_NAMES.eggStock, row, warnings),
   ),
   makeImporter(SHEET_NAMES.flock, parseFlock, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.flockStore(), SHEET_NAMES.flock, row, warnings),
@@ -502,7 +494,7 @@ const IMPORTERS: EntityImporter[] = [
   ),
 ];
 
-/** Lê o arquivo e cria/atualiza, via API, cada linha válida nas 13 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
+/** Lê o arquivo e cria/atualiza, via API, cada linha válida nas 12 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
 export async function importWorkbookFile(
   injector: Injector,
   file: File,
@@ -773,55 +765,6 @@ function parseDailyProduction(ws: XLSX.WorkSheet, errors: string[]): RowItem<Pro
         row: r,
         id: idRaw ?? undefined,
         item: { date, quailEggs: quailEggs ?? null, chickenEggs: chickenEggs ?? null },
-      });
-    }
-  });
-  return result;
-}
-
-function parseEggStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<EstoqueOvos>[] | undefined {
-  const label = SHEET_NAMES.eggStock;
-  const header = readHeader(ws);
-  const required = [
-    'Data',
-    'Ovos Codorna',
-    'Ovos Galinha',
-    'Pack Codorna',
-    'Pack Galinha',
-    'Valor Estoque Codorna',
-    'Valor Estoque Galinha',
-  ];
-  if (!requireColumns(header, label, required, errors)) return undefined;
-
-  const rows = readRows(ws);
-  const result: RowItem<EstoqueOvos>[] = [];
-  rows.forEach((row, i) => {
-    const r = rowRef(i);
-    const idRaw = parseId(row['ID']);
-    const date = parseDate(row['Data']);
-    const quailEggs = toOptionalNumber(row['Ovos Codorna']);
-    const chickenEggs = toOptionalNumber(row['Ovos Galinha']);
-    const quailPacks = toNumber(row['Pack Codorna']);
-    const chickenPacks = toNumber(row['Pack Galinha']);
-    const quailStockValue = toNumber(row['Valor Estoque Codorna']);
-    const chickenStockValue = toNumber(row['Valor Estoque Galinha']);
-
-    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
-    if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
-
-    if (idRaw !== undefined && date) {
-      result.push({
-        row: r,
-        id: idRaw ?? undefined,
-        item: {
-          date,
-          quailEggs: quailEggs ?? null,
-          chickenEggs: chickenEggs ?? null,
-          quailPacks: quailPacks ?? 0,
-          chickenPacks: chickenPacks ?? 0,
-          quailStockValue: quailStockValue ?? 0,
-          chickenStockValue: chickenStockValue ?? 0,
-        },
       });
     }
   });

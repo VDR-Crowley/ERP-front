@@ -30,10 +30,6 @@ interface SaleApi {
   payment_pending: boolean; buyer: string; seller_id: number; delivery_pending: boolean; delivery_date: string | null;
 }
 interface DailyProductionApi { id: number; date: string; quail_eggs: number | null; chicken_eggs: number | null }
-interface EggStockApi {
-  id: number; date: string; quail_eggs: number | null; chicken_eggs: number | null;
-  quail_packs: string; chicken_packs: string; quail_stock_value: string; chicken_stock_value: string;
-}
 interface FlockApi { id: number; species: string; quantity: number; feed_bags_per_month: number; bag_price: string; monthly_total: string }
 interface ExpenseApi {
   id: number; date: string; description: string; category: string;
@@ -102,7 +98,6 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     vendedoresApi,
     vendasApi,
     producaoApi,
-    estoqueApi,
     plantelApi,
     despesasApi,
     fluxoCaixaApi,
@@ -117,7 +112,6 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     get<VendedorApi>('vendedores'),
     get<SaleApi>('sales'),
     get<DailyProductionApi>('daily-productions'),
-    get<EggStockApi>('egg-stocks'),
     get<FlockApi>('flock'),
     get<ExpenseApi>('expenses'),
     get<CashFlowApi>('cash-flows'),
@@ -200,25 +194,6 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     { header: producaoHeader },
   );
   XLSX.utils.book_append_sheet(wb, producaoSheet, 'Produção');
-
-  const estoqueHeader = [
-    'ID', 'Data', 'Ovos Codorna', 'Ovos Galinha', 'Pack Codorna', 'Pack Galinha',
-    'Valor Estoque Codorna', 'Valor Estoque Galinha',
-  ];
-  const estoqueSheet = XLSX.utils.json_to_sheet(
-    estoqueApi.map((e) => ({
-      ID: e.id,
-      Data: ptDate(e.date),
-      'Ovos Codorna': e.quail_eggs ?? '',
-      'Ovos Galinha': e.chicken_eggs ?? '',
-      'Pack Codorna': decimalToNumber(e.quail_packs),
-      'Pack Galinha': decimalToNumber(e.chicken_packs),
-      'Valor Estoque Codorna': decimalToNumber(e.quail_stock_value),
-      'Valor Estoque Galinha': decimalToNumber(e.chicken_stock_value),
-    })),
-    { header: estoqueHeader },
-  );
-  XLSX.utils.book_append_sheet(wb, estoqueSheet, 'Estoque de Ovos');
 
   const plantelHeader = ['ID', 'Espécie', 'Quantidade', 'Sacos Ração/Mês', 'Preço Saco', 'Total Mês'];
   const plantelSheet = XLSX.utils.json_to_sheet(

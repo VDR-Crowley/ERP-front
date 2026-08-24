@@ -14,10 +14,6 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./sales/sales').then((m) => m.Sales),
   },
   {
-    path: 'egg-stock',
-    loadComponent: () => import('./egg-stock/egg-stock').then((m) => m.EggStock),
-  },
-  {
     path: 'plantel',
     loadComponent: () => import('./plantel/plantel').then((m) => m.Plantel),
   },

@@ -10,7 +10,6 @@ export const DB_VERSION = 7;
 export const IDB_STORES = {
   sales: 'sales',
   dailyProduction: 'dailyProduction',
-  eggStock: 'eggStock',
   flock: 'flock',
   products: 'products',
   expenses: 'expenses',
