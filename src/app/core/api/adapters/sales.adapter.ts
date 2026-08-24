@@ -9,6 +9,7 @@ import {
   vendedorLocation,
 } from '@core/utils/stock-location';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { decimalToNumber, EntityStore, WithId } from '../entity-store';
 import { fetchNameIdMaps, NameIdMaps, resolveIdByName } from './_shared';
 
@@ -70,7 +71,7 @@ export function createSalesStore(): SalesStore {
       ? vendedorLocation(String(api.stock_location_vendedor_id))
       : PLANTEL_LOCATION;
     return {
-      date: api.date,
+      date: toDateOnly(api.date),
       product: products.byId.get(api.product_id) ?? '',
       quantity: api.quantity,
       unitPrice: decimalToNumber(api.unit_price),
@@ -79,7 +80,7 @@ export function createSalesStore(): SalesStore {
       buyer: api.buyer,
       seller: vendedores.byId.get(api.seller_id) ?? '',
       deliveryPending: api.delivery_pending,
-      deliveryDate: api.delivery_date,
+      deliveryDate: toDateOnly(api.delivery_date),
       stockLocation,
       id: String(api.id),
     };
