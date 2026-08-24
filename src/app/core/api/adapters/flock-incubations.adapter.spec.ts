@@ -118,7 +118,8 @@ describe('createFlockIncubationsStore — diff de hatchEvents[]', () => {
 
     const postReq = await waitForRequest(httpMock, base);
     expect(postReq.request.method).toBe('POST');
-    const { hatch_events: _omitted, ...criadoSemHatchEvents } = LOTE_API; // resposta real do backend: sem a chave
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- só descarta `hatch_events`, simula resposta real do backend sem a chave
+    const { hatch_events, ...criadoSemHatchEvents } = LOTE_API;
     postReq.flush(criadoSemHatchEvents);
 
     await promise;
