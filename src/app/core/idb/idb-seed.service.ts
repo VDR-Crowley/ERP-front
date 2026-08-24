@@ -1,6 +1,7 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { IndexedDbService } from './idb.service';
 
 export const DB_NAME = 'minierp-db';
@@ -54,6 +55,17 @@ export class IdbSeedService {
       version: DB_VERSION,
       stores: Object.values(IDB_STORES),
     });
+
+    // Purga defensiva do store legado `users`: até 2026-08-24, `export.ts` lia dali com um
+    // formato que incluía a SENHA em texto puro (`User.password`) — corrigido pra nunca mais
+    // gravar/exportar isso, mas qualquer navegador que já tinha usado o app ANTES da migração
+    // pra API real (commit a5d21c1) ainda pode ter esse registro sentado no IndexedDB local,
+    // com a senha exposta em texto puro pra quem abrir o DevTools daquele navegador. Nada mais
+    // escreve nesse store (import.ts também migrou pra API), então limpar aqui não perde dado
+    // nenhum que ainda esteja em uso — só remove o resíduo sensível. `catchError` porque
+    // primeira visita (store recém-criado) pode não ter nada a limpar; erro aqui não pode
+    // travar o boot do app.
+    this.idb.clear(IDB_STORES.users).pipe(catchError(() => of(void 0))).subscribe();
 
     return of(void 0);
   }
