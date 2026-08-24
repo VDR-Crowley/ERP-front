@@ -18,6 +18,10 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./egg-stock/egg-stock').then((m) => m.EggStock),
   },
   {
+    path: 'perda-de-ovos',
+    loadComponent: () => import('./perda-de-ovos/perda-de-ovos').then((m) => m.PerdaDeOvos),
+  },
+  {
     path: 'plantel',
     loadComponent: () => import('./plantel/plantel').then((m) => m.Plantel),
   },

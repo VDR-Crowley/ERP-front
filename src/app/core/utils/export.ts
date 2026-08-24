@@ -50,6 +50,7 @@ interface FlockIncubationApi {
 interface FeedStockApi { id: number; type: string; bags_in_stock: number; kg_in_stock: string; last_bag_weight_kg: string; expiration_date: string | null }
 interface FeedOpenLogApi { id: number; feed_type: string; date: string; weight_kg: string }
 interface FlockCleaningApi { id: number; date: string; species: 'quail' | 'chicken'; cleaning_type: FlockCleaning['cleaningType']; notes: string | null }
+interface EggLossApi { id: number; date: string; species: 'quail' | 'chicken'; quantity: number; reason: string | null }
 
 const speciesLabel = (s: Species) => (s === 'quail' ? 'Codorna' : 'Galinha');
 
@@ -111,6 +112,7 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     feedStockApi,
     feedOpenLogApi,
     flockCleaningApi,
+    eggLossApi,
     dashboardRows,
   ] = await Promise.all([
     get<ProductApi>('products'),
@@ -126,6 +128,7 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     get<FeedStockApi>('feed-stocks'),
     get<FeedOpenLogApi>('feed-open-logs'),
     get<FlockCleaningApi>('flock-cleanings'),
+    get<EggLossApi>('egg-losses'),
     firstValueFrom(idb.getAll<DashboardResumo>(IDB_STORES.dashboard)),
   ]);
   const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
@@ -354,6 +357,21 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     { header: higienizacaoHeader },
   );
   XLSX.utils.book_append_sheet(wb, higienizacaoSheet, 'Higienização');
+
+  const perdaOvosHeader = ['ID', 'Data', 'Espécie', 'Quantidade', 'Motivo'];
+  const perdaOvosSheet = XLSX.utils.json_to_sheet(
+    [...eggLossApi]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((l) => ({
+        ID: l.id,
+        Data: ptDate(l.date),
+        Espécie: speciesLabel(l.species),
+        Quantidade: l.quantity,
+        Motivo: l.reason ?? '',
+      })),
+    { header: perdaOvosHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, perdaOvosSheet, 'Perda de Ovos');
 
   return wb;
 }

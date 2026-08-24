@@ -1,0 +1,118 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--red">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Perda — Codorna</div>
+          <div class="kpi__value">{{ num(totalCodorna()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-exclamation-triangle"></i></span>
+      </div>
+      <div class="kpi__foot">Ovos perdidos no período selecionado</div>
+    </article>
+    <article class="kpi kpi--amber">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Perda — Galinha</div>
+          <div class="kpi__value">{{ num(totalGalinha()) }}</div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-exclamation-triangle"></i></span>
+      </div>
+      <div class="kpi__foot">Ovos perdidos no período selecionado</div>
+    </article>
+    <article class="kpi kpi--purple">
+      <div class="kpi__row">
+        <div>
+          <div class="kpi__label">Total geral</div>
+          <div class="kpi__value">{{ num(totalGeral()) }} <span>ovos</span></div>
+        </div>
+        <span class="kpi__icon"><i class="pi pi-chart-bar"></i></span>
+      </div>
+      <div class="kpi__foot">Codorna + galinha</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Perda de Ovos</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar por data ou motivo..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo lançamento
+      </button>
+    </div>
+
+    @let filtered = rows() | filterBy: search() : searchKeys;
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 560px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('date')">
+              Data
+              <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('species')">
+              Espécie
+              <app-sort-icon [active]="sortField() === 'species'" [dir]="sortDir()" />
+            </th>
+            <th class="num sortable" (click)="sortBy('quantity')">
+              Quantidade
+              <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
+            </th>
+            <th>Motivo</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filtered; track item.id) {
+            <tr>
+              <td class="strong" data-label="Data">{{ ptDate(item.date) }}</td>
+              <td data-label="Espécie">{{ speciesLabel(item.species) }}</td>
+              <td class="num" data-label="Quantidade">{{ num(item.quantity) }}</td>
+              <td data-label="Motivo">{{ item.reason || '—' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(item)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(item)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (filtered.length === 0) {
+      <div class="empty">Nenhuma perda registrada no período selecionado.</div>
+    }
+    <div class="tbl-foot">{{ filtered.length }} registro(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir esse registro de perda (' + (deleteTarget() ? ptDate(deleteTarget()!.date) : '') + ')? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

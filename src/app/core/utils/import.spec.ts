@@ -791,4 +791,66 @@ describe('importWorkbookFile', () => {
       httpMock.expectNone({ url: `${flockIncubationsBase}/7/hatch-events/51`, method: 'PUT' });
     });
   });
+
+  describe('aba "Perda de Ovos"', () => {
+    const eggLossesBase = `${environment.apiUrl}/egg-losses`;
+
+    it('importa linha válida chamando POST no adapter real da entidade', async () => {
+      const file = buildFile({
+        'Perda de Ovos': [{ Data: '01/07/2026', Espécie: 'Codorna', Quantidade: 5, Motivo: 'Quebrado' }],
+      });
+
+      const promise = importWorkbookFile(injector, file);
+
+      (await expectRequest(httpMock, eggLossesBase, 'GET')).flush([]);
+      const postReq = await expectRequest(httpMock, eggLossesBase, 'POST');
+      expect(postReq.request.body).toEqual({ date: '2026-07-01', species: 'quail', quantity: 5, reason: 'Quebrado' });
+      postReq.flush({ id: 1, date: '2026-07-01', species: 'quail', quantity: 5, reason: 'Quebrado' });
+
+      const result = await promise;
+
+      expect(result.success).toBe(true);
+      expect(result.summary['Perda de Ovos']).toBe(1);
+      expect(result.failed).toEqual({});
+      expect(result.rowErrors).toEqual([]);
+    });
+
+    it('"Espécie" fora de Codorna/Galinha vira erro de linha, sem chamar POST', async () => {
+      const file = buildFile({
+        'Perda de Ovos': [{ Data: '01/07/2026', Espécie: 'Pato', Quantidade: 5, Motivo: '' }],
+      });
+
+      const result = await importWorkbookFile(injector, file);
+
+      // Aba reconhecida (linha existe) mas falhou na validação de planilha — nenhuma linha
+      // válida sobra pro loop de `run`, então `eggLossesStore()` nunca chega a ser criada (sem
+      // GET) e `summary` fica em 0 (não `undefined`, que é reservado pra aba nem lida no arquivo).
+      expect(result.summary['Perda de Ovos']).toBe(0);
+      expect(result.rowErrors).toEqual([
+        'Perda de Ovos linha 2: "Espécie" deve ser Codorna ou Galinha (veio "Pato").',
+      ]);
+      httpMock.expectNone(eggLossesBase);
+    });
+
+    it('"ID" preenchido vira UPDATE (PUT) em vez de CREATE', async () => {
+      const file = buildFile({
+        'Perda de Ovos': [{ ID: 3, Data: '01/07/2026', Espécie: 'Galinha', Quantidade: 2, Motivo: '' }],
+      });
+
+      const promise = importWorkbookFile(injector, file);
+
+      (await expectRequest(httpMock, eggLossesBase, 'GET')).flush([
+        { id: 3, date: '2026-06-01', species: 'chicken', quantity: 1, reason: null },
+      ]);
+      const putReq = await expectRequest(httpMock, `${eggLossesBase}/3`, 'PUT');
+      expect(putReq.request.body).toEqual({ date: '2026-07-01', species: 'chicken', quantity: 2, reason: null });
+      putReq.flush({ id: 3, date: '2026-07-01', species: 'chicken', quantity: 2, reason: null });
+
+      const result = await promise;
+
+      expect(result.success).toBe(true);
+      expect(result.summary['Perda de Ovos']).toBe(1);
+      httpMock.expectNone({ url: eggLossesBase, method: 'POST' });
+    });
+  });
 });

@@ -100,6 +100,12 @@ export class LayoutApp {
       sub: 'Saldo diário de ovos e packs',
     },
     {
+      path: '/platform/perda-de-ovos',
+      icon: 'pi-exclamation-triangle',
+      label: 'Perda de Ovos',
+      sub: 'Quebra, consumo próprio e doação',
+    },
+    {
       path: '/platform/plantel',
       icon: 'pi-users',
       label: 'Plantel',
