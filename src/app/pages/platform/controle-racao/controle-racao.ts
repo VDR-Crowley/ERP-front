@@ -24,6 +24,12 @@ const PESO_SACO_OPTIONS = [
   { value: '40', label: '40 kg' },
 ];
 
+function toNumberOrUndefined(value: unknown): number | undefined {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 const FIELDS: CrudField[] = [
   { key: 'type', label: 'Tipo', type: 'text', required: true },
   { key: 'bagsInStock', label: 'Sacos iniciais', type: 'number', step: 1, required: true },
@@ -40,7 +46,23 @@ const FIELDS: CrudField[] = [
 const EDIT_FIELDS: CrudField[] = [
   { key: 'type', label: 'Tipo', type: 'text', required: true },
   { key: 'bagsInStock', label: 'Sacos em estoque', type: 'number', step: 1, required: true },
-  { key: 'kgInStock', label: 'Kg em estoque', type: 'number', step: 0.1, required: true },
+  {
+    key: 'kgInStock',
+    label: 'Kg em estoque',
+    type: 'number',
+    step: 0.1,
+    required: true,
+    // Sacos em estoque × Peso do saco — mesmo padrão de `expenses.ts` (quantidade × valor
+    // unitário = valor total). Some editável se as dependências ainda não estiverem preenchidas.
+    compute: (m) => {
+      const bags = toNumberOrUndefined(m['bagsInStock']);
+      const bagWeight = toNumberOrUndefined(m['lastBagWeightKg']);
+      if (bags === undefined || bagWeight === undefined || bags < 0 || bagWeight <= 0) {
+        return undefined;
+      }
+      return Math.round(bags * bagWeight * 100) / 100;
+    },
+  },
   {
     key: 'lastBagWeightKg',
     label: 'Peso do saco',
