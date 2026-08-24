@@ -118,14 +118,15 @@ describe('buildExportWorkbook', () => {
     const wb = await promise;
     const sheet = <T>(name: string) => XLSX.utils.sheet_to_json<T>(wb.Sheets[name]);
 
-    expect(sheet('Vendedores')).toEqual([{ Nome: 'Karol', Contato: '(11) 90000-0001', Ativo: 'Sim' }]);
+    expect(sheet('Vendedores')).toEqual([{ ID: 5, Nome: 'Karol', Contato: '(11) 90000-0001', Ativo: 'Sim' }]);
     expect(sheet('Produtos')).toEqual([
-      { Produto: 'Ovo Real', Unidade: 'dz', 'Preço Unitário': 15, Estoque: 10, 'Ovos por Unidade': 12 },
+      { ID: 1, Produto: 'Ovo Real', Unidade: 'dz', 'Preço Unitário': 15, Estoque: 10, 'Ovos por Unidade': 12 },
     ]);
     // Vendas resolve product_id/seller_id -> nome usando o que já foi buscado pras próprias
     // abas Produtos/Vendedores (sem GET extra — só 1 GET de cada em `urls` acima).
     expect(sheet('Vendas')).toEqual([
       {
+        ID: 1,
         Data: '01/07/2026',
         Produto: 'Ovo Real',
         Quantidade: 2,
@@ -141,6 +142,7 @@ describe('buildExportWorkbook', () => {
     // Consolidação de hatch_events: 20+30=50 nascidos, data = a mais recente (20/06).
     expect(sheet('Novo Plantel')).toEqual([
       {
+        ID: 1,
         'Data Incubadora': '01/06/2026',
         Espécie: 'Codorna',
         'Qtd. Ovos': 50,
@@ -155,10 +157,42 @@ describe('buildExportWorkbook', () => {
     ]);
     // API nunca devolve senha nem telefone — sai em branco de propósito (ver comentário em
     // `export.ts`), reimportar essa aba falha por linha com "Senha vazia", não silenciosamente.
+    // "Usuários" fica de fora da coluna "ID" de propósito (fora do pedido original).
     expect(sheet('Usuários')).toEqual([{ Nome: 'Karol', 'E-mail': 'karol@x.com', Senha: '', Telefone: '' }]);
     expect(sheet('Ração - Sacos Abertos')).toEqual([
-      { Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 },
+      { ID: 1, Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 },
     ]);
+  });
+
+  // Pedido do usuário: "ID" (id real do backend) precisa ser a 1ª coluna em TODA aba de
+  // entidade, exceto Fluxo de Caixa/Usuários/Dashboard (fora de escopo — ver docstring de
+  // `export.ts`). Prova via a célula A1 (cabeçalho) de cada aba, sem depender do conteúdo.
+  it('"ID" é a 1ª coluna em toda aba com entidade (exceto Fluxo de Caixa/Usuários/Dashboard)', async () => {
+    const promise = buildExportWorkbook(injector);
+    for (const url of Object.values(urls)) httpMock.expectOne(url).flush([]);
+
+    const wb = await promise;
+    const firstHeaderCell = (name: string) => wb.Sheets[name]['A1']?.v;
+
+    const sheetsWithId = [
+      'Vendedores',
+      'Produtos',
+      'Vendas',
+      'Produção',
+      'Estoque de Ovos',
+      'Plantel',
+      'Despesas',
+      'Novo Plantel',
+      'Ração',
+      'Ração - Sacos Abertos',
+      'Higienização',
+    ];
+    for (const name of sheetsWithId) {
+      expect(firstHeaderCell(name), `aba "${name}" deveria ter "ID" como 1ª coluna`).toBe('ID');
+    }
+
+    expect(firstHeaderCell('Fluxo de Caixa')).toBe('Data');
+    expect(firstHeaderCell('Usuários')).toBe('Nome');
   });
 });
 
@@ -181,11 +215,12 @@ describe('export -> reimport (ciclo completo)', () => {
   afterEach(() => httpMock.verify());
 
   // Ciclo completo do pedido do usuário: exportar o que já está em LOCAL (com Vendedores e
-  // Produtos cadastrados) e reimportar num ambiente vazio (produção, 0 registros) precisa
-  // recriar os mesmos dados — 1 POST por linha exportada, sem duplicar, e a Venda precisa
-  // resolver Produto/Vendedor pros ids NOVOS criados no ambiente de destino (não os ids
-  // antigos de local, que não existem lá).
-  it('exporta Vendedores/Produtos/Vendas de "local" e reimporta em ambiente vazio sem duplicar, resolvendo os ids novos', async () => {
+  // Produtos cadastrados) e reimportar num ambiente vazio (produção, 0 registros). Como o
+  // export agora inclui "ID" (id real de LOCAL), o import tenta primeiro UPDATE (PUT) por esse
+  // id — que 404 no ambiente vazio (esses ids não existem lá) — e só então cria via POST,
+  // avisando em `warnings` que o id original não foi preservado. A Venda ainda precisa resolver
+  // Produto/Vendedor pros ids NOVOS criados no destino (200/100), não os de local (1/5).
+  it('exporta Vendedores/Produtos/Vendas de "local" e reimporta em ambiente vazio: PUT 404 (id não existe lá) cai pra POST, sem duplicar', async () => {
     const exportPromise = buildExportWorkbook(injector);
 
     httpMock.expectOne(urls.products).flush([
@@ -210,6 +245,7 @@ describe('export -> reimport (ciclo completo)', () => {
     httpMock.expectOne(urls.flockCleanings).flush([]);
 
     const wb = await exportPromise;
+    expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['Produtos'])[0]['ID']).toBe(1);
     const buffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
     const file = new File([buffer], 'export-local.xlsx');
 
@@ -218,6 +254,8 @@ describe('export -> reimport (ciclo completo)', () => {
     const importPromise = importWorkbookFile(injector, file);
 
     (await waitOne(httpMock, urls.products, 'GET')).flush([]);
+    const productPut = await waitOne(httpMock, `${urls.products}/1`, 'PUT');
+    productPut.flush({ message: 'Não encontrado.' }, { status: 404, statusText: 'Not Found' });
     const productPost = await waitOne(httpMock, urls.products, 'POST');
     expect(productPost.request.body).toEqual({
       name: 'Ovo Real', unit: 'dz', unit_price: 15, stock: 10, eggs_per_unit: 12,
@@ -225,6 +263,8 @@ describe('export -> reimport (ciclo completo)', () => {
     productPost.flush({ id: 200, name: 'Ovo Real', unit: 'dz', unit_price: '15.00', stock: 10, eggs_per_unit: 12 });
 
     (await waitOne(httpMock, urls.vendedores, 'GET')).flush([]);
+    const vendedorPut = await waitOne(httpMock, `${urls.vendedores}/5`, 'PUT');
+    vendedorPut.flush({ message: 'Não encontrado.' }, { status: 404, statusText: 'Not Found' });
     const vendedorPost = await waitOne(httpMock, urls.vendedores, 'POST');
     expect(vendedorPost.request.body).toEqual({ name: 'Karol', contact: null, active: true });
     vendedorPost.flush({ id: 100, name: 'Karol', contact: null, active: true });
@@ -236,6 +276,8 @@ describe('export -> reimport (ciclo completo)', () => {
     await settleHttp(httpMock, urls.products, [{ id: 200, name: 'Ovo Real' }]);
     await settleHttp(httpMock, urls.vendedores, [{ id: 100, name: 'Karol' }]);
 
+    const salesPut = await waitOne(httpMock, `${urls.sales}/1`, 'PUT');
+    salesPut.flush({ message: 'Não encontrado.' }, { status: 404, statusText: 'Not Found' });
     const salesPost = await waitOne(httpMock, urls.sales, 'POST');
     expect(salesPost.request.body).toMatchObject({ product_id: 200, seller_id: 100 });
     salesPost.flush({
@@ -267,13 +309,78 @@ describe('export -> reimport (ciclo completo)', () => {
     });
     expect(result.failed).toEqual({});
     expect(result.rowErrors).toEqual([]);
+    expect(result.warnings).toEqual([
+      'Produtos linha 2: ID 1 não encontrado no backend (registro excluído lá?) — recriado como novo registro.',
+      'Vendedores linha 2: ID 5 não encontrado no backend (registro excluído lá?) — recriado como novo registro.',
+      'Vendas linha 2: ID 1 não encontrado no backend (registro excluído lá?) — recriado como novo registro.',
+    ]);
 
-    // Nenhum POST a mais em nenhuma das 3 URLs — 1 linha exportada, 1 POST, sem duplicar.
+    // Nenhum POST a mais em nenhuma das 3 URLs — 1 linha exportada, 1 PUT (404) + 1 POST, sem duplicar.
     httpMock.expectNone({ url: urls.products, method: 'POST' });
     httpMock.expectNone({ url: urls.vendedores, method: 'POST' });
     httpMock.expectNone({ url: urls.sales, method: 'POST' });
   });
+
+  // Complementa o teste acima: se o mesmo arquivo local fosse reimportado NO PRÓPRIO ambiente
+  // local (onde os ids 1/5 realmente existem), o PUT teria sucesso de primeira — update
+  // idempotente, sem POST nenhum. Prova o caminho feliz do "ID" (sem 404/fallback).
+  it('reimporta no MESMO ambiente de origem: PUT direto (id existe), nenhum POST — idempotente', async () => {
+    const file = buildIdFile({
+      Produtos: [
+        { ID: 1, Produto: 'Ovo Real', Unidade: 'dz', 'Preço Unitário': 15, Estoque: 10, 'Ovos por Unidade': 12 },
+      ],
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    (await waitOne(httpMock, urls.products, 'GET')).flush([
+      { id: 1, name: 'Ovo Real', unit: 'dz', unit_price: '15.00', stock: 10, eggs_per_unit: 12 },
+    ]);
+    const productPut = await waitOne(httpMock, `${urls.products}/1`, 'PUT');
+    expect(productPut.request.body).toEqual({ name: 'Ovo Real', unit: 'dz', unit_price: 15, stock: 10, eggs_per_unit: 12 });
+    productPut.flush({ id: 1, name: 'Ovo Real', unit: 'dz', unit_price: '15.00', stock: 10, eggs_per_unit: 12 });
+
+    const result = await promise;
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toEqual({ Produtos: 1 });
+    expect(result.failed).toEqual({});
+    expect(result.rowErrors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    httpMock.expectNone({ url: urls.products, method: 'POST' });
+  });
+
+  // Pedido do usuário: arquivo SEM a coluna "ID" (planilha nova, digitada por fora, ou de uma
+  // versão anterior do app) continua criando normalmente — "ID" nunca é obrigatória.
+  it('reimporta arquivo sem a coluna "ID": continua criando via POST, comportamento de sempre', async () => {
+    const file = buildIdFile({
+      Produtos: [{ Produto: 'Ovo Real', Unidade: 'dz', 'Preço Unitário': 15, Estoque: 10, 'Ovos por Unidade': 12 }],
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    (await waitOne(httpMock, urls.products, 'GET')).flush([]);
+    const productPost = await waitOne(httpMock, urls.products, 'POST');
+    expect(productPost.request.body).toEqual({ name: 'Ovo Real', unit: 'dz', unit_price: 15, stock: 10, eggs_per_unit: 12 });
+    productPost.flush({ id: 1, name: 'Ovo Real', unit: 'dz', unit_price: '15.00', stock: 10, eggs_per_unit: 12 });
+
+    const result = await promise;
+
+    expect(result.success).toBe(true);
+    expect(result.summary).toEqual({ Produtos: 1 });
+    expect(result.warnings).toEqual([]);
+    httpMock.expectNone({ url: `${urls.products}/1`, method: 'PUT' });
+  });
 });
+
+function buildIdFile(sheets: Record<string, Record<string, unknown>[]>): File {
+  const workbook = XLSX.utils.book_new();
+  for (const [name, rows] of Object.entries(sheets)) {
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), name);
+  }
+  const buffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+  return new File([buffer], 'teste.xlsx');
+}
 
 /** Como `expectRequest` de `import.spec.ts` — espera (com retry) até achar exatamente 1 requisição pendente pro método+URL. */
 async function waitOne(httpMock: HttpTestingController, url: string, method: string, maxAttempts = 20) {

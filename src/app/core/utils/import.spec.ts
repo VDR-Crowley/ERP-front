@@ -45,6 +45,9 @@ describe('importWorkbookFile', () => {
   const salesBase = `${environment.apiUrl}/sales`;
   const productsBase = `${environment.apiUrl}/products`;
   const vendedoresBase = `${environment.apiUrl}/vendedores`;
+  const flockIncubationsBase = `${environment.apiUrl}/flock-incubations`;
+  const feedStocksBase = `${environment.apiUrl}/feed-stocks`;
+  const feedOpenLogsBase = `${environment.apiUrl}/feed-open-logs`;
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
@@ -643,5 +646,149 @@ describe('importWorkbookFile', () => {
     expect(result.summary['Produtos']).toBe(1);
     expect(result.summary['Despesas']).toBeUndefined();
     expect(result.rowErrors.some((e) => e.startsWith('Aba "Despesas": erro ao processar'))).toBe(true);
+  });
+
+  // Pedido do usuário: coluna "ID" (id real do backend) faz reimportar virar UPDATE em vez de
+  // CREATE — reimportar o mesmo arquivo várias vezes não duplica nada.
+  describe('coluna "ID" — update idempotente em vez de create', () => {
+    it('"ID" com lixo (não numérico) vira erro de linha, sem chamar PUT nem POST', async () => {
+      const file = buildFile({
+        Produtos: [
+          { ID: 'abc', Produto: 'Ovo Real', Unidade: 'dz', 'Preço Unitário': 15, Estoque: 10, 'Ovos por Unidade': 12 },
+        ],
+      });
+
+      const result = await importWorkbookFile(injector, file);
+
+      expect(result.success).toBe(true);
+      expect(result.summary['Produtos']).toBe(0);
+      expect(result.rowErrors).toEqual(['Produtos linha 2: "ID" inválido (deve ser um número inteiro).']);
+      // Linha inválida nem chega a entrar no loop de `run()` — nenhuma chamada HTTP acontece
+      // (nem o GET que `ctx.productsStore()` dispararia na primeira vez que fosse usado).
+      httpMock.expectNone({ url: productsBase, method: 'GET' });
+      httpMock.expectNone({ url: productsBase, method: 'POST' });
+    });
+
+    // "Ração - Sacos Abertos" não tem `PUT/{id}` (recurso só-leitura por id, ver openapi.yaml) —
+    // "ID" preenchido não pode virar update de verdade. Se o id ainda existe, ignora a linha (não
+    // decrementa estoque de novo); se não existe mais, recria via open-bag normal e avisa.
+    it('Ração - Sacos Abertos: "ID" que ainda existe é ignorado (sem endpoint de update, evita duplicar/decrementar de novo)', async () => {
+      const file = buildFile({
+        'Ração - Sacos Abertos': [{ ID: 9, Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 }],
+      });
+
+      const promise = importWorkbookFile(injector, file);
+
+      (await expectRequest(httpMock, feedOpenLogsBase, 'GET')).flush([{ id: 9, feed_stock_id: 1, feed_type: 'Codorna postura', date: '2026-07-01', weight_kg: '20.00' }]);
+
+      const result = await promise;
+
+      expect(result.success).toBe(true);
+      expect(result.summary['Ração - Sacos Abertos']).toBe(1);
+      expect(result.warnings).toEqual([
+        'Ração - Sacos Abertos linha 2: ID 9 já existe — linha ignorada (não há endpoint de atualização pra "Ração - Sacos Abertos", reimportar recriaria o registro e decrementaria o estoque de novo).',
+      ]);
+      // Nunca chega a resolver o tipo nem abrir saco — a linha é ignorada antes disso.
+      httpMock.expectNone({ url: feedStocksBase, method: 'GET' });
+    });
+
+    it('Ração - Sacos Abertos: "ID" que não existe mais recria via open-bag normal e avisa', async () => {
+      const file = buildFile({
+        'Ração - Sacos Abertos': [{ ID: 9, Data: '01/07/2026', Tipo: 'Codorna postura', 'Peso Aberto (kg)': 20 }],
+      });
+
+      const promise = importWorkbookFile(injector, file);
+
+      (await expectRequest(httpMock, feedOpenLogsBase, 'GET')).flush([]); // id 9 não está mais na lista
+      // `feedStockIdByType()` (resolve "Tipo" -> id) E `feedStockStoreExtended()` (openBag,
+      // construída na 1ª vez que é usada) cada uma dispara SEU PRÓPRIO GET /feed-stocks — 2
+      // requisições distintas pra mesma URL, mesmo padrão de "salesRefs" duplo GET já visto em
+      // Vendas.
+      (await expectRequest(httpMock, feedStocksBase, 'GET')).flush([{ id: 1, type: 'Codorna postura' }]);
+      const openBagReq = await expectRequest(httpMock, `${feedStocksBase}/1/open-bag`, 'POST');
+      (await expectRequest(httpMock, feedStocksBase, 'GET')).flush([
+        { id: 1, type: 'Codorna postura', bags_in_stock: 5, kg_in_stock: '100.00', last_bag_weight_kg: '20.00', expiration_date: null },
+      ]);
+      expect(openBagReq.request.body).toEqual({ date: '2026-07-01', weight_kg: 20 });
+      openBagReq.flush({
+        id: 1, type: 'Codorna postura', bags_in_stock: 4, kg_in_stock: '80.00', last_bag_weight_kg: '20.00', expiration_date: null,
+      });
+
+      const result = await promise;
+
+      expect(result.success).toBe(true);
+      expect(result.summary['Ração - Sacos Abertos']).toBe(1);
+      expect(result.warnings).toEqual([
+        'Ração - Sacos Abertos linha 2: ID 9 não encontrado no backend — recriado como novo registro (decrementa 1 saco do estoque de ração, mesmo efeito de abrir saco novo).',
+      ]);
+    });
+
+    // O par único "Data Eclosão"/"Qtd. Nascida" da planilha sempre reconstrói 1 hatch event com
+    // `crypto.randomUUID()` novo (`migrateLegacyHatchEvents`) — se esse evento sintético fosse
+    // enviado no update, `syncHatchEvents` (adapter) o trataria como nascimento NOVO toda
+    // reimportação, duplicando a cada rodada. `runFlockIncubation` busca os `hatch_events` REAIS
+    // do servidor primeiro e os preserva intactos no update — prova que nenhuma chamada de
+    // `hatch-events` (POST/PUT/DELETE) acontece, só o PUT dos campos de topo.
+    it('Novo Plantel: update com "ID" preserva hatch_events reais do servidor — não duplica nascimento', async () => {
+      const file = buildFile({
+        'Novo Plantel': [
+          {
+            ID: 7,
+            'Data Incubadora': '01/06/2026',
+            Espécie: 'Codorna',
+            'Qtd. Ovos': 50,
+            'Eclosão Prevista': '19/06/2026',
+            'Data Eclosão': '20/06/2026',
+            'Qtd. Nascida': 50,
+            Status: 'eclodido',
+            'Custo Ovos': 25,
+            'Custo Ração': 10,
+            Observações: '',
+          },
+        ],
+      });
+
+      const loteApi = {
+        id: 7,
+        start_date: '2026-06-01',
+        species: 'quail',
+        egg_count: 50,
+        expected_hatch_date: '2026-06-19',
+        status: 'eclodido',
+        egg_cost: '25.00',
+        feed_cost: '10.00',
+        notes: null,
+        hatch_events: [
+          { id: 50, flock_incubation_id: 7, date: '2026-06-19', count: 20, notes: null },
+          { id: 51, flock_incubation_id: 7, date: '2026-06-20', count: 30, notes: null },
+        ],
+      };
+
+      const promise = importWorkbookFile(injector, file);
+
+      // `runFlockIncubation` busca o lote 7 direto primeiro, pra preservar hatch_events.
+      (await expectRequest(httpMock, `${flockIncubationsBase}/7`, 'GET')).flush(loteApi);
+      // Só depois cria a store (GET de lista, `flockIncubationsStore()` memoizado).
+      (await expectRequest(httpMock, flockIncubationsBase, 'GET')).flush([loteApi]);
+
+      const putReq = await expectRequest(httpMock, `${flockIncubationsBase}/7`, 'PUT');
+      expect(putReq.request.body).toMatchObject({ egg_cost: 25, feed_cost: 10, status: 'eclodido' });
+      putReq.flush(loteApi);
+
+      // `update()` do adapter termina com 1 GET pra devolver o estado autoritativo do servidor
+      // (ver comentário em `flock-incubations.adapter.ts`) — 2ª chamada a essa mesma URL.
+      (await expectRequest(httpMock, `${flockIncubationsBase}/7`, 'GET')).flush(loteApi);
+
+      const result = await promise;
+
+      expect(result.success).toBe(true);
+      expect(result.summary['Novo Plantel']).toBe(1);
+      expect(result.rowErrors).toEqual([]);
+      // Nenhuma chamada de hatch-events — os eventos preservados carregam id real do servidor
+      // (`isServerHatchEventId`), `syncHatchEvents` nunca os trata como novos.
+      httpMock.expectNone({ url: `${flockIncubationsBase}/7/hatch-events`, method: 'POST' });
+      httpMock.expectNone({ url: `${flockIncubationsBase}/7/hatch-events/50`, method: 'PUT' });
+      httpMock.expectNone({ url: `${flockIncubationsBase}/7/hatch-events/51`, method: 'PUT' });
+    });
   });
 });

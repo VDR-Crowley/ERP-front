@@ -34,18 +34,31 @@ export interface ImportResult {
   success: boolean;
   /** Mensagens bloqueantes (ver `success`) — quando populado, nada foi importado. */
   errors: string[];
-  /** Aba -> quantidade de linhas importadas com sucesso. */
+  /** Aba -> quantidade de linhas importadas com sucesso (create OU update, ver `warnings`). */
   summary: Record<string, number>;
   /** Aba -> quantidade de linhas que falharam (validação ou API). Só entra aqui se > 0. */
   failed: Record<string, number>;
   /** Uma mensagem por linha que falhou (validação de planilha ou erro 422 da API), pra exibir ao usuário. */
   rowErrors: string[];
+  /**
+   * Uma mensagem por linha que teve sucesso mas com uma decisão que vale avisar (ex.: "ID" da
+   * planilha não existe mais no backend, recriado como novo registro) — não é falha, `summary`
+   * já conta a linha como importada, mas o usuário deve saber que o id original não foi mantido.
+   */
+  warnings: string[];
 }
 
 /** Item de planilha já validado, com o número da linha original (pra reportar erro de API por linha). */
 interface RowItem<T> {
   row: number;
   item: T;
+  /**
+   * Id real do registro no backend, quando a coluna "ID" (só existe em arquivo exportado por
+   * essa versão do app) vem preenchida — usado pra reimportar como UPDATE em vez de CREATE (ver
+   * `upsert`/`IMPORTERS`). Ausente = linha nova (planilha digitada à mão, ou de uma versão sem
+   * essa coluna) — comportamento de sempre, cria via POST.
+   */
+  id?: string;
 }
 
 const SHEET_NAMES = {
@@ -92,6 +105,10 @@ interface ImportContext {
   flockCleaningsStore: () => ReturnType<typeof createFlockCleaningsStore>;
   /** "Tipo" (Ração) -> id do `feed_stock`, resolvido uma única vez pra aba Ração-Sacos Abertos. */
   feedStockIdByType: () => Promise<Map<string, number>>;
+  /** `HttpClient` cru, pra chamadas que nenhum adapter cobre (GET de 1 `flock-incubation` pra preservar `hatchEvents` num update, listar ids de `feed-open-logs`). */
+  httpClient: () => HttpClient;
+  /** Ids (como string) hoje existentes em `feed-open-logs` — memoizado, 1 GET pro import inteiro. Usado só quando uma linha de "Ração - Sacos Abertos" vem com "ID" preenchido (não existe endpoint de update pra esse recurso, ver `runFeedOpenLog`). */
+  feedOpenLogIds: () => Promise<Set<string>>;
 }
 
 /** Memoiza uma factory síncrona: só chama `factory()` na primeira leitura. */
@@ -123,6 +140,11 @@ async function fetchFeedStockIdByType(http: HttpClient): Promise<Map<string, num
   return map;
 }
 
+async function fetchFeedOpenLogIds(http: HttpClient): Promise<Set<string>> {
+  const list = await firstValueFrom(http.get<{ id: number }[]>(`${environment.apiUrl}/feed-open-logs`));
+  return new Set(list.map((item) => String(item.id)));
+}
+
 function createImportContext(injector: Injector): ImportContext {
   const run = <T,>(factory: () => T): T => runInInjectionContext(injector, factory);
   const http = memo(() => run(() => inject(HttpClient)));
@@ -145,6 +167,8 @@ function createImportContext(injector: Injector): ImportContext {
     feedStockStoreExtended: memo(() => run(() => createFeedStockStoreExtended())),
     flockCleaningsStore: memo(() => run(() => createFlockCleaningsStore())),
     feedStockIdByType: memoAsync(() => fetchFeedStockIdByType(http())),
+    httpClient: http,
+    feedOpenLogIds: memoAsync(() => fetchFeedOpenLogIds(http())),
   };
 }
 
@@ -184,6 +208,11 @@ export function describeImportError(e: unknown): string {
   return 'Erro desconhecido ao salvar.';
 }
 
+/** true quando `e` é um 404 real da API — usado pra decidir "id da planilha não existe mais no backend" (ver `upsert`). */
+function isNotFound(e: unknown): boolean {
+  return e instanceof HttpErrorResponse && e.status === 404;
+}
+
 /** Reporta progresso linha a linha durante o import — só pra feedback visual (ver `ImportProgress` no modal), não afeta o resultado. */
 export interface ImportProgress {
   label: string;
@@ -196,15 +225,31 @@ interface EntityImporter {
   process(
     ws: XLSX.WorkSheet,
     rowErrors: string[],
+    warnings: string[],
     ctx: ImportContext,
     onProgress?: (progress: ImportProgress) => void,
   ): Promise<{ imported: number; failed: number } | undefined>;
 }
 
 /**
+ * `run` recebe, além do item já validado, o `id` da coluna "ID" (se a linha tinha um — ver
+ * `RowItem`), o número da linha (pra mensagem de `warnings`) e o array de `warnings` da aba
+ * inteira. A maioria dos `run` usa só `item`/`ctx` (create simples, ex. Fluxo de Caixa/Usuários,
+ * que não suportam "ID" — ver `IMPORTERS`) — TS permite omitir os parâmetros finais que não são
+ * usados.
+ */
+type RunFn<T> = (
+  item: T,
+  ctx: ImportContext,
+  id: string | undefined,
+  row: number,
+  warnings: string[],
+) => Promise<void>;
+
+/**
  * Uma linha que falha (validação de planilha OU erro 422 da API, ex.: nome de
  * Produto/Vendedor não encontrado) vira 1 entrada em `rowErrors` e NÃO trava as
- * demais linhas — cada linha é `add()`ada e tratada isoladamente. Retorna
+ * demais linhas — cada linha é `add()`ada/`update()`ada e tratada isoladamente. Retorna
  * `undefined` quando a aba nem pôde ser lida — coluna obrigatória faltando, OU
  * `parse()` lançou uma exceção inesperada (célula com formato que os helpers de
  * `toNumber`/`parseDate`/etc não previram) — nesse caso a aba inteira é pulada,
@@ -217,11 +262,11 @@ interface EntityImporter {
 function makeImporter<T>(
   label: string,
   parse: (ws: XLSX.WorkSheet, rowErrors: string[]) => RowItem<T>[] | undefined,
-  run: (item: T, ctx: ImportContext) => Promise<void>,
+  run: RunFn<T>,
 ): EntityImporter {
   return {
     label,
-    async process(ws, rowErrors, ctx, onProgress) {
+    async process(ws, rowErrors, warnings, ctx, onProgress) {
       let rows: RowItem<T>[] | undefined;
       try {
         rows = parse(ws, rowErrors);
@@ -235,9 +280,9 @@ function makeImporter<T>(
       let failed = 0;
       const total = rows.length;
       let done = 0;
-      for (const { row, item } of rows) {
+      for (const { row, item, id } of rows) {
         try {
-          await run(item, ctx);
+          await run(item, ctx, id, row, warnings);
           imported++;
         } catch (e) {
           failed++;
@@ -251,6 +296,63 @@ function makeImporter<T>(
   };
 }
 
+/**
+ * Store mínimo que `upsert` precisa — qualquer `EntityStore<T>` real (products, vendedores,
+ * flock, daily-productions, egg-stocks, expenses, feed-stocks simples, flock-cleanings) satisfaz
+ * essa forma estrutural, mesmo tendo mais membros (`items`, `reload`, `remove`).
+ */
+interface UpsertableStore<T> {
+  add(item: T): Promise<void>;
+  update(id: string, item: T): Promise<void>;
+}
+
+/**
+ * Reimportar uma linha com "ID" preenchido vira UPDATE idempotente em vez de CREATE — reimportar
+ * o mesmo arquivo várias vezes não duplica nada, cada linha só sobrescreve o registro que já
+ * criou da primeira vez. Sem "ID" (planilha nova/editada à mão), cria normal — comportamento de
+ * sempre.
+ *
+ * Se o PUT devolve 404 (id da planilha não existe mais no backend — foi apagado por lá desde o
+ * export), recria como novo registro (POST, sem id, deixando o backend gerar outro) em vez de
+ * falhar a linha: o dado acaba existindo de qualquer jeito. `warnings` registra que o id original
+ * não foi preservado, pro usuário saber (não é silencioso, mas também não trava a importação).
+ */
+async function upsert<T>(
+  id: string | undefined,
+  item: T,
+  store: UpsertableStore<T>,
+  label: string,
+  row: number,
+  warnings: string[],
+): Promise<void> {
+  if (id === undefined) {
+    await store.add(item);
+    return;
+  }
+  try {
+    await store.update(id, item);
+  } catch (e) {
+    if (!isNotFound(e)) throw e;
+    warnings.push(`${label} linha ${row}: ID ${id} não encontrado no backend (registro excluído lá?) — recriado como novo registro.`);
+    await store.add(item);
+  }
+}
+
+async function runSales(item: Venda, ctx: ImportContext, id: string | undefined, row: number, warnings: string[]): Promise<void> {
+  const refs = await ctx.salesRefs();
+  if (id === undefined) {
+    await ctx.salesStore().add(item, refs);
+    return;
+  }
+  try {
+    await ctx.salesStore().update(id, item, refs);
+  } catch (e) {
+    if (!isNotFound(e)) throw e;
+    warnings.push(`${SHEET_NAMES.sales} linha ${row}: ID ${id} não encontrado no backend (registro excluído lá?) — recriado como novo registro.`);
+    await ctx.salesStore().add(item, refs);
+  }
+}
+
 async function runUser(item: User, ctx: ImportContext): Promise<void> {
   await ctx.usersStore().add({
     name: item.name,
@@ -261,6 +363,49 @@ async function runUser(item: User, ctx: ImportContext): Promise<void> {
   });
 }
 
+/** Forma crua do `GET /flock-incubations/{id}` — só o necessário pra preservar `hatch_events` num update (ver `runFlockIncubation`). */
+interface FlockIncubationHatchEventsApi {
+  hatch_events: { id: number; date: string; count: number; notes: string | null }[];
+}
+
+/**
+ * "Novo Plantel" com "ID" preenchido também vira update, mas não pode reusar o `upsert` genérico:
+ * o par único "Data Eclosão"/"Qtd. Nascida" da planilha é sempre reconstruído com um evento novo
+ * (`migrateLegacyHatchEvents`, `id: crypto.randomUUID()`), e `syncHatchEvents`
+ * (`flock-incubations.adapter.ts`) NUNCA bate esse uuid com um evento já existente no servidor —
+ * trataria como nascimento novo TODA reimportação, duplicando a cada rodada. Por isso, busca os
+ * `hatch_events` REAIS do servidor antes do update e os mantém intactos (sync vira no-op); só os
+ * campos de topo (espécie, contagem de ovos, status, custos, observações) refletem a planilha —
+ * mesma perda de granularidade já assumida no export (ver `consolidateHatchEvents`, `export.ts`).
+ */
+async function runFlockIncubation(
+  item: NovoLotePlantel,
+  ctx: ImportContext,
+  id: string | undefined,
+  row: number,
+  warnings: string[],
+): Promise<void> {
+  if (id === undefined) {
+    await ctx.flockIncubationsStore().add(item);
+    return;
+  }
+  const base = `${environment.apiUrl}/flock-incubations`;
+  try {
+    const current = await firstValueFrom(ctx.httpClient().get<FlockIncubationHatchEventsApi>(`${base}/${id}`));
+    const preservedHatchEvents = current.hatch_events.map((e) => ({
+      id: String(e.id),
+      date: e.date,
+      count: e.count,
+      notes: e.notes ?? undefined,
+    }));
+    await ctx.flockIncubationsStore().update(id, { ...item, hatchEvents: preservedHatchEvents });
+  } catch (e) {
+    if (!isNotFound(e)) throw e;
+    warnings.push(`${SHEET_NAMES.flockIncubation} linha ${row}: ID ${id} não encontrado no backend (registro excluído lá?) — recriado como novo registro.`);
+    await ctx.flockIncubationsStore().add(item);
+  }
+}
+
 /**
  * Não existe `POST /feed-open-logs` direto — o backend só registra abertura de
  * saco via `POST /feed-stocks/{id}/open-bag` (ver `feed-stocks.adapter.ts`), que
@@ -268,14 +413,39 @@ async function runUser(item: User, ctx: ImportContext): Promise<void> {
  * pela tela de Controle de Ração. Resolve o `feed_stock` pelo "Tipo" da linha
  * (mesmo padrão de rejeição de `resolveIdByName`: nome não encontrado = linha
  * rejeitada, nunca cria tipo novo).
+ *
+ * Também não existe `PUT /feed-open-logs/{id}` (recurso só-leitura por id, ver openapi.yaml) —
+ * "ID" preenchido não pode virar update de verdade. Se o id ainda existe na lista atual (GET
+ * memoizado em `feedOpenLogIds`), a linha é IGNORADA (o log já existe, recriar duplicaria o
+ * registro E decrementaria o estoque de novo); se não existe mais, recria como novo (mesmo
+ * efeito colateral de abrir um saco novo) e avisa em `warnings` nos dois casos.
  */
-async function runFeedOpenLog(item: FeedOpenLog, ctx: ImportContext): Promise<void> {
+async function runFeedOpenLog(
+  item: FeedOpenLog,
+  ctx: ImportContext,
+  id: string | undefined,
+  row: number,
+  warnings: string[],
+): Promise<void> {
+  if (id !== undefined) {
+    const existingIds = await ctx.feedOpenLogIds();
+    if (existingIds.has(id)) {
+      warnings.push(
+        `${SHEET_NAMES.feedOpenLog} linha ${row}: ID ${id} já existe — linha ignorada (não há endpoint de atualização pra "${SHEET_NAMES.feedOpenLog}", reimportar recriaria o registro e decrementaria o estoque de novo).`,
+      );
+      return;
+    }
+    warnings.push(
+      `${SHEET_NAMES.feedOpenLog} linha ${row}: ID ${id} não encontrado no backend — recriado como novo registro (decrementa 1 saco do estoque de ração, mesmo efeito de abrir saco novo).`,
+    );
+  }
+
   const idByType = await ctx.feedStockIdByType();
-  const id = idByType.get(item.feedType);
-  if (id === undefined) {
+  const feedStockId = idByType.get(item.feedType);
+  if (feedStockId === undefined) {
     throw new Error(`Tipo de ração "${item.feedType}" não encontrado — cadastre o tipo em Controle de Ração antes de importar.`);
   }
-  await ctx.feedStockStoreExtended().openBag(String(id), { date: item.date, weightKg: item.weightKg });
+  await ctx.feedStockStoreExtended().openBag(String(feedStockId), { date: item.date, weightKg: item.weightKg });
 }
 
 /**
@@ -295,24 +465,44 @@ async function runFeedOpenLog(item: FeedOpenLog, ctx: ImportContext): Promise<vo
  * backend (`flock`, `flock_incubations`, `daily_productions`, `egg_stocks`, `expenses`,
  * `cash_flows`, `flock_cleanings` não têm `foreignId`/`constrained` uns pros outros) — por isso
  * a ordem delas é livre.
+ *
+ * "ID" (update-vs-create, ver `upsert`) é ortogonal a essa ordem: não introduz nenhuma
+ * dependência nova entre abas, só muda o método HTTP (PUT em vez de POST) por linha.
  */
 const IMPORTERS: EntityImporter[] = [
-  makeImporter(SHEET_NAMES.products, parseProducts, (item, ctx) => ctx.productsStore().add(item)),
-  makeImporter(SHEET_NAMES.vendedores, parseVendedores, (item, ctx) => ctx.vendedoresStore().add(item)),
-  makeImporter(SHEET_NAMES.sales, parseSales, async (item, ctx) => ctx.salesStore().add(item, await ctx.salesRefs())),
-  makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx) => ctx.dailyProductionsStore().add(item)),
-  makeImporter(SHEET_NAMES.eggStock, parseEggStock, (item, ctx) => ctx.eggStocksStore().add(item)),
-  makeImporter(SHEET_NAMES.flock, parseFlock, (item, ctx) => ctx.flockStore().add(item)),
-  makeImporter(SHEET_NAMES.expenses, parseExpenses, (item, ctx) => ctx.expensesStore().add(item)),
+  makeImporter(SHEET_NAMES.products, parseProducts, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.productsStore(), SHEET_NAMES.products, row, warnings),
+  ),
+  makeImporter(SHEET_NAMES.vendedores, parseVendedores, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.vendedoresStore(), SHEET_NAMES.vendedores, row, warnings),
+  ),
+  makeImporter(SHEET_NAMES.sales, parseSales, runSales),
+  makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.dailyProductionsStore(), SHEET_NAMES.dailyProduction, row, warnings),
+  ),
+  makeImporter(SHEET_NAMES.eggStock, parseEggStock, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.eggStocksStore(), SHEET_NAMES.eggStock, row, warnings),
+  ),
+  makeImporter(SHEET_NAMES.flock, parseFlock, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.flockStore(), SHEET_NAMES.flock, row, warnings),
+  ),
+  makeImporter(SHEET_NAMES.expenses, parseExpenses, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.expensesStore(), SHEET_NAMES.expenses, row, warnings),
+  ),
+  // Fluxo de Caixa e Usuários não ganharam coluna "ID" (fora do pedido original) — sempre create.
   makeImporter(SHEET_NAMES.cashFlow, parseCashFlow, (item, ctx) => ctx.cashFlowsStore().add(item)),
-  makeImporter(SHEET_NAMES.users, parseUsers, runUser),
-  makeImporter(SHEET_NAMES.flockIncubation, parseFlockIncubation, (item, ctx) => ctx.flockIncubationsStore().add(item)),
-  makeImporter(SHEET_NAMES.feedStock, parseFeedStock, (item, ctx) => ctx.feedStockStore().add(item)),
+  makeImporter(SHEET_NAMES.users, parseUsers, (item, ctx) => runUser(item, ctx)),
+  makeImporter(SHEET_NAMES.flockIncubation, parseFlockIncubation, runFlockIncubation),
+  makeImporter(SHEET_NAMES.feedStock, parseFeedStock, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.feedStockStore(), SHEET_NAMES.feedStock, row, warnings),
+  ),
   makeImporter(SHEET_NAMES.feedOpenLog, parseFeedOpenLog, runFeedOpenLog),
-  makeImporter(SHEET_NAMES.flockCleaning, parseFlockCleaning, (item, ctx) => ctx.flockCleaningsStore().add(item)),
+  makeImporter(SHEET_NAMES.flockCleaning, parseFlockCleaning, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.flockCleaningsStore(), SHEET_NAMES.flockCleaning, row, warnings),
+  ),
 ];
 
-/** Lê o arquivo e cria, via API, cada linha válida nas 13 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
+/** Lê o arquivo e cria/atualiza, via API, cada linha válida nas 13 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
 export async function importWorkbookFile(
   injector: Injector,
   file: File,
@@ -324,7 +514,7 @@ export async function importWorkbookFile(
   try {
     workbook = XLSX.read(buffer, { type: 'array' });
   } catch {
-    return { success: false, errors: ['Arquivo inválido ou corrompido.'], summary: {}, failed: {}, rowErrors: [] };
+    return { success: false, errors: ['Arquivo inválido ou corrompido.'], summary: {}, failed: {}, rowErrors: [], warnings: [] };
   }
 
   const present = IMPORTERS.filter((imp) => getSheet(workbook, imp.label) !== null);
@@ -335,23 +525,25 @@ export async function importWorkbookFile(
       summary: {},
       failed: {},
       rowErrors: [],
+      warnings: [],
     };
   }
 
   const ctx = createImportContext(injector);
   const rowErrors: string[] = [];
+  const warnings: string[] = [];
   const summary: Record<string, number> = {};
   const failed: Record<string, number> = {};
 
   for (const importer of present) {
     const ws = getSheet(workbook, importer.label)!;
-    const result = await importer.process(ws, rowErrors, ctx, onProgress);
+    const result = await importer.process(ws, rowErrors, warnings, ctx, onProgress);
     if (result === undefined) continue; // coluna obrigatória faltando — mensagem já em rowErrors, aba inteira pulada
     summary[importer.label] = result.imported;
     if (result.failed > 0) failed[importer.label] = result.failed;
   }
 
-  return { success: true, errors: [], summary, failed, rowErrors };
+  return { success: true, errors: [], summary, failed, rowErrors, warnings };
 }
 
 function getSheet(wb: XLSX.WorkBook, name: string): XLSX.WorkSheet | null {
@@ -462,6 +654,20 @@ function toRequiredString(value: unknown): string {
   return String(value ?? '').trim();
 }
 
+/**
+ * "ID" (coluna opcional — só existe em arquivo exportado por essa versão do app, primeira
+ * coluna de cada aba com entidade, ver `export.ts`) — quando preenchida, é o id real do
+ * registro no backend, usado pra reimportar como UPDATE em vez de CREATE (ver
+ * `upsert`/`IMPORTERS`). `null` = coluna vazia ou ausente (linha nova — cria normal). `undefined`
+ * = valor presente mas não-numérico (planilha editada à mão com lixo na coluna) — vira erro de
+ * linha, mesmo padrão dos outros campos obrigatórios/validados.
+ */
+function parseId(value: unknown): string | null | undefined {
+  const trimmed = toRequiredString(value);
+  if (trimmed === '') return null;
+  return /^\d+$/.test(trimmed) ? trimmed : undefined;
+}
+
 const rowRef = (rowIndex: number) => rowIndex + 2;
 
 function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | undefined {
@@ -484,6 +690,7 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | un
   const result: RowItem<Venda>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const date = parseDate(row['Data']);
     const quantity = toNumber(row['Quantidade']);
     const unitPrice = toNumber(row['Preço Unitário']);
@@ -495,6 +702,7 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | un
     const deliveryRaw = toRequiredString(row['Status da entrega']).toUpperCase();
     const deliveryDate = parseDate(row['Data da Entrega']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
     if (!product) errors.push(`${label} linha ${r}: "Produto" vazio.`);
     if (quantity === undefined) errors.push(`${label} linha ${r}: "Quantidade" inválida.`);
@@ -512,9 +720,17 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | un
       errors.push(`${label} linha ${r}: "Data da Entrega" em formato inválido.`);
     }
 
-    if (date && product && quantity !== undefined && unitPrice !== undefined && total !== undefined) {
+    if (
+      idRaw !== undefined &&
+      date &&
+      product &&
+      quantity !== undefined &&
+      unitPrice !== undefined &&
+      total !== undefined
+    ) {
       result.push({
         row: r,
+        id: idRaw ?? undefined,
         item: {
           date,
           product,
@@ -542,16 +758,22 @@ function parseDailyProduction(ws: XLSX.WorkSheet, errors: string[]): RowItem<Pro
   const result: RowItem<ProducaoDiaria>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const date = parseDate(row['Data']);
     const quailEggs = toOptionalNumber(row['Ovos Codorna']);
     const chickenEggs = toOptionalNumber(row['Ovos Galinha']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
     if (quailEggs === undefined) errors.push(`${label} linha ${r}: "Ovos Codorna" inválido.`);
     if (chickenEggs === undefined) errors.push(`${label} linha ${r}: "Ovos Galinha" inválido.`);
 
-    if (date) {
-      result.push({ row: r, item: { date, quailEggs: quailEggs ?? null, chickenEggs: chickenEggs ?? null } });
+    if (idRaw !== undefined && date) {
+      result.push({
+        row: r,
+        id: idRaw ?? undefined,
+        item: { date, quailEggs: quailEggs ?? null, chickenEggs: chickenEggs ?? null },
+      });
     }
   });
   return result;
@@ -575,6 +797,7 @@ function parseEggStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<EstoqueOvo
   const result: RowItem<EstoqueOvos>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const date = parseDate(row['Data']);
     const quailEggs = toOptionalNumber(row['Ovos Codorna']);
     const chickenEggs = toOptionalNumber(row['Ovos Galinha']);
@@ -583,11 +806,13 @@ function parseEggStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<EstoqueOvo
     const quailStockValue = toNumber(row['Valor Estoque Codorna']);
     const chickenStockValue = toNumber(row['Valor Estoque Galinha']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
 
-    if (date) {
+    if (idRaw !== undefined && date) {
       result.push({
         row: r,
+        id: idRaw ?? undefined,
         item: {
           date,
           quailEggs: quailEggs ?? null,
@@ -613,12 +838,14 @@ function parseFlock(ws: XLSX.WorkSheet, errors: string[]): RowItem<Plantel>[] | 
   const result: RowItem<Plantel>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const species = toRequiredString(row['Espécie']);
     const quantity = toNumber(row['Quantidade']);
     const feedBagsPerMonth = toNumber(row['Sacos Ração/Mês']);
     const bagPrice = toNumber(row['Preço Saco']);
     const monthlyTotal = toNumber(row['Total Mês']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!species) errors.push(`${label} linha ${r}: "Espécie" vazia.`);
     if (quantity === undefined) errors.push(`${label} linha ${r}: "Quantidade" inválida.`);
     if (feedBagsPerMonth === undefined) errors.push(`${label} linha ${r}: "Sacos Ração/Mês" inválido.`);
@@ -626,13 +853,14 @@ function parseFlock(ws: XLSX.WorkSheet, errors: string[]): RowItem<Plantel>[] | 
     if (monthlyTotal === undefined) errors.push(`${label} linha ${r}: "Total Mês" inválido.`);
 
     if (
+      idRaw !== undefined &&
       species &&
       quantity !== undefined &&
       feedBagsPerMonth !== undefined &&
       bagPrice !== undefined &&
       monthlyTotal !== undefined
     ) {
-      result.push({ row: r, item: { species, quantity, feedBagsPerMonth, bagPrice, monthlyTotal } });
+      result.push({ row: r, id: idRaw ?? undefined, item: { species, quantity, feedBagsPerMonth, bagPrice, monthlyTotal } });
     }
   });
   return result;
@@ -648,20 +876,22 @@ function parseProducts(ws: XLSX.WorkSheet, errors: string[]): RowItem<Product>[]
   const result: RowItem<Product>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const name = toRequiredString(row['Produto']);
     const unit = toRequiredString(row['Unidade']);
     const unitPrice = toNumber(row['Preço Unitário']);
     const stock = toNumber(row['Estoque']);
     const eggsPerUnit = toNumber(row['Ovos por Unidade']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!name) errors.push(`${label} linha ${r}: "Produto" vazio.`);
     if (!unit) errors.push(`${label} linha ${r}: "Unidade" vazia.`);
     if (unitPrice === undefined) errors.push(`${label} linha ${r}: "Preço Unitário" inválido.`);
     if (stock === undefined) errors.push(`${label} linha ${r}: "Estoque" inválido.`);
     if (eggsPerUnit === undefined) errors.push(`${label} linha ${r}: "Ovos por Unidade" inválido.`);
 
-    if (name && unit && unitPrice !== undefined && stock !== undefined && eggsPerUnit !== undefined) {
-      result.push({ row: r, item: { name, unit, unitPrice, stock, eggsPerUnit } });
+    if (idRaw !== undefined && name && unit && unitPrice !== undefined && stock !== undefined && eggsPerUnit !== undefined) {
+      result.push({ row: r, id: idRaw ?? undefined, item: { name, unit, unitPrice, stock, eggsPerUnit } });
     }
   });
   return result;
@@ -677,6 +907,7 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
   const result: RowItem<Expense>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const date = parseDate(row['Data']);
     const description = toRequiredString(row['Descrição']);
     const category = toRequiredString(row['Categoria']);
@@ -686,6 +917,7 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
     const paidRaw = toRequiredString(row['Pago']);
     const paidNorm = paidRaw.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
     if (!description) errors.push(`${label} linha ${r}: "Descrição" vazia.`);
     if (!category) errors.push(`${label} linha ${r}: "Categoria" vazia.`);
@@ -697,6 +929,7 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
     }
 
     if (
+      idRaw !== undefined &&
       date &&
       description &&
       category &&
@@ -710,6 +943,7 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
           : amount;
       result.push({
         row: r,
+        id: idRaw ?? undefined,
         item: {
           date,
           description,
@@ -789,18 +1023,20 @@ function parseVendedores(ws: XLSX.WorkSheet, errors: string[]): RowItem<Vendedor
   const result: RowItem<Vendedor>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const name = toRequiredString(row['Nome']);
     const contact = toRequiredString(row['Contato']);
     const ativoRaw = toRequiredString(row['Ativo']);
     const ativoNorm = ativoRaw.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!name) errors.push(`${label} linha ${r}: "Nome" vazio.`);
     if (ativoNorm !== 'sim' && ativoNorm !== 'nao') {
       errors.push(`${label} linha ${r}: "Ativo" deve ser Sim ou Não (veio "${row['Ativo']}").`);
     }
 
-    if (name && (ativoNorm === 'sim' || ativoNorm === 'nao')) {
-      result.push({ row: r, item: { name, contact, active: ativoNorm === 'sim' } });
+    if (idRaw !== undefined && name && (ativoNorm === 'sim' || ativoNorm === 'nao')) {
+      result.push({ row: r, id: idRaw ?? undefined, item: { name, contact, active: ativoNorm === 'sim' } });
     }
   });
   return result;
@@ -837,6 +1073,7 @@ function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): RowItem<Nov
   const result: RowItem<NovoLotePlantel>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const startDate = parseDate(row['Data Incubadora']);
     const species = parseSpecies(row['Espécie']);
     const eggCount = toNumber(row['Qtd. Ovos']);
@@ -848,6 +1085,7 @@ function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): RowItem<Nov
     const feedCost = toOptionalNumber(row['Custo Ração']);
     const notes = toRequiredString(row['Observações']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!startDate) errors.push(`${label} linha ${r}: "Data Incubadora" inválida ou vazia.`);
     if (!species) errors.push(`${label} linha ${r}: "Espécie" deve ser Codorna ou Galinha (veio "${row['Espécie']}").`);
     if (eggCount === undefined) errors.push(`${label} linha ${r}: "Qtd. Ovos" inválido.`);
@@ -861,6 +1099,7 @@ function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): RowItem<Nov
     if (feedCost === undefined) errors.push(`${label} linha ${r}: "Custo Ração" inválido.`);
 
     if (
+      idRaw !== undefined &&
       startDate &&
       species &&
       eggCount !== undefined &&
@@ -873,6 +1112,7 @@ function parseFlockIncubation(ws: XLSX.WorkSheet, errors: string[]): RowItem<Nov
     ) {
       result.push({
         row: r,
+        id: idRaw ?? undefined,
         item: {
           startDate,
           species,
@@ -900,12 +1140,14 @@ function parseFeedStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<FeedStock
   const result: RowItem<FeedStock>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const type = toRequiredString(row['Tipo']);
     const bagsInStock = toNumber(row['Sacos em Estoque']);
     const kgInStock = toNumber(row['Kg em Estoque']);
     const lastBagWeightKg = toNumber(row['Peso do Saco']);
     const expirationDate = parseDate(row['Validade']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!type) errors.push(`${label} linha ${r}: "Tipo" vazio.`);
     if (bagsInStock === undefined) errors.push(`${label} linha ${r}: "Sacos em Estoque" inválido.`);
     if (kgInStock === undefined) errors.push(`${label} linha ${r}: "Kg em Estoque" inválido.`);
@@ -913,13 +1155,14 @@ function parseFeedStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<FeedStock
     if (expirationDate === undefined) errors.push(`${label} linha ${r}: "Validade" em formato inválido.`);
 
     if (
+      idRaw !== undefined &&
       type &&
       bagsInStock !== undefined &&
       kgInStock !== undefined &&
       lastBagWeightKg !== undefined &&
       expirationDate !== undefined
     ) {
-      result.push({ row: r, item: { type, bagsInStock, kgInStock, lastBagWeightKg, expirationDate } });
+      result.push({ row: r, id: idRaw ?? undefined, item: { type, bagsInStock, kgInStock, lastBagWeightKg, expirationDate } });
     }
   });
   return result;
@@ -947,11 +1190,13 @@ function parseFlockCleaning(ws: XLSX.WorkSheet, errors: string[]): RowItem<Flock
   const result: RowItem<FlockCleaning>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const date = parseDate(row['Data']);
     const species = parseSpecies(row['Espécie']);
     const cleaningType = parseCleaningType(row['Tipo']);
     const notes = toRequiredString(row['Observações']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
     if (!species) errors.push(`${label} linha ${r}: "Espécie" deve ser Codorna ou Galinha (veio "${row['Espécie']}").`);
     if (!cleaningType) {
@@ -972,8 +1217,8 @@ function parseFlockCleaning(ws: XLSX.WorkSheet, errors: string[]): RowItem<Flock
       (cleaningType === 'tray' && species === 'quail') ||
       (cleaningType === 'nest' && species === 'chicken');
 
-    if (date && species && cleaningType && compatible) {
-      result.push({ row: r, item: { date, species, cleaningType, ...(notes ? { notes } : {}) } });
+    if (idRaw !== undefined && date && species && cleaningType && compatible) {
+      result.push({ row: r, id: idRaw ?? undefined, item: { date, species, cleaningType, ...(notes ? { notes } : {}) } });
     }
   });
   return result;
@@ -989,16 +1234,18 @@ function parseFeedOpenLog(ws: XLSX.WorkSheet, errors: string[]): RowItem<FeedOpe
   const result: RowItem<FeedOpenLog>[] = [];
   rows.forEach((row, i) => {
     const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
     const date = parseDate(row['Data']);
     const feedType = toRequiredString(row['Tipo']);
     const weightKg = toNumber(row['Peso Aberto (kg)']);
 
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
     if (!date) errors.push(`${label} linha ${r}: "Data" inválida ou vazia.`);
     if (!feedType) errors.push(`${label} linha ${r}: "Tipo" vazio.`);
     if (weightKg === undefined) errors.push(`${label} linha ${r}: "Peso Aberto (kg)" inválido.`);
 
-    if (date && feedType && weightKg !== undefined) {
-      result.push({ row: r, item: { feedType, date, weightKg } });
+    if (idRaw !== undefined && date && feedType && weightKg !== undefined) {
+      result.push({ row: r, id: idRaw ?? undefined, item: { feedType, date, weightKg } });
     }
   });
   return result;

@@ -82,6 +82,15 @@ function consolidateHatchEvents(events: HatchEventApi[]): { date: string; count:
  * branco. Reimportar essa aba especificamente vai falhar linha a linha com "Senha vazia"
  * (`parseUsers` em `import.ts`) — comportamento esperado e não escondido: usuário precisa ser
  * recriado manualmente (ou com senha provisória) no ambiente de destino.
+ *
+ * "ID" (1ª coluna, todas as abas com entidade EXCETO Fluxo de Caixa/Usuários/Dashboard) é o id
+ * real do registro no backend — reimportar uma linha com essa coluna preenchida vira UPDATE
+ * idempotente em vez de CREATE (`upsert` em `import.ts`), então rodar export→reimport quantas
+ * vezes quiser não duplica nada a partir da 2ª rodada em diante. Heurística de campos de negócio
+ * (constraint única do backend) só protege contra duplicata na 1ª importação, quando ainda não
+ * existe "ID" — duas vendas legitimamente diferentes que coincidam em todos os campos (raro, mas
+ * possível) não são bloqueadas incorretamente numa reimportação subsequente, porque a 2ª vez em
+ * diante vai por id, não por heurística.
  */
 export async function buildExportWorkbook(injector: Injector): Promise<XLSX.WorkBook> {
   const http = runInInjectionContext(injector, () => inject(HttpClient));
@@ -137,16 +146,17 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   // PROCESSAMENTO de fato é a de `IMPORTERS` em import.ts, não a das abas no arquivo) — banco
   // de produção nunca teve vendedor cadastrado (planilha de negócio original só tinha a coluna
   // solta "Vendedor" dentro de Vendas, sem aba própria).
-  const vendedoresHeader = ['Nome', 'Contato', 'Ativo'];
+  const vendedoresHeader = ['ID', 'Nome', 'Contato', 'Ativo'];
   const vendedoresSheet = XLSX.utils.json_to_sheet(
-    vendedoresApi.map((v) => ({ Nome: v.name, Contato: v.contact ?? '', Ativo: v.active ? 'Sim' : 'Não' })),
+    vendedoresApi.map((v) => ({ ID: v.id, Nome: v.name, Contato: v.contact ?? '', Ativo: v.active ? 'Sim' : 'Não' })),
     { header: vendedoresHeader },
   );
   XLSX.utils.book_append_sheet(wb, vendedoresSheet, 'Vendedores');
 
-  const produtosHeader = ['Produto', 'Unidade', 'Preço Unitário', 'Estoque', 'Ovos por Unidade'];
+  const produtosHeader = ['ID', 'Produto', 'Unidade', 'Preço Unitário', 'Estoque', 'Ovos por Unidade'];
   const produtosSheet = XLSX.utils.json_to_sheet(
     produtosApi.map((p) => ({
+      ID: p.id,
       Produto: p.name,
       Unidade: p.unit,
       'Preço Unitário': decimalToNumber(p.unit_price),
@@ -158,11 +168,12 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   XLSX.utils.book_append_sheet(wb, produtosSheet, 'Produtos');
 
   const vendasHeader = [
-    'Data', 'Produto', 'Quantidade', 'Preço Unitário', 'Total', 'Status Pagamento',
+    'ID', 'Data', 'Produto', 'Quantidade', 'Preço Unitário', 'Total', 'Status Pagamento',
     'Comprador', 'Vendedor', 'Status da entrega', 'Data da Entrega',
   ];
   const vendasSheet = XLSX.utils.json_to_sheet(
     vendasApi.map((v) => ({
+      ID: v.id,
       Data: ptDate(v.date),
       Produto: productNameById.get(v.product_id) ?? '',
       Quantidade: v.quantity,
@@ -178,19 +189,25 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, vendasSheet, 'Vendas');
 
-  const producaoHeader = ['Data', 'Ovos Codorna', 'Ovos Galinha'];
+  const producaoHeader = ['ID', 'Data', 'Ovos Codorna', 'Ovos Galinha'];
   const producaoSheet = XLSX.utils.json_to_sheet(
-    producaoApi.map((p) => ({ Data: ptDate(p.date), 'Ovos Codorna': p.quail_eggs ?? '', 'Ovos Galinha': p.chicken_eggs ?? '' })),
+    producaoApi.map((p) => ({
+      ID: p.id,
+      Data: ptDate(p.date),
+      'Ovos Codorna': p.quail_eggs ?? '',
+      'Ovos Galinha': p.chicken_eggs ?? '',
+    })),
     { header: producaoHeader },
   );
   XLSX.utils.book_append_sheet(wb, producaoSheet, 'Produção');
 
   const estoqueHeader = [
-    'Data', 'Ovos Codorna', 'Ovos Galinha', 'Pack Codorna', 'Pack Galinha',
+    'ID', 'Data', 'Ovos Codorna', 'Ovos Galinha', 'Pack Codorna', 'Pack Galinha',
     'Valor Estoque Codorna', 'Valor Estoque Galinha',
   ];
   const estoqueSheet = XLSX.utils.json_to_sheet(
     estoqueApi.map((e) => ({
+      ID: e.id,
       Data: ptDate(e.date),
       'Ovos Codorna': e.quail_eggs ?? '',
       'Ovos Galinha': e.chicken_eggs ?? '',
@@ -203,9 +220,10 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, estoqueSheet, 'Estoque de Ovos');
 
-  const plantelHeader = ['Espécie', 'Quantidade', 'Sacos Ração/Mês', 'Preço Saco', 'Total Mês'];
+  const plantelHeader = ['ID', 'Espécie', 'Quantidade', 'Sacos Ração/Mês', 'Preço Saco', 'Total Mês'];
   const plantelSheet = XLSX.utils.json_to_sheet(
     plantelApi.map((p) => ({
+      ID: p.id,
       Espécie: p.species,
       Quantidade: p.quantity,
       'Sacos Ração/Mês': p.feed_bags_per_month,
@@ -216,9 +234,10 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, plantelSheet, 'Plantel');
 
-  const despesasHeader = ['Data', 'Descrição', 'Categoria', 'Qtd.', 'Valor unit.', 'Valor', 'Pago'];
+  const despesasHeader = ['ID', 'Data', 'Descrição', 'Categoria', 'Qtd.', 'Valor unit.', 'Valor', 'Pago'];
   const despesasSheet = XLSX.utils.json_to_sheet(
     despesasApi.map((e) => ({
+      ID: e.id,
       Data: ptDate(e.date),
       Descrição: e.description,
       Categoria: e.category,
@@ -263,13 +282,14 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   XLSX.utils.book_append_sheet(wb, usuariosSheet, 'Usuários');
 
   const novoLotePlantelHeader = [
-    'Data Incubadora', 'Espécie', 'Qtd. Ovos', 'Eclosão Prevista', 'Data Eclosão',
+    'ID', 'Data Incubadora', 'Espécie', 'Qtd. Ovos', 'Eclosão Prevista', 'Data Eclosão',
     'Qtd. Nascida', 'Status', 'Custo Ovos', 'Custo Ração', 'Observações',
   ];
   const novoLotePlantelSheet = XLSX.utils.json_to_sheet(
     novoLotePlantelApi.map((n) => {
       const hatched = consolidateHatchEvents(n.hatch_events);
       return {
+        ID: n.id,
         'Data Incubadora': ptDate(n.start_date),
         Espécie: speciesLabel(n.species),
         'Qtd. Ovos': n.egg_count,
@@ -286,9 +306,10 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, novoLotePlantelSheet, 'Novo Plantel');
 
-  const racaoHeader = ['Tipo', 'Sacos em Estoque', 'Kg em Estoque', 'Peso do Saco', 'Validade'];
+  const racaoHeader = ['ID', 'Tipo', 'Sacos em Estoque', 'Kg em Estoque', 'Peso do Saco', 'Validade'];
   const racaoSheet = XLSX.utils.json_to_sheet(
     feedStockApi.map((f) => ({
+      ID: f.id,
       Tipo: f.type,
       'Sacos em Estoque': f.bags_in_stock,
       'Kg em Estoque': decimalToNumber(f.kg_in_stock),
@@ -299,11 +320,16 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, racaoSheet, 'Ração');
 
-  const racaoAbertosHeader = ['Data', 'Tipo', 'Peso Aberto (kg)'];
+  const racaoAbertosHeader = ['ID', 'Data', 'Tipo', 'Peso Aberto (kg)'];
   const racaoAbertosSheet = XLSX.utils.json_to_sheet(
     [...feedOpenLogApi]
       .sort((a, b) => a.date.localeCompare(b.date))
-      .map((l) => ({ Data: ptDate(l.date), Tipo: l.feed_type, 'Peso Aberto (kg)': decimalToNumber(l.weight_kg) })),
+      .map((l) => ({
+        ID: l.id,
+        Data: ptDate(l.date),
+        Tipo: l.feed_type,
+        'Peso Aberto (kg)': decimalToNumber(l.weight_kg),
+      })),
     { header: racaoAbertosHeader },
   );
   XLSX.utils.book_append_sheet(wb, racaoAbertosSheet, 'Ração - Sacos Abertos');
@@ -314,11 +340,12 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     tray: 'Bandeja',
     nest: 'Ninho',
   };
-  const higienizacaoHeader = ['Data', 'Espécie', 'Tipo', 'Observações'];
+  const higienizacaoHeader = ['ID', 'Data', 'Espécie', 'Tipo', 'Observações'];
   const higienizacaoSheet = XLSX.utils.json_to_sheet(
     [...flockCleaningApi]
       .sort((a, b) => b.date.localeCompare(a.date))
       .map((h) => ({
+        ID: h.id,
         Data: ptDate(h.date),
         Espécie: speciesLabel(h.species),
         Tipo: cleaningTypeLabel[h.cleaning_type],
