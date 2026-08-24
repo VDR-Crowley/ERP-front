@@ -36,7 +36,12 @@ function toFront(api: FlockIncubationApi): WithId<NovoLotePlantel> {
     species: api.species,
     eggCount: api.egg_count,
     expectedHatchDate: api.expected_hatch_date,
-    hatchEvents: api.hatch_events.map(hatchEventToFront),
+    // `hatch_events` some do JSON quando o backend devolve o registro sem a relação carregada
+    // (ex.: resposta de POST /flock-incubations, que não faz `->load('hatchEvents')` — só
+    // `show()`/`index()` fazem). Lote recém-criado nunca tem evento de nascimento ainda mesmo
+    // (são sincronizados à parte por `syncHatchEvents`, ver `add()` abaixo), então `[]` aqui é
+    // o valor correto, não uma máscara de erro real.
+    hatchEvents: (api.hatch_events ?? []).map(hatchEventToFront),
     status: api.status,
     eggCost: decimalToNullableNumber(api.egg_cost),
     feedCost: decimalToNullableNumber(api.feed_cost),

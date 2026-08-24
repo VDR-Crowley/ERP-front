@@ -273,13 +273,26 @@ async function runFeedOpenLog(item: FeedOpenLog, ctx: ImportContext): Promise<vo
   await ctx.feedStockStoreExtended().openBag(String(id), { date: item.date, weightKg: item.weightKg });
 }
 
-/** Ordem importa: "Ração" roda antes de "Ração - Sacos Abertos" pra resolver o tipo recém-criado. */
+/**
+ * Ordem importa pras 2 dependências reais entre abas (confirmadas lendo migration/adapter de
+ * cada entidade, não assumidas):
+ * - "Produtos" roda antes de "Vendas": `Venda.product` resolve pro `product_id` do backend via
+ *   nome (ver `resolveIdByName` em `sales.adapter.ts`) — banco sem produto cadastrado (produção,
+ *   que nunca rodou o import inicial) faz toda linha de Vendas falhar com "Produto não
+ *   encontrado" se Vendas processar antes de Produtos existir.
+ * - "Ração" roda antes de "Ração - Sacos Abertos": resolve o tipo recém-criado (`feedStockIdByType`).
+ * As demais abas (Produção, Estoque de Ovos, Plantel, Despesas, Fluxo de Caixa, Usuários, Novo
+ * Plantel, Higienização) não têm FK nem resolução por nome entre si — checado nas migrations do
+ * backend (`flock`, `flock_incubations`, `daily_productions`, `egg_stocks`, `expenses`,
+ * `cash_flows`, `flock_cleanings` não têm `foreignId`/`constrained` uns pros outros) — por isso
+ * a ordem delas é livre.
+ */
 const IMPORTERS: EntityImporter[] = [
+  makeImporter(SHEET_NAMES.products, parseProducts, (item, ctx) => ctx.productsStore().add(item)),
   makeImporter(SHEET_NAMES.sales, parseSales, async (item, ctx) => ctx.salesStore().add(item, await ctx.salesRefs())),
   makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx) => ctx.dailyProductionsStore().add(item)),
   makeImporter(SHEET_NAMES.eggStock, parseEggStock, (item, ctx) => ctx.eggStocksStore().add(item)),
   makeImporter(SHEET_NAMES.flock, parseFlock, (item, ctx) => ctx.flockStore().add(item)),
-  makeImporter(SHEET_NAMES.products, parseProducts, (item, ctx) => ctx.productsStore().add(item)),
   makeImporter(SHEET_NAMES.expenses, parseExpenses, (item, ctx) => ctx.expensesStore().add(item)),
   makeImporter(SHEET_NAMES.cashFlow, parseCashFlow, (item, ctx) => ctx.cashFlowsStore().add(item)),
   makeImporter(SHEET_NAMES.users, parseUsers, runUser),

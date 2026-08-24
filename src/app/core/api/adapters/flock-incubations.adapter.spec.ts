@@ -92,4 +92,37 @@ describe('createFlockIncubationsStore — diff de hatchEvents[]', () => {
     expect(httpMock.match(`${base}/1/hatch-events/10`)).toHaveLength(0);
     expect(httpMock.match(`${base}/1/hatch-events/11`)).toHaveLength(0);
   });
+
+  // Regressão: `POST /flock-incubations` no backend não faz `->load('hatchEvents')`
+  // (só `show()`/`index()` fazem, ver `FlockIncubationController@store`) — a
+  // resposta de criação vem sem a chave `hatch_events`. Sem o `?? []` em
+  // `toFront()`, isso quebrava com `TypeError: Cannot read properties of
+  // undefined (reading 'map')` toda vez que `add()` era chamado — inclusive
+  // no import de planilha (aba "Novo Plantel").
+  it('add() não quebra quando o POST de criação vem sem "hatch_events" na resposta (relação não carregada)', async () => {
+    const store = TestBed.runInInjectionContext(() => createFlockIncubationsStore());
+    httpMock.expectOne(base).flush([]);
+
+    const novoLote: NovoLotePlantel = {
+      startDate: '2026-08-01',
+      species: 'quail',
+      eggCount: 50,
+      expectedHatchDate: '2026-08-19',
+      hatchEvents: [],
+      status: 'incubando',
+      eggCost: 25,
+      feedCost: 10,
+    };
+
+    const promise = store.add(novoLote);
+
+    const postReq = await waitForRequest(httpMock, base);
+    expect(postReq.request.method).toBe('POST');
+    const { hatch_events: _omitted, ...criadoSemHatchEvents } = LOTE_API; // resposta real do backend: sem a chave
+    postReq.flush(criadoSemHatchEvents);
+
+    await promise;
+
+    expect(store.items()[0].hatchEvents).toEqual([]);
+  });
 });
