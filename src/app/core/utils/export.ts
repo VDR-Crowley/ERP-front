@@ -12,6 +12,7 @@ import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { DashboardResumo } from '@core/interfaces/dashboard.interface';
 import { User } from '@core/interfaces/user.interface';
+import { Vendedor } from '@core/interfaces/vendedor.interface';
 import { ptDate } from '@core/utils/format';
 import { IndexedDbService } from '@core/idb/idb.service';
 import { IDB_STORES } from '@core/idb/idb-seed.service';
@@ -41,6 +42,7 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     feedStock,
     feedOpenLog,
     flockCleaning,
+    vendedores,
   ] = await Promise.all([
     firstValueFrom(idb.getAll<Venda>(IDB_STORES.sales)),
     firstValueFrom(idb.getAll<ProducaoDiaria>(IDB_STORES.dailyProduction)),
@@ -55,10 +57,27 @@ export async function exportWorkbook(filename: string, idb: IndexedDbService): P
     firstValueFrom(idb.getAll<FeedStock>(IDB_STORES.feedStock)),
     firstValueFrom(idb.getAll<FeedOpenLog>(IDB_STORES.feedOpenLog)),
     firstValueFrom(idb.getAll<FlockCleaning>(IDB_STORES.flockCleaning)),
+    firstValueFrom(idb.getAll<Vendedor>(IDB_STORES.vendedores)),
   ]);
   const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
 
   const wb = XLSX.utils.book_new();
+
+  // "Vendedores" exportado ANTES de "Vendas": planilha do usuário nunca teve
+  // aba própria (só a coluna "Vendedor" solta em Vendas), e o import resolve
+  // Vendas.Vendedor por nome contra vendedor já cadastrado — sem essa aba,
+  // reimportar em ambiente vazio (produção) faz toda linha de Vendas falhar
+  // com "Vendedor não encontrado" (ver IMPORTERS em import.ts).
+  const vendedoresHeader = ['Nome', 'Contato', 'Ativo'];
+  const vendedoresSheet = XLSX.utils.json_to_sheet(
+    vendedores.map((v) => ({
+      Nome: v.name,
+      Contato: v.contact ?? '',
+      Ativo: v.active ? 'Sim' : 'Não',
+    })),
+    { header: vendedoresHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, vendedoresSheet, 'Vendedores');
 
   // `header` explícito em todo json_to_sheet abaixo: sem ele, uma lista vazia
   // (conta nova, categoria ainda sem nenhum registro) gera aba sem nem a

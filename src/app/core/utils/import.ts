@@ -12,6 +12,7 @@ import { Product } from '@core/interfaces/product.interface';
 import { Expense } from '@core/interfaces/expense.interface';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { User } from '@core/interfaces/user.interface';
+import { Vendedor } from '@core/interfaces/vendedor.interface';
 import { FeedStock, FeedOpenLog } from '@core/interfaces/feed-stock.interface';
 import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.interface';
 import { createSalesStore, SalesRefs } from '@core/api/adapters/sales.adapter';
@@ -22,6 +23,7 @@ import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { createCashFlowsStore } from '@core/api/adapters/cash-flows.adapter';
 import { createUsersStore } from '@core/api/adapters/users.adapter';
+import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubations.adapter';
 import { createFeedStockStore, createFeedStockStoreExtended } from '@core/api/adapters/feed-stocks.adapter';
 import { createFlockCleaningsStore } from '@core/api/adapters/flock-cleanings.adapter';
@@ -55,6 +57,7 @@ const SHEET_NAMES = {
   expenses: 'Despesas',
   cashFlow: 'Fluxo de Caixa',
   users: 'Usuários',
+  vendedores: 'Vendedores',
   flockIncubation: 'Novo Plantel',
   feedStock: 'Ração',
   feedOpenLog: 'Ração - Sacos Abertos',
@@ -82,6 +85,7 @@ interface ImportContext {
   expensesStore: () => ReturnType<typeof createExpensesStore>;
   cashFlowsStore: () => ReturnType<typeof createCashFlowsStore>;
   usersStore: () => ReturnType<typeof createUsersStore>;
+  vendedoresStore: () => ReturnType<typeof createVendedoresStore>;
   flockIncubationsStore: () => ReturnType<typeof createFlockIncubationsStore>;
   feedStockStore: () => ReturnType<typeof createFeedStockStore>;
   feedStockStoreExtended: () => ReturnType<typeof createFeedStockStoreExtended>;
@@ -135,6 +139,7 @@ function createImportContext(injector: Injector): ImportContext {
     expensesStore: memo(() => run(() => createExpensesStore())),
     cashFlowsStore: memo(() => run(() => createCashFlowsStore())),
     usersStore: memo(() => run(() => createUsersStore())),
+    vendedoresStore: memo(() => run(() => createVendedoresStore())),
     flockIncubationsStore: memo(() => run(() => createFlockIncubationsStore())),
     feedStockStore: memo(() => run(() => createFeedStockStore())),
     feedStockStoreExtended: memo(() => run(() => createFeedStockStoreExtended())),
@@ -274,12 +279,16 @@ async function runFeedOpenLog(item: FeedOpenLog, ctx: ImportContext): Promise<vo
 }
 
 /**
- * Ordem importa pras 2 dependências reais entre abas (confirmadas lendo migration/adapter de
+ * Ordem importa pras 3 dependências reais entre abas (confirmadas lendo migration/adapter de
  * cada entidade, não assumidas):
  * - "Produtos" roda antes de "Vendas": `Venda.product` resolve pro `product_id` do backend via
  *   nome (ver `resolveIdByName` em `sales.adapter.ts`) — banco sem produto cadastrado (produção,
  *   que nunca rodou o import inicial) faz toda linha de Vendas falhar com "Produto não
  *   encontrado" se Vendas processar antes de Produtos existir.
+ * - "Vendedores" roda antes de "Vendas": mesmo caso do Produto, `Venda.seller` resolve pro
+ *   `seller_id` (obrigatório, FK não-nula em `StoreSaleRequest`) via nome — banco de produção
+ *   nunca teve vendedor cadastrado (a planilha real do usuário só tinha uma coluna solta
+ *   "Vendedor" dentro de Vendas, sem aba própria), daí essa aba existir no export/import.
  * - "Ração" roda antes de "Ração - Sacos Abertos": resolve o tipo recém-criado (`feedStockIdByType`).
  * As demais abas (Produção, Estoque de Ovos, Plantel, Despesas, Fluxo de Caixa, Usuários, Novo
  * Plantel, Higienização) não têm FK nem resolução por nome entre si — checado nas migrations do
@@ -289,6 +298,7 @@ async function runFeedOpenLog(item: FeedOpenLog, ctx: ImportContext): Promise<vo
  */
 const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.products, parseProducts, (item, ctx) => ctx.productsStore().add(item)),
+  makeImporter(SHEET_NAMES.vendedores, parseVendedores, (item, ctx) => ctx.vendedoresStore().add(item)),
   makeImporter(SHEET_NAMES.sales, parseSales, async (item, ctx) => ctx.salesStore().add(item, await ctx.salesRefs())),
   makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx) => ctx.dailyProductionsStore().add(item)),
   makeImporter(SHEET_NAMES.eggStock, parseEggStock, (item, ctx) => ctx.eggStocksStore().add(item)),
@@ -302,7 +312,7 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.flockCleaning, parseFlockCleaning, (item, ctx) => ctx.flockCleaningsStore().add(item)),
 ];
 
-/** Lê o arquivo e cria, via API, cada linha válida nas 12 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
+/** Lê o arquivo e cria, via API, cada linha válida nas 13 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
 export async function importWorkbookFile(
   injector: Injector,
   file: File,
@@ -765,6 +775,32 @@ function parseUsers(ws: XLSX.WorkSheet, errors: string[]): RowItem<User>[] | und
 
     if (name && email && password) {
       result.push({ row: r, item: { name, email, password, ...(phone ? { phone } : {}) } });
+    }
+  });
+  return result;
+}
+
+function parseVendedores(ws: XLSX.WorkSheet, errors: string[]): RowItem<Vendedor>[] | undefined {
+  const label = SHEET_NAMES.vendedores;
+  const header = readHeader(ws);
+  if (!requireColumns(header, label, ['Nome', 'Ativo'], errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: RowItem<Vendedor>[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const name = toRequiredString(row['Nome']);
+    const contact = toRequiredString(row['Contato']);
+    const ativoRaw = toRequiredString(row['Ativo']);
+    const ativoNorm = ativoRaw.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+    if (!name) errors.push(`${label} linha ${r}: "Nome" vazio.`);
+    if (ativoNorm !== 'sim' && ativoNorm !== 'nao') {
+      errors.push(`${label} linha ${r}: "Ativo" deve ser Sim ou Não (veio "${row['Ativo']}").`);
+    }
+
+    if (name && (ativoNorm === 'sim' || ativoNorm === 'nao')) {
+      result.push({ row: r, item: { name, contact, active: ativoNorm === 'sim' } });
     }
   });
   return result;

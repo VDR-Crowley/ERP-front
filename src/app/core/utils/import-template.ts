@@ -35,6 +35,18 @@ export function downloadImportTemplate(filename: string): void {
     'Vendas',
   );
 
+  // "Vendedores" precisa existir ANTES de "Vendas" ser reimportada — a coluna
+  // Vendedor da aba Vendas resolve por nome contra essa aba (ver IMPORTERS em
+  // import.ts). Ordem das abas no arquivo não importa (import lê por nome),
+  // só a ordem de processamento interna do import.
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet([
+      { Nome: 'Karol', Contato: '(11) 90000-0001', Ativo: 'Sim' },
+    ]),
+    'Vendedores',
+  );
+
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet([

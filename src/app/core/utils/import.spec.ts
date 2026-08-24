@@ -345,6 +345,76 @@ describe('importWorkbookFile', () => {
     expect(result.rowErrors).toEqual([]);
   });
 
+  // Regressão: planilha real do usuário nunca teve aba "Vendedores" própria (só a
+  // coluna solta "Vendedor" em Vendas) — export/import ganharam essa aba pra que o
+  // ciclo export(local, com vendedores cadastrados)→reimport(produção, banco vazio)
+  // funcione. Prova que "Vendedores" roda antes de "Vendas" em `IMPORTERS`, mesmo
+  // com a ordem invertida no arquivo.
+  it('vendedor criado na mesma importação é resolvido pela Venda que o referencia, mesmo com "Vendas" antes de "Vendedores" no arquivo', async () => {
+    const file = buildFile({
+      Vendas: [
+        {
+          Data: '01/07/2026',
+          Produto: 'Ovo Real',
+          Quantidade: 1,
+          'Preço Unitário': 15,
+          Total: 15,
+          'Status Pagamento': 'PAGO',
+          Comprador: 'Cliente Teste',
+          Vendedor: 'Vendedor Novo',
+          'Status da entrega': 'ENTREGUE',
+        },
+      ],
+      Produtos: [{ Produto: 'Ovo Real', Unidade: 'dz', 'Preço Unitário': 15, Estoque: 10, 'Ovos por Unidade': 12 }],
+      Vendedores: [{ Nome: 'Vendedor Novo', Contato: '', Ativo: 'Sim' }],
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    // "Produtos" primeiro.
+    (await expectRequest(httpMock, productsBase, 'GET')).flush([]);
+    const productPost = await expectRequest(httpMock, productsBase, 'POST');
+    productPost.flush({ id: 7, name: 'Ovo Real', unit: 'dz', unit_price: '15.00', stock: 10, eggs_per_unit: 12 });
+
+    // "Vendedores" roda em seguida — antes de "Vendas".
+    (await expectRequest(httpMock, vendedoresBase, 'GET')).flush([]);
+    const vendedorPost = await expectRequest(httpMock, vendedoresBase, 'POST');
+    expect(vendedorPost.request.body).toEqual({ name: 'Vendedor Novo', contact: null, active: true });
+    vendedorPost.flush({ id: 10, name: 'Vendedor Novo', contact: null, active: true });
+
+    // Só agora "Vendas" processa — `salesRefs()` já enxerga o vendedor criado.
+    await settleHttp(httpMock, salesBase, []);
+    await settleHttp(httpMock, productsBase, [{ id: 7, name: 'Ovo Real' }]);
+    await settleHttp(httpMock, vendedoresBase, [{ id: 10, name: 'Vendedor Novo' }]);
+
+    const salesPost = await expectRequest(httpMock, salesBase, 'POST');
+    expect(salesPost.request.body.seller_id).toBe(10);
+    salesPost.flush({
+      id: 1,
+      date: '2026-07-01',
+      product_id: 7,
+      quantity: 1,
+      unit_price: '15.00',
+      total: '15.00',
+      payment_pending: false,
+      buyer: 'Cliente Teste',
+      seller_id: 10,
+      delivery_pending: false,
+      delivery_date: null,
+      stock_location_type: 'plantel',
+      stock_location_vendedor_id: null,
+    });
+
+    const result = await promise;
+
+    expect(result.success).toBe(true);
+    expect(result.summary['Produtos']).toBe(1);
+    expect(result.summary['Vendedores']).toBe(1);
+    expect(result.summary['Vendas']).toBe(1);
+    expect(result.failed).toEqual({});
+    expect(result.rowErrors).toEqual([]);
+  });
+
   // Regressão: cada linha (e cada aba) precisa ser processada 1 de cada vez,
   // aguardando a resposta HTTP completa antes de disparar a próxima — nunca
   // em paralelo/sem controle de concorrência. Um backend de dev
