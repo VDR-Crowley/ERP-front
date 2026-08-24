@@ -149,6 +149,17 @@ function createImportContext(injector: Injector): ImportContext {
  * falhou e reaproveitada pelo caller (`layout-app.ts`) pro catch-all do fluxo de
  * import inteiro, garantindo mensagem consistente pra falha de rede/CORS.
  */
+// Assinatura de violação de constraint única vazando cru da API (SQLite
+// "UNIQUE constraint failed", MySQL "Duplicate entry", ou o SQLSTATE genérico
+// que aparece nos dois) — acontece quando não existe validação `unique:` no
+// FormRequest e o erro só é pego no nível do banco (500, mensagem crua).
+// Detectado em qualquer status pra virar mensagem legível em vez do SQLSTATE.
+const UNIQUE_CONSTRAINT_PATTERN = /SQLSTATE\[23000\]|UNIQUE constraint failed|Integrity constraint violation|Duplicate entry/i;
+
+function friendlyIfUniqueConstraint(message: string): string {
+  return UNIQUE_CONSTRAINT_PATTERN.test(message) ? 'Já existe um registro com esses dados.' : message;
+}
+
 export function describeImportError(e: unknown): string {
   if (e instanceof HttpErrorResponse) {
     // status 0 = requisição nunca chegou a ter resposta HTTP (CORS bloqueado,
@@ -159,10 +170,10 @@ export function describeImportError(e: unknown): string {
     }
     if (e.status === 422) {
       const apiErrors = e.error?.errors as Record<string, string[]> | undefined;
-      if (apiErrors) return Object.values(apiErrors).flat().join(' ');
-      if (e.error?.message) return String(e.error.message);
+      if (apiErrors) return friendlyIfUniqueConstraint(Object.values(apiErrors).flat().join(' '));
+      if (e.error?.message) return friendlyIfUniqueConstraint(String(e.error.message));
     }
-    return e.error?.message ? String(e.error.message) : `Erro ${e.status} ao salvar.`;
+    return e.error?.message ? friendlyIfUniqueConstraint(String(e.error.message)) : `Erro ${e.status} ao salvar.`;
   }
   if (e instanceof Error) return e.message;
   return 'Erro desconhecido ao salvar.';

@@ -278,6 +278,122 @@ describe('importWorkbookFile', () => {
     expect(result.failed).toEqual({});
   });
 
+  // Regressão: cada linha (e cada aba) precisa ser processada 1 de cada vez,
+  // aguardando a resposta HTTP completa antes de disparar a próxima — nunca
+  // em paralelo/sem controle de concorrência. Um backend de dev
+  // (`php artisan serve`) é single-threaded e cai com dezenas de requisições
+  // simultâneas. `httpMock.expectNone` logo depois de pegar a requisição de
+  // uma linha prova que a próxima (linha seguinte, ou aba seguinte) ainda não
+  // foi disparada nesse ponto.
+  it('processa linhas e abas sequencialmente — nunca 2+ requisições da mesma aba pendentes ao mesmo tempo', async () => {
+    const file = buildFile({
+      Produtos: [
+        { Produto: 'Ovo', Unidade: 'dz', 'Preço Unitário': 5, Estoque: 10, 'Ovos por Unidade': 12 },
+        { Produto: 'Carne', Unidade: 'kg', 'Preço Unitário': 20, Estoque: 5, 'Ovos por Unidade': 0 },
+      ],
+      Despesas: [
+        {
+          Data: '01/07/2026',
+          Descrição: 'Ração codornas',
+          Categoria: 'Ração',
+          'Qtd.': 1,
+          'Valor unit.': 106,
+          Valor: 106,
+          Pago: 'Sim',
+        },
+        {
+          Data: '02/07/2026',
+          Descrição: 'Conta de energia',
+          Categoria: 'Energia',
+          'Qtd.': '',
+          'Valor unit.': '',
+          Valor: 187.5,
+          Pago: 'Não',
+        },
+      ],
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    // Aba "Produtos" vem antes de "Despesas" em IMPORTERS — enquanto a 1ª
+    // linha de Produtos está pendente, nem a 2ª linha de Produtos nem
+    // nenhuma requisição de Despesas podem ter sido disparadas ainda.
+    (await expectRequest(httpMock, productsBase, 'GET')).flush([]);
+    const productPost1 = await expectRequest(httpMock, productsBase, 'POST');
+    httpMock.expectNone({ url: productsBase, method: 'POST' });
+    httpMock.expectNone({ url: expensesBase, method: 'GET' });
+    productPost1.flush({ id: 1, name: 'Ovo', unit: 'dz', unit_price: '5.00', stock: 10, eggs_per_unit: 12 });
+
+    const productPost2 = await expectRequest(httpMock, productsBase, 'POST');
+    httpMock.expectNone({ url: expensesBase, method: 'GET' });
+    productPost2.flush({ id: 2, name: 'Carne', unit: 'kg', unit_price: '20.00', stock: 5, eggs_per_unit: 0 });
+
+    // Só agora a aba "Despesas" começa — mesma regra linha a linha dentro dela.
+    (await expectRequest(httpMock, expensesBase, 'GET')).flush([]);
+    const expensePost1 = await expectRequest(httpMock, expensesBase, 'POST');
+    httpMock.expectNone({ url: expensesBase, method: 'POST' });
+    expensePost1.flush({
+      id: 1,
+      date: '2026-07-01',
+      description: 'Ração codornas',
+      category: 'Ração',
+      quantity: 1,
+      unit_price: '106.00',
+      amount: '106.00',
+      paid: true,
+    });
+
+    const expensePost2 = await expectRequest(httpMock, expensesBase, 'POST');
+    expensePost2.flush({
+      id: 2,
+      date: '2026-07-02',
+      description: 'Conta de energia',
+      category: 'Energia',
+      amount: '187.50',
+      paid: false,
+    });
+
+    const result = await promise;
+
+    expect(result.summary['Produtos']).toBe(2);
+    expect(result.summary['Despesas']).toBe(2);
+    expect(result.failed).toEqual({});
+  });
+
+  // Regressão: quando o FormRequest da API não tem regra `unique:` (ex.:
+  // Despesas, Higienização) e a colisão só é pega no nível do banco, o erro
+  // vaza cru (SQLSTATE/"UNIQUE constraint failed"/"Duplicate entry") — feio
+  // pro usuário e sem explicar o que aconteceu. `describeImportError` detecta
+  // esse padrão (em qualquer status HTTP) e troca por uma mensagem legível.
+  it('erro de constraint única (SQLSTATE cru) vira mensagem legível em vez do texto do banco', async () => {
+    const file = buildFile({
+      Despesas: [
+        {
+          Data: '01/07/2026',
+          Descrição: 'Ração codornas',
+          Categoria: 'Ração',
+          'Qtd.': 1,
+          'Valor unit.': 106,
+          Valor: 106,
+          Pago: 'Sim',
+        },
+      ],
+    });
+
+    const promise = importWorkbookFile(injector, file);
+
+    (await expectRequest(httpMock, expensesBase, 'GET')).flush([]);
+    const post = await expectRequest(httpMock, expensesBase, 'POST');
+    post.flush(
+      { message: 'SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: expenses.date' },
+      { status: 500, statusText: 'Internal Server Error' },
+    );
+
+    const result = await promise;
+
+    expect(result.rowErrors).toEqual(['Despesas linha 2: Já existe um registro com esses dados.']);
+  });
+
   it('arquivo corrompido (zip inválido) é bloqueante (nenhuma linha é tentada)', async () => {
     const file = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00])], 'teste.xlsx');
 
