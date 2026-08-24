@@ -19,6 +19,7 @@ import { authInterceptor } from '@core/auth/auth.interceptor';
 import { dedupeGetInterceptor } from '@core/api/dedupe-get.interceptor';
 import { AuthApiService } from '@core/auth/auth-api.service';
 import { TokenStore } from '@core/auth/token-store.service';
+import { initChunkErrorReload } from '@core/utils/chunk-reload.util';
 
 // Aura's default light primary.color ({primary.500}) fails WCAG AA contrast
 // (2.53:1) against its white contrastColor. Bumped to {primary.700} (5.48:1).
@@ -85,6 +86,9 @@ export const appConfig: ApplicationConfig = {
         : Promise.resolve();
 
       return Promise.all([seed$, authBoot$]);
+    }),
+    provideAppInitializer(() => {
+      initChunkErrorReload();
     }),
   ],
 };

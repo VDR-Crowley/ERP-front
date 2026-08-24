@@ -36,6 +36,24 @@ app.use(
 );
 
 /**
+ * Requests for a hashed static asset (JS/CSS chunks, sourcemaps, fonts, images...)
+ * that `express.static` above didn't find must 404 for real — never fall through
+ * to the SPA/SSR handler below. Otherwise a stale tab requesting an old chunk
+ * hash (or any genuinely missing asset) gets back `index.html` with
+ * `Content-Type: text/html`, which the browser's module loader rejects with
+ * "Failed to load module script... MIME type of text/html" and navigation
+ * gets stuck. Only extensionless paths (real app routes) should reach Angular.
+ */
+const STATIC_ASSET_EXTENSION = /\.[a-z0-9]+$/i;
+app.use((req, res, next) => {
+  if (STATIC_ASSET_EXTENSION.test(req.path)) {
+    res.status(404).send('Not found');
+    return;
+  }
+  next();
+});
+
+/**
  * Handle all other requests by rendering the Angular application.
  */
 app.use((req, res, next) => {
