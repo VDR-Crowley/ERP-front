@@ -204,3 +204,54 @@ describe('Dashboard — ovos coletados (produção) vs. ovos vendidos são métr
     expect(dashboard.producaoHojeTotal()).not.toBe(dashboard.totalOvosVendidos());
   });
 });
+
+/**
+ * Decisão do usuário (mesma linha da revert do estoque calculado): "Prontas
+ * para venda" tem que ler de Product.stock (fonte única, igual Produtos e
+ * Transferência de Estoque), nunca de daily_productions. Antes esse card
+ * pegava a ÚLTIMA linha de daily_productions e dividia por eggsPerUnit —
+ * produção bruta, nunca descontava venda, desconectada do estoque real.
+ * `stock` já é bandeja/pacote (mesma unidade usada em stock-transfers.ts:
+ * quantity: p.stock, sem dividir por eggsPerUnit) — não em ovos crus.
+ */
+describe('Dashboard.bandejasProntasCodorna()/bandejasProntasGalinha() — lêem de Product.stock, não de daily_productions', () => {
+  const productsUrl = `${environment.apiUrl}/products`;
+  const dailyProductionsUrl = `${environment.apiUrl}/daily-productions`;
+
+  const PRODUCTS_API = [
+    { id: 1, name: '50 ovos de codorna', unit: 'pack', unit_price: '15.00', stock: 40, eggs_per_unit: 50 },
+    { id: 2, name: '30 ovos galinha', unit: 'un', unit_price: '25.00', stock: 9, eggs_per_unit: 30 },
+  ];
+  // Se o card ainda lesse de daily_productions, a última linha (2026-08-02)
+  // daria floor(500/50)=10 codorna e floor(600/30)=20 galinha — bem diferente
+  // do stock cadastrado (40/9). O teste trava que o resultado é o stock puro.
+  const DAILY_PRODUCTIONS_API = [
+    { id: 1, date: '2026-08-01', quail_eggs: 300, chicken_eggs: 200 },
+    { id: 2, date: '2026-08-02', quail_eggs: 500, chicken_eggs: 600 },
+  ];
+
+  it('bandejasProntasCodorna/Galinha = product.stock, ignora daily_productions', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    const httpMock = TestBed.inject(HttpTestingController);
+    await flushAllPendingGets(httpMock, {
+      [productsUrl]: PRODUCTS_API,
+      [dailyProductionsUrl]: DAILY_PRODUCTIONS_API,
+    });
+    await fixture.whenStable();
+
+    const dashboard = fixture.componentInstance as unknown as {
+      bandejasProntasCodorna: () => number;
+      bandejasProntasGalinha: () => number;
+      prontasParaVendaTotal: () => number;
+    };
+
+    expect(dashboard.bandejasProntasCodorna()).toBe(40);
+    expect(dashboard.bandejasProntasGalinha()).toBe(9);
+    expect(dashboard.prontasParaVendaTotal()).toBe(49);
+  });
+});

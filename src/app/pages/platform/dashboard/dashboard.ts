@@ -25,7 +25,6 @@ import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubation
 import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
-import { latestByDate } from '@core/utils/latest-by-date';
 import { daysUntil } from '@core/utils/date-diff';
 import { totalStockValue } from '@core/utils/stock-location';
 import { sortRows } from '@shared/table-sort/table-sort';
@@ -116,9 +115,10 @@ export class Dashboard {
 
   // Cards de produção/vendas/saldo respeitam o período selecionado no
   // DatePicker/chips da topbar — diferente dos cards de estoque
-  // (bandejasProntasCodorna/bandejasProntasGalinha/valorEstoque), que são
-  // saldo atual (não soma de período) e continuam intencionalmente fora do
-  // filtro (ver comentário em ultimaProducao).
+  // (bandejasProntasCodorna/bandejasProntasGalinha/valorEstoque), que lêem
+  // Product.stock direto: saldo atual (snapshot), não soma de período, e
+  // continuam intencionalmente fora do filtro (ver comentário em
+  // bandejasProntasCodorna).
   protected readonly producaoNoPeriodo = computed(() =>
     this.productionStore.items().filter((p) => this.periodFilter.includes(p.date)),
   );
@@ -215,37 +215,20 @@ export class Dashboard {
     () => this.totalOvosColetadosCodorna() + this.totalOvosColetadosGalinha(),
   );
 
-  // Usa sempre a linha mais recente por data (não restringe a "<= hoje") —
-  // um snapshot com data futura por erro de digitação não pode esconder a
-  // produção real e zerar os cards. Ver latestByDate. Converte a produção
-  // mais recente em pacotes usando o tamanho de pacote dos próprios produtos
-  // cadastrados ("50 ovos de codorna" / "30 ovos galinha").
-  private readonly ultimaProducao = computed(() =>
-    latestByDate(this.productionStore.items().filter((p) => p.quailEggs !== null || p.chickenEggs !== null)),
+  // Fonte única com Produtos/Transferência de Estoque: `product.stock` puro
+  // (mesmo campo editado em Produtos e movimentado em Transferência de
+  // Estoque — ver stock-transfers.ts, `quantity: p.stock` sem dividir por
+  // eggsPerUnit). stock já é bandeja/pacote, não ovo cru. Antes esse card
+  // calculava a partir da ÚLTIMA linha de daily_productions ÷ eggsPerUnit —
+  // produção bruta, nunca descontava venda/transferência, desconectada do
+  // estoque real (mesmo motivo da reversão do módulo Estoque de Ovos, ver
+  // comentário de valorEstoque abaixo). Decisão do usuário: "tudo que é de
+  // estoque, puxa de Produtos" — daily_productions não entra mais aqui.
+  protected readonly bandejasProntasCodorna = computed(
+    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.stock ?? 0,
   );
-  private readonly quailPackSize = computed(
-    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.eggsPerUnit ?? 50,
-  );
-  private readonly chickenPackSize = computed(
-    () => this.productsStore.items().find((p) => p.name === '30 ovos galinha')?.eggsPerUnit ?? 30,
-  );
-  private readonly quailPackPrice = computed(
-    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.unitPrice ?? 15,
-  );
-  private readonly chickenPackPrice = computed(
-    () =>
-      this.productsStore.items().find((p) => p.name === '1 Bandeja de ovos de galinha')?.unitPrice ?? 20,
-  );
-
-  // Cada espécie soma seu próprio "prontas" independente, convertendo a
-  // Produção Diária mais recente daquela espécie em pacotes (arredondado
-  // pra baixo pra unidade — não dá pra vender 0,6 de um pack). Cards
-  // separados por espécie (não somados).
-  protected readonly bandejasProntasCodorna = computed(() =>
-    Math.floor((this.ultimaProducao()?.quailEggs ?? 0) / this.quailPackSize()),
-  );
-  protected readonly bandejasProntasGalinha = computed(() =>
-    Math.floor((this.ultimaProducao()?.chickenEggs ?? 0) / this.chickenPackSize()),
+  protected readonly bandejasProntasGalinha = computed(
+    () => this.productsStore.items().find((p) => p.name === '30 ovos galinha')?.stock ?? 0,
   );
   protected readonly prontasParaVendaTotal = computed(
     () => this.bandejasProntasCodorna() + this.bandejasProntasGalinha(),
