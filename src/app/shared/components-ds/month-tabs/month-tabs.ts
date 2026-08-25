@@ -1,11 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { MonthPicker } from '@shared/components-ds/month-picker/month-picker';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import type { DateRange } from '@shared/components-ds/date-picker/date-picker';
-
-interface MonthChip {
-  label: string;
-  range: DateRange;
-}
 
 function startOfMonth(date: Date): Date {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -19,21 +15,22 @@ function endOfMonth(date: Date): Date {
   return end;
 }
 
-/** "jan.", "fev." etc. do Intl viram "Jan", "Fev" (sem ponto, com maiúscula). */
-function monthLabel(date: Date): string {
-  const raw = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '');
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+/** `true` se `[start, end]` for exatamente o mês cheio (1º ao último dia) de `start`. */
+function isWholeMonth(start: Date, end: Date): boolean {
+  return start.getTime() === startOfMonth(start).getTime() && end.getTime() === endOfMonth(start).getTime();
 }
 
 /**
- * Atalhos de mês (anterior/atual/seguinte) ao lado do `AppDatePicker` na
- * topbar. Complementa o DatePicker — não o substitui, já que Relatórios
- * ainda precisa do período customizado. Sempre calculado a partir da data
- * real de hoje, nunca hardcoded.
+ * Atalho de mês (via `MonthPicker`, popup com grade jan-dez + navegação de
+ * ano) ao lado do `AppDatePicker` na topbar. Complementa o DatePicker — não
+ * o substitui, já que Relatórios ainda precisa do período customizado.
+ * Mostra sempre o mês corrente real quando o filtro não bate com nenhum mês
+ * cheio (ex.: "Tudo" ou um range custom) — nunca hardcoded.
  */
 @Component({
   selector: 'app-month-tabs',
   standalone: true,
+  imports: [MonthPicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './month-tabs.html',
   styleUrl: './month-tabs.scss',
@@ -41,30 +38,34 @@ function monthLabel(date: Date): string {
 export class MonthTabs {
   private readonly periodFilter = inject(PeriodFilterService);
 
-  private readonly months: MonthChip[] = [-1, 0, 1].map((offset) => {
-    const now = new Date();
-    const ref = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    return { label: monthLabel(ref), range: [startOfMonth(ref), endOfMonth(ref)] as DateRange };
-  });
-
-  /** Nenhum chip de mês fica ativo quando o filtro está limpo, ou quando o período atual (ex.: custom do DatePicker) não bate com nenhum dos 3 meses. */
-  protected readonly chips = computed(() => {
+  /** Mês mostrado no botão: o mês ativo do filtro quando ele for um mês
+   * cheio, senão o mês corrente real (mesmo fallback do `MonthPicker` antes
+   * de qualquer seleção). */
+  protected readonly displayedMonth = computed(() => {
     const active = this.periodFilter.active();
     const [start, end] = this.periodFilter.range();
-    return this.months.map((chip) => ({
-      ...chip,
-      active:
-        active &&
-        start.getTime() === chip.range[0].getTime() &&
-        end.getTime() === chip.range[1].getTime(),
-    }));
+    if (active && isWholeMonth(start, end)) return start;
+    return startOfMonth(new Date());
+  });
+
+  /** Botão fica com o visual "ativo" só quando o filtro corrente é
+   * exatamente esse mês cheio — igual ao antigo chip selecionado. */
+  protected readonly monthActive = computed(() => {
+    const active = this.periodFilter.active();
+    const [start, end] = this.periodFilter.range();
+    return active && isWholeMonth(start, end);
   });
 
   /** "Tudo" fica ativo quando o filtro de período está limpo (mostrando todos os dados). */
   protected readonly allActive = computed(() => !this.periodFilter.active());
 
-  protected select(chip: MonthChip): void {
-    this.periodFilter.setRange(chip.range);
+  protected selectMonth(month: Date | null): void {
+    if (!month) {
+      // Botão "Limpar" do popup — mesmo efeito do "Tudo".
+      this.periodFilter.clear();
+      return;
+    }
+    this.periodFilter.setRange([startOfMonth(month), endOfMonth(month)] as DateRange);
   }
 
   protected clear(): void {

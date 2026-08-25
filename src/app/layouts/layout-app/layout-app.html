@@ -64,7 +64,7 @@
         <i class="pi pi-filter"></i>
       </button>
       <div class="top__right top__right--desktop">
-        <app-month-tabs />
+        <app-month-tabs ngSkipHydration />
         <app-date-picker
           ngSkipHydration
           mode="range"
@@ -91,7 +91,7 @@
       [open]="filterOpen()"
       (openChange)="onFilterOpenChange($event)"
     >
-      <app-month-tabs />
+      <app-month-tabs ngSkipHydration />
       <app-date-picker
         ngSkipHydration
         mode="range"

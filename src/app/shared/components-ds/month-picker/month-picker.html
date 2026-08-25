@@ -1,0 +1,16 @@
+<span class="app-month-picker" [class.app-month-picker--active]="active()">
+  <p-datepicker
+    view="month"
+    selectionMode="single"
+    [ngModel]="value()"
+    (ngModelChange)="onModelChange($event)"
+    [readonlyInput]="true"
+    [showIcon]="false"
+    [showButtonBar]="true"
+    dateFormat="M yy"
+    [placeholder]="'Selecionar mês'"
+    [attr.aria-label]="label()"
+    styleClass="app-month-picker__field"
+    panelStyleClass="app-month-picker__panel"
+  />
+</span>

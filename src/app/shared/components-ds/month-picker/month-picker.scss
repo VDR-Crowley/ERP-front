@@ -1,0 +1,91 @@
+:host {
+  display: inline-block;
+}
+
+.app-month-picker {
+  display: inline-flex;
+
+  // Mesmo motivo do `app-date-picker`: o `p-datepicker` renderiza a própria
+  // árvore sem encapsulamento (input + painel), então os overrides aqui têm
+  // que passar por `::ng-deep` em vez dos seletores escopados de sempre.
+  ::ng-deep {
+    // Input vira um pill igual aos chips do `MonthTabs` (não o campo largo
+    // do `app-date-picker`) — mesma família visual, tamanho de botão.
+    .p-datepicker-input {
+      height: auto;
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
+      background: transparent !important;
+      border: 1px solid transparent !important;
+      color: var(--erp-muted) !important;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      // `dateFormat="M yy"` usa `monthNamesShort` (minúsculo, ex. "ago") pra
+      // bater com a tradução central do PrimeNG em `app.config.ts` — aqui só
+      // capitaliza a exibição ("Ago 2026"), sem duplicar a lista de meses.
+      text-transform: capitalize;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+      &:hover {
+        background: var(--erp-ghost-hover) !important;
+        color: var(--erp-text) !important;
+      }
+
+      &:focus {
+        outline: none;
+      }
+
+      &::placeholder {
+        color: var(--erp-dim) !important;
+        text-transform: none;
+      }
+    }
+
+    .p-datepicker-panel {
+      background: var(--erp-surface) !important;
+      border: 1px solid var(--erp-border) !important;
+      color: var(--erp-text) !important;
+      border-radius: 0.75rem;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .p-datepicker-header {
+      background: transparent !important;
+      color: var(--erp-text) !important;
+      border-bottom: 1px solid var(--erp-border-2) !important;
+    }
+
+    .p-datepicker-month-view {
+      .p-datepicker-month {
+        color: var(--erp-muted) !important;
+        border-radius: 8px !important;
+
+        &:hover {
+          background: var(--erp-ghost-hover) !important;
+          color: var(--erp-text) !important;
+        }
+      }
+
+      .p-datepicker-month-selected {
+        background: var(--erp-green) !important;
+        color: var(--erp-btn-ink) !important;
+      }
+    }
+
+    .p-datepicker-buttonbar {
+      border-top: 1px solid var(--erp-border-2) !important;
+
+      .p-button {
+        color: var(--erp-green-ink) !important;
+      }
+    }
+  }
+}
+
+.app-month-picker--active ::ng-deep .p-datepicker-input {
+  background: color-mix(in srgb, var(--erp-green) 18%, transparent) !important;
+  border-color: color-mix(in srgb, var(--erp-green) 40%, transparent) !important;
+  color: var(--erp-green-ink) !important;
+}
