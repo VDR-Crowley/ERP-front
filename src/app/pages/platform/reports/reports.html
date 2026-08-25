@@ -17,8 +17,13 @@
     </article>
     <article class="kpi kpi--amber">
       <div class="kpi__label">Margem</div>
-      <div class="kpi__value">{{ resumo().marginPct }}%</div>
-      <div class="kpi__foot">(Faturamento - Despesas) / Faturamento</div>
+      @if (resumo().marginPct === null) {
+        <div class="kpi__value">—</div>
+        <div class="kpi__foot">Período futuro, sem dados ainda</div>
+      } @else {
+        <div class="kpi__value">{{ resumo().marginPct }}%</div>
+        <div class="kpi__foot">(Faturamento - Despesas) / Faturamento</div>
+      }
     </article>
   </section>
 

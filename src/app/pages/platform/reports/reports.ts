@@ -63,6 +63,21 @@ const PRODUTO_CORES: Record<string, string> = {
   '5 ovos Galinha + 50 Codorna': '#e0b341',
 };
 const COR_PADRAO = '#64748b';
+
+function endOfMonth(date: Date): Date {
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+// Fim do mês corrente real (não hardcoded) — usado pra excluir vendas/despesas
+// futuras de qualquer soma. Sem isso, um período custom que avança além de
+// hoje (ou "Tudo") somaria lançamentos que ainda não aconteceram.
+const FIM_MES_ATUAL = endOfMonth(new Date());
+
+function ehFuturo(isoDate: string): boolean {
+  const data = new Date(`${isoDate.slice(0, 10)}T00:00:00`);
+  return data > FIM_MES_ATUAL;
+}
 const MESES_ABREV = [
   'Jan',
   'Fev',
@@ -146,15 +161,27 @@ export class Reports {
 
   /** Vendas do store restritas ao período selecionado no DatePicker da topbar. */
   protected readonly vendasFiltradas = computed(() =>
-    this.salesStore.items().filter((v) => this.periodFilter.includes(v.date)),
+    this.salesStore.items().filter((v) => this.periodFilter.includes(v.date) && !ehFuturo(v.date)),
   );
   /** Despesas do store restritas ao mesmo período selecionado no DatePicker. */
   protected readonly despesasFiltradas = computed(() =>
     this.expensesStore
       .items()
-      .filter((e) => this.periodFilter.includes(e.date))
+      .filter((e) => this.periodFilter.includes(e.date) && !ehFuturo(e.date))
       .reduce((soma, e) => soma + e.amount, 0),
   );
+  /**
+   * `true` quando o período selecionado é inteiramente futuro (ex.: chip
+   * "próximo mês" do MonthTabs, ou custom range que só começa depois de
+   * hoje) — nesses casos não existe faturamento/despesa possível ainda, e
+   * `marginPct` vira `null` em vez de um "0%" enganoso (parece empate,
+   * não "sem dados"). "Tudo" (filtro limpo) nunca conta como futuro.
+   */
+  protected readonly periodoTotalmenteFuturo = computed(() => {
+    if (!this.periodFilter.active()) return false;
+    const [start] = this.periodFilter.range();
+    return start > FIM_MES_ATUAL;
+  });
   // Margem = (faturamento - despesas) / faturamento, no período selecionado.
   // `eggsSold` já vem de dado real (soma de distribuicaoOvos). Comparativos
   // "vs. período anterior" exigiriam série histórica por período, que o app
@@ -163,9 +190,11 @@ export class Reports {
   // nenhuma comparação até essa base existir de verdade.
   protected readonly resumo = computed(() => {
     const faturamento = this.faturamentoTotal();
-    const marginPct = faturamento
-      ? Math.round(((faturamento - this.despesasFiltradas()) / faturamento) * 100)
-      : 0;
+    const marginPct = this.periodoTotalmenteFuturo()
+      ? null
+      : faturamento
+        ? Math.round(((faturamento - this.despesasFiltradas()) / faturamento) * 100)
+        : 0;
     return {
       eggsSold: this.distribuicaoOvos().reduce((soma, d) => soma + d.eggs, 0),
       marginPct,
