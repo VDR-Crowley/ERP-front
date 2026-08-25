@@ -24,8 +24,6 @@ function isWholeMonth(start: Date, end: Date): boolean {
  * Atalho de mês (via `MonthPicker`, popup com grade jan-dez + navegação de
  * ano) ao lado do `AppDatePicker` na topbar. Complementa o DatePicker — não
  * o substitui, já que Relatórios ainda precisa do período customizado.
- * Mostra sempre o mês corrente real quando o filtro não bate com nenhum mês
- * cheio (ex.: "Tudo" ou um range custom) — nunca hardcoded.
  */
 @Component({
   selector: 'app-month-tabs',
@@ -39,13 +37,16 @@ export class MonthTabs {
   private readonly periodFilter = inject(PeriodFilterService);
 
   /** Mês mostrado no botão: o mês ativo do filtro quando ele for um mês
-   * cheio, senão o mês corrente real (mesmo fallback do `MonthPicker` antes
-   * de qualquer seleção). */
+   * cheio, senão `null` (placeholder "Selecionar mês", sem nada pré-marcado
+   * no grid do popup). Antes caía pro mês corrente real mesmo com "Tudo"
+   * selecionado — o botão continuava mostrando "Ago" e o grid do popup vinha
+   * com agosto pré-marcado em verde, então reabrir o popup e clicar nele (pra
+   * conferir o filtro) reativava o mês e desfazia o "Tudo" silenciosamente. */
   protected readonly displayedMonth = computed(() => {
     const active = this.periodFilter.active();
     const [start, end] = this.periodFilter.range();
     if (active && isWholeMonth(start, end)) return start;
-    return startOfMonth(new Date());
+    return null;
   });
 
   /** Botão fica com o visual "ativo" só quando o filtro corrente é

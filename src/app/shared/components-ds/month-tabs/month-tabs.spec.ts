@@ -76,13 +76,34 @@ describe('MonthTabs', () => {
     expect(tudoBtn.classList).toContain('month-tabs__chip--active');
   });
 
-  it('MonthPicker recebe o mês corrente como fallback quando o filtro está limpo ("Tudo")', () => {
+  it('MonthPicker recebe `null` (sem mês pré-selecionado) quando o filtro está limpo ("Tudo")', () => {
     periodFilter.clear();
     fixture.detectChanges();
 
     const monthPicker = fixture.debugElement.query(By.css('app-month-picker'));
-    const now = new Date();
-    expect((monthPicker.componentInstance.value() as Date).getTime()).toBe(startOfMonth(now).getTime());
+    expect(monthPicker.componentInstance.value()).toBeNull();
     expect(monthPicker.componentInstance.active()).toBe(false);
+  });
+
+  it('REGRESSÃO: clicar "Tudo" e reabrir o popup não deixa o mês atual pré-marcado — um clique nele não reativa o filtro', async () => {
+    const tudoBtn = fixture.debugElement.query(By.css('.month-tabs__chip--clear'))
+      .nativeElement as HTMLButtonElement;
+    tudoBtn.click();
+    fixture.detectChanges();
+    expect(periodFilter.active()).toBe(false);
+
+    // Reabre o popup do MonthPicker (mesma interação que um usuário faria pra
+    // conferir/trocar o mês).
+    const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
+    input.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Nenhuma célula do grid jan-dez deve aparecer como "selecionada" —
+    // antes do fix, o mês corrente vinha marcado em verde e um clique nele
+    // reativava o filtro, anulando o "Tudo".
+    const selectedCell = fixture.debugElement.query(By.css('span.p-datepicker-month-selected'));
+    expect(selectedCell).toBeNull();
   });
 });

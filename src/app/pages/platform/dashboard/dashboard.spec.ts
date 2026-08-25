@@ -206,6 +206,60 @@ describe('Dashboard — ovos coletados (produção) vs. ovos vendidos são métr
 });
 
 /**
+ * Regressão do botão "Tudo" (546dc03/2f456c3): o `MonthTabs` novo mostrava o
+ * mês corrente pré-marcado no popup mesmo com o filtro limpo — reabrir o
+ * popup e clicar no mês (já em verde) reativava o filtro em silêncio,
+ * fazendo "Tudo" parecer que "não filtra nada". Aqui a garantia é a ponta
+ * final: `PeriodFilterService.clear()` (efeito de "Tudo") tem que mostrar
+ * dados de todos os períodos, não só o mês corrente.
+ */
+describe('Dashboard — "Tudo" (filtro limpo) mostra vendas de todos os meses, não só o atual', () => {
+  const productsUrl = `${environment.apiUrl}/products`;
+  const salesUrl = `${environment.apiUrl}/sales`;
+  const dailyProductionsUrl = `${environment.apiUrl}/daily-productions`;
+
+  const PAST_SALE_DATE = '2020-01-15';
+  const now = new Date();
+  const CURRENT_MONTH_SALE_DATE = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-05`;
+
+  it('vendasNoPeriodo/faturamento incluem venda de um mês passado e do mês atual', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    TestBed.inject(PeriodFilterService).clear(); // "Tudo"
+    const httpMock = TestBed.inject(HttpTestingController);
+    await flushAllPendingGets(httpMock, {
+      [productsUrl]: [],
+      [salesUrl]: [
+        {
+          id: 1, date: PAST_SALE_DATE, product_id: 1, quantity: 1, unit_price: '100.00', total: '100.00',
+          payment_pending: false, buyer: 'Ana', seller_id: 1, delivery_pending: false,
+          delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+        },
+        {
+          id: 2, date: CURRENT_MONTH_SALE_DATE, product_id: 1, quantity: 1, unit_price: '200.00', total: '200.00',
+          payment_pending: false, buyer: 'Bia', seller_id: 1, delivery_pending: false,
+          delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+        },
+      ],
+      [dailyProductionsUrl]: [],
+    });
+    await fixture.whenStable();
+
+    const dashboard = fixture.componentInstance as unknown as {
+      vendasNoPeriodo: () => { date: string }[];
+      faturamento: () => number;
+    };
+
+    expect(dashboard.vendasNoPeriodo().length).toBe(2);
+    expect(dashboard.faturamento()).toBe(300);
+  });
+});
+
+/**
  * Decisão do usuário (mesma linha da revert do estoque calculado): "Prontas
  * para venda" tem que ler de Product.stock (fonte única, igual Produtos e
  * Transferência de Estoque), nunca de daily_productions. Antes esse card

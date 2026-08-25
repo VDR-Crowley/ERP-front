@@ -48,11 +48,22 @@ describe('MonthPicker', () => {
     expect(inputEl().value).toBe('ago');
   });
 
-  it('mostra o placeholder quando `value` é `null`', () => {
+  it('mostra o placeholder curto ("Mês") quando `value` é `null` — cabe no botão compacto', () => {
     fixture.componentRef.setInput('value', null);
     fixture.detectChanges();
 
-    expect(inputEl().placeholder).toBe('Selecionar mês');
+    expect(inputEl().placeholder).toBe('Mês');
+  });
+
+  it('aria-label continua descritivo ("Selecionar mês") mesmo com o placeholder curto', () => {
+    fixture.componentRef.setInput('value', null);
+    fixture.detectChanges();
+
+    // `[attr.aria-label]` fica na tag `<p-datepicker>` (não no `<input>`
+    // interno) — mesmo binding de antes, só confirmando que o texto
+    // completo não encolheu junto com o `placeholder` visível.
+    const pDatepicker = fixture.debugElement.query(By.css('p-datepicker')).nativeElement as HTMLElement;
+    expect(pDatepicker.getAttribute('aria-label')).toBe('Selecionar mês');
   });
 
   it('emite `valueChange` quando um mês é selecionado', () => {

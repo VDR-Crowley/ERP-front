@@ -37,6 +37,10 @@ export class MonthPicker {
   readonly active = input<boolean>(false);
   readonly valueChange = output<Date | null>();
 
+  // `label()` alimenta só o `aria-label` (pode ser descritivo) — o
+  // `placeholder` visível no botão é "Mês" (curto, cabe no `[inputSize]="3"`
+  // do template, mesmo tamanho de "jan"/"ago"/"dez"); leitor de tela ainda
+  // ouve "Selecionar mês" completo.
   protected readonly label = computed(() => {
     const v = this.value();
     return v ? monthYearLabel(v) : 'Selecionar mês';

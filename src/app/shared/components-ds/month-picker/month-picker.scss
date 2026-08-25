@@ -12,6 +12,16 @@
     // Input vira um pill igual aos chips do `MonthTabs` (não o campo largo
     // do `app-date-picker`) — mesma família visual, tamanho de botão.
     .p-datepicker-input {
+      // Sem `size`/`width` explícito, `<input>` cai no default do HTML pra
+      // texto (~20 caracteres, uns 170-190px) — `flex-basis` do PrimeNG
+      // (`width: 1%`) não resolve isso porque o `.p-datepicker` pai é
+      // `inline-flex` sem largura definida, e a spec do flexbox ignora
+      // `flex-basis` percentual nesse caso, caindo pro tamanho intrínseco do
+      // input. Passava despercebido com "Ago 2026" (8 caracteres, quase
+      // preenchia); virou pill enorme com sobra de espaço à esquerda depois
+      // que o texto encolheu pra só "Ago" (`dateFormat="M"`). Fix real é
+      // `[inputSize]="3"` no template (todo `MONTH_ABBR` tem 3 letras) — usa
+      // o atributo HTML `size`, que sim resolve a largura intrínseca certa.
       height: auto;
       padding: 0.4rem 0.75rem;
       border-radius: 8px;

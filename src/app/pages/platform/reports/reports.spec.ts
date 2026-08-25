@@ -181,3 +181,33 @@ describe('Reports — período passado+atual+futuro só soma até o fim do mês 
     expect(reports.resumo().marginPct).toBe(67);
   });
 });
+
+/**
+ * Regressão do botão "Tudo" (546dc03/2f456c3): o `MonthTabs` novo mostrava o
+ * mês corrente pré-marcado no popup mesmo com o filtro limpo — reabrir o
+ * popup e clicar no mês (já em verde) reativava o filtro em silêncio,
+ * fazendo "Tudo" parecer que "não filtra nada". Aqui a garantia é a ponta
+ * final: `PeriodFilterService.clear()` (efeito de "Tudo") tem que mostrar
+ * dados de todos os períodos, não só o mês corrente.
+ */
+describe('Reports — "Tudo" (filtro limpo) mostra vendas/despesas de todos os meses', () => {
+  it('faturamento soma vendas de um mês passado e do mês atual com o filtro limpo', async () => {
+    const { fixture, httpMock } = await createReportsFixture();
+    TestBed.inject(PeriodFilterService).clear(); // "Tudo"
+
+    await flushAllPendingGets(httpMock, {
+      [productsUrl]: PRODUCTS_API,
+      [salesUrl]: [saleApi(1, PAST_DATE, '100.00'), saleApi(2, CURRENT_MONTH_DATE, '200.00')],
+      [expensesUrl]: [],
+    });
+    await fixture.whenStable();
+
+    const reports = fixture.componentInstance as unknown as {
+      faturamentoTotal: () => number;
+      vendasFiltradas: () => { date: string }[];
+    };
+
+    expect(reports.vendasFiltradas().length).toBe(2);
+    expect(reports.faturamentoTotal()).toBe(300);
+  });
+});
