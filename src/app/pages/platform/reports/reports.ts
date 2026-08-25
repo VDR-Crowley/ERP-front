@@ -72,11 +72,11 @@ function endOfMonth(date: Date): Date {
 // Fim do mês corrente real (não hardcoded) — usado pra excluir vendas/despesas
 // futuras de qualquer soma. Sem isso, um período custom que avança além de
 // hoje (ou "Tudo") somaria lançamentos que ainda não aconteceram.
-const FIM_MES_ATUAL = endOfMonth(new Date());
+const CURRENT_MONTH_END = endOfMonth(new Date());
 
-function ehFuturo(isoDate: string): boolean {
+function isFuturePeriod(isoDate: string): boolean {
   const data = new Date(`${isoDate.slice(0, 10)}T00:00:00`);
-  return data > FIM_MES_ATUAL;
+  return data > CURRENT_MONTH_END;
 }
 const MESES_ABREV = [
   'Jan',
@@ -161,13 +161,15 @@ export class Reports {
 
   /** Vendas do store restritas ao período selecionado no DatePicker da topbar. */
   protected readonly vendasFiltradas = computed(() =>
-    this.salesStore.items().filter((v) => this.periodFilter.includes(v.date) && !ehFuturo(v.date)),
+    this.salesStore
+      .items()
+      .filter((v) => this.periodFilter.includes(v.date) && !isFuturePeriod(v.date)),
   );
   /** Despesas do store restritas ao mesmo período selecionado no DatePicker. */
   protected readonly despesasFiltradas = computed(() =>
     this.expensesStore
       .items()
-      .filter((e) => this.periodFilter.includes(e.date) && !ehFuturo(e.date))
+      .filter((e) => this.periodFilter.includes(e.date) && !isFuturePeriod(e.date))
       .reduce((soma, e) => soma + e.amount, 0),
   );
   /**
@@ -177,10 +179,10 @@ export class Reports {
    * `marginPct` vira `null` em vez de um "0%" enganoso (parece empate,
    * não "sem dados"). "Tudo" (filtro limpo) nunca conta como futuro.
    */
-  protected readonly periodoTotalmenteFuturo = computed(() => {
+  protected readonly isPeriodFullyFuture = computed(() => {
     if (!this.periodFilter.active()) return false;
     const [start] = this.periodFilter.range();
-    return start > FIM_MES_ATUAL;
+    return start > CURRENT_MONTH_END;
   });
   // Margem = (faturamento - despesas) / faturamento, no período selecionado.
   // `eggsSold` já vem de dado real (soma de distribuicaoOvos). Comparativos
@@ -190,7 +192,7 @@ export class Reports {
   // nenhuma comparação até essa base existir de verdade.
   protected readonly resumo = computed(() => {
     const faturamento = this.faturamentoTotal();
-    const marginPct = this.periodoTotalmenteFuturo()
+    const marginPct = this.isPeriodFullyFuture()
       ? null
       : faturamento
         ? Math.round(((faturamento - this.despesasFiltradas()) / faturamento) * 100)
