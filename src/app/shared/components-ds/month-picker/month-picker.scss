@@ -22,9 +22,9 @@
       font-weight: 700;
       font-family: inherit;
       cursor: pointer;
-      // `dateFormat="M yy"` usa `monthNamesShort` (minúsculo, ex. "ago") pra
+      // `dateFormat="M"` usa `monthNamesShort` (minúsculo, ex. "ago") pra
       // bater com a tradução central do PrimeNG em `app.config.ts` — aqui só
-      // capitaliza a exibição ("Ago 2026"), sem duplicar a lista de meses.
+      // capitaliza a exibição ("Ago"), sem duplicar a lista de meses.
       text-transform: capitalize;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
 

@@ -4,20 +4,23 @@ import { DatePickerModule } from 'primeng/datepicker';
 
 const MONTH_ABBR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-/** "ago" -> "Ago 2026". Monta a partir de `MONTH_ABBR` (não `Intl`) pra bater
- * exatamente com `monthNamesShort` do `app.config.ts`, evitando o "ago. de
- * 2026" que o `Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric' })` produz. */
+/** "ago" -> "Ago 2026" (usado só no `aria-label`, pro leitor de tela ter mês
+ * *e* ano — o botão em si mostra só o mês via `dateFormat="M"`). Monta a
+ * partir de `MONTH_ABBR` (não `Intl`) pra bater exatamente com
+ * `monthNamesShort` do `app.config.ts`, evitando o "ago. de 2026" que o
+ * `Intl.DateTimeFormat('pt-BR', { month: 'short', year: 'numeric' })` produz. */
 function monthYearLabel(date: Date): string {
   const abbr = MONTH_ABBR[date.getMonth()];
   return `${abbr.charAt(0).toUpperCase()}${abbr.slice(1)} ${date.getFullYear()}`;
 }
 
 /**
- * Botão único ("Ago 2026") que abre um `p-datepicker` em `view="month"` —
- * grade de meses com navegação por ano e atalhos "Hoje"/"Limpar" (via
+ * Botão único ("Ago") que abre um `p-datepicker` em `view="month"` — grade de
+ * meses com navegação por ano e atalhos "Hoje"/"Limpar" (via
  * `showButtonBar`, traduzidos em `app.config.ts`). Substitui os 3 chips fixos
  * (mês anterior/atual/seguinte) do `MonthTabs` por um seletor livre de
- * qualquer mês/ano.
+ * qualquer mês/ano. Botão mostra só o mês (`dateFormat="M"`) pra ficar do
+ * tamanho do chip "Tudo" ao lado; ano completo só no `aria-label`.
  */
 @Component({
   selector: 'app-month-picker',

@@ -35,7 +35,7 @@ describe('MonthPicker', () => {
     return fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
   }
 
-  it('mostra o mês/ano formatado ("M yy") quando `value` é definido', async () => {
+  it('mostra só o mês formatado ("M") quando `value` é definido', async () => {
     fixture.componentRef.setInput('value', new Date(2026, 7, 15)); // agosto
     fixture.detectChanges();
     await fixture.whenStable();
@@ -45,7 +45,7 @@ describe('MonthPicker', () => {
     // "Ago" fica por conta do CSS (`text-transform: capitalize`), não
     // verificável em jsdom sem stylesheet computado — então checa o valor
     // cru do input.
-    expect(inputEl().value).toBe('ago 2026');
+    expect(inputEl().value).toBe('ago');
   });
 
   it('mostra o placeholder quando `value` é `null`', () => {
