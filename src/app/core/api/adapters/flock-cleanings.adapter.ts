@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FlockCleaning } from '@core/interfaces/flock-cleaning.interface';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { createRestEntityStore, EntityStore } from '../entity-store';
 
 interface FlockCleaningApi {
@@ -14,7 +15,7 @@ interface FlockCleaningApi {
 
 function toFront(api: FlockCleaningApi): FlockCleaning {
   return {
-    date: api.date,
+    date: toDateOnly(api.date),
     species: api.species,
     cleaningType: api.cleaning_type,
     notes: api.notes ?? undefined,

@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { CashEntry } from '@core/interfaces/cash-entry.interface';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { createRestEntityStore, decimalToNumber, EntityStore } from '../entity-store';
 
 interface CashFlowApi {
@@ -13,7 +14,12 @@ interface CashFlowApi {
 }
 
 function toFront(api: CashFlowApi): CashEntry {
-  return { date: api.date, description: api.description, inflow: api.inflow, amount: decimalToNumber(api.amount) };
+  return {
+    date: toDateOnly(api.date),
+    description: api.description,
+    inflow: api.inflow,
+    amount: decimalToNumber(api.amount),
+  };
 }
 
 function toApi(item: CashEntry) {

@@ -126,4 +126,26 @@ describe('createFlockIncubationsStore — diff de hatchEvents[]', () => {
 
     expect(store.items()[0].hatchEvents).toEqual([]);
   });
+
+  // Regressão: mesmo bug do daily-productions/feed-stocks/sales — a API manda
+  // datetime ISO completo (Carbon/Laravel) pros campos de data (`start_date`,
+  // `expected_hatch_date`, e o `date` de cada hatch event), e o
+  // `<input type="date">` só aceita 'YYYY-MM-DD' exato, então os campos
+  // ficavam vazios ao editar.
+  it('normaliza datetime ISO completo do backend pra YYYY-MM-DD em startDate, expectedHatchDate e hatchEvents[].date', () => {
+    const store = TestBed.runInInjectionContext(() => createFlockIncubationsStore());
+    httpMock.expectOne(base).flush([
+      {
+        ...LOTE_API,
+        start_date: '2026-08-01T00:00:00.000000Z',
+        expected_hatch_date: '2026-08-19T00:00:00.000000Z',
+        hatch_events: [{ id: 10, flock_incubation_id: 1, date: '2026-08-19T00:00:00.000000Z', count: 20, notes: null }],
+      },
+    ]);
+
+    const lote = store.items()[0];
+    expect(lote.startDate).toBe('2026-08-01');
+    expect(lote.expectedHatchDate).toBe('2026-08-19');
+    expect(lote.hatchEvents[0].date).toBe('2026-08-19');
+  });
 });

@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { createRestEntityStore, EntityStore } from '../entity-store';
 
 interface DailyProductionApi {
@@ -12,7 +13,7 @@ interface DailyProductionApi {
 }
 
 function toFront(api: DailyProductionApi): ProducaoDiaria {
-  return { date: api.date, quailEggs: api.quail_eggs, chickenEggs: api.chicken_eggs };
+  return { date: toDateOnly(api.date), quailEggs: api.quail_eggs, chickenEggs: api.chicken_eggs };
 }
 
 function toApi(item: ProducaoDiaria) {

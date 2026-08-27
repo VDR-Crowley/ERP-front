@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Expense } from '@core/interfaces/expense.interface';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { createRestEntityStore, decimalToNumber, decimalToNullableNumber, EntityStore } from '../entity-store';
 
 /** `species_override` vem junto no GET (ver `expense-species-overrides.adapter.ts`) — ignorado aqui, essa store só cuida dos campos próprios de `Expense`. */
@@ -19,7 +20,7 @@ export interface ExpenseApi {
 
 export function expenseToFront(api: ExpenseApi): Expense {
   return {
-    date: api.date,
+    date: toDateOnly(api.date),
     description: api.description,
     category: api.category,
     quantity: api.quantity ?? undefined,

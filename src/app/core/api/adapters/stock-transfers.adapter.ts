@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { StockTransfer } from '@core/interfaces/stock-transfer.interface';
 import { PLANTEL_LOCATION, isPlantelLocation, vendedorIdFromLocation, vendedorLocation } from '@core/utils/stock-location';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { EntityStore, WithId } from '../entity-store';
 import { fetchNameIdMaps, NameIdMaps, resolveIdByName } from './_shared';
 
@@ -44,7 +45,7 @@ export function createStockTransfersStore(): EntityStore<StockTransfer> {
 
   function toFront(api: StockTransferApi, products: NameIdMaps): WithId<StockTransfer> {
     return {
-      date: api.date,
+      date: toDateOnly(api.date),
       product: products.byId.get(api.product_id) ?? '',
       quantity: api.quantity,
       fromLocation: locationToFront(api.from_location_type, api.from_vendedor_id),

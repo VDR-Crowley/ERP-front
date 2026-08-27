@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { HatchEvent, NovoLotePlantel } from '@core/interfaces/novo-lote-plantel.interface';
 import { environment } from '../../../../environments/environment';
+import { toDateOnly } from '@core/utils/date-diff';
 import { decimalToNullableNumber, EntityStore, WithId } from '../entity-store';
 
 interface HatchEventApi {
@@ -27,15 +28,15 @@ interface FlockIncubationApi {
 }
 
 function hatchEventToFront(api: HatchEventApi): HatchEvent {
-  return { id: String(api.id), date: api.date, count: api.count, notes: api.notes ?? undefined };
+  return { id: String(api.id), date: toDateOnly(api.date), count: api.count, notes: api.notes ?? undefined };
 }
 
 function toFront(api: FlockIncubationApi): WithId<NovoLotePlantel> {
   return {
-    startDate: api.start_date,
+    startDate: toDateOnly(api.start_date),
     species: api.species,
     eggCount: api.egg_count,
-    expectedHatchDate: api.expected_hatch_date,
+    expectedHatchDate: toDateOnly(api.expected_hatch_date),
     // `hatch_events` some do JSON quando o backend devolve o registro sem a relação carregada
     // (ex.: resposta de POST /flock-incubations, que não faz `->load('hatchEvents')` — só
     // `show()`/`index()` fazem). Lote recém-criado nunca tem evento de nascimento ainda mesmo
