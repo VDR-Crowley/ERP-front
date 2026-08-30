@@ -81,7 +81,7 @@
               <td
                 class="num strong"
                 data-label="Investimento até 45 dias"
-                [title]="'Ovos: ' + brl(item.eggCost ?? 0) + ' + Ração: ' + brl(item.feedCost ?? 0) + ' = Investimento até 45 dias: ' + brl(investimento(item))"
+                [title]="'Ovos: ' + brl(item.eggCount * (item.eggCost ?? 0)) + ' + Ração: ' + brl(item.feedCost ?? 0) + ' = Investimento até 45 dias: ' + brl(investimento(item))"
               >
                 {{ brl(investimento(item)) }}
               </td>

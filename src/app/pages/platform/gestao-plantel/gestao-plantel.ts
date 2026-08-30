@@ -29,18 +29,64 @@ const SPECIES_OPTIONS = [
   { value: 'chicken', label: 'Galinha' },
 ];
 
+/** Faixa de quantidade de ovos pra qual a ração até 45 dias custuma ficar em R$150 (confirmado pelo usuário) — só usada pro default sugerido no form de criação. */
+const RACAO_DEFAULT_MIN_OVOS = 200;
+const RACAO_DEFAULT_MAX_OVOS = 270;
+const RACAO_DEFAULT_VALOR = 150;
+
+function toNumberOrUndefined(value: unknown): number | undefined {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 const FIELDS: CrudField[] = [
   { key: 'startDate', label: 'Data que entrou na incubadora', type: 'date', required: true },
   { key: 'species', label: 'Espécie', type: 'select', required: true, options: SPECIES_OPTIONS },
-  { key: 'eggCount', label: 'Quantidade de ovos', type: 'number', step: 1, required: true },
-  { key: 'eggCost', label: 'Custo dos ovos', type: 'number', step: 0.01 },
+  {
+    key: 'eggCount',
+    label: 'Quantidade de ovos',
+    type: 'number',
+    step: 1,
+    required: true,
+    // Sugere R$150 de ração quando a quantidade cai na faixa 200-270 (só no form de criação,
+    // marcado via `__isNew` em `openNew()`) — só preenche se o campo ainda estiver vazio
+    // (`''`/`null`/`undefined`), nunca sobrescreve valor que o usuário já digitou.
+    onChange: (value, m) => {
+      if (!m['__isNew']) return;
+      const qty = Number(value);
+      const feedUntouched = m['feedCost'] === '' || m['feedCost'] === null || m['feedCost'] === undefined;
+      if (feedUntouched && qty >= RACAO_DEFAULT_MIN_OVOS && qty <= RACAO_DEFAULT_MAX_OVOS) {
+        m['feedCost'] = RACAO_DEFAULT_VALOR;
+      }
+    },
+  },
+  { key: 'eggCost', label: 'Custo dos ovos (por unidade)', type: 'number', step: 0.01 },
+  {
+    key: 'eggTotalCost',
+    label: 'Custo total dos ovos',
+    type: 'number',
+    step: 0.01,
+    compute: (m) => {
+      const qty = toNumberOrUndefined(m['eggCount']);
+      const unit = toNumberOrUndefined(m['eggCost']);
+      if (qty === undefined || unit === undefined || qty < 0 || unit < 0) return undefined;
+      return Math.round(qty * unit * 100) / 100;
+    },
+  },
   { key: 'feedCost', label: 'Custo ração até 45 dias', type: 'number', step: 0.01 },
   {
     key: 'investimentoPreview',
     label: 'Investimento estimado até 45 dias (Ovos + Ração)',
     type: 'number',
     step: 0.01,
-    compute: (m) => (Number(m['eggCost']) || 0) + (Number(m['feedCost']) || 0),
+    compute: (m) => {
+      const qty = toNumberOrUndefined(m['eggCount']);
+      const unit = toNumberOrUndefined(m['eggCost']);
+      if (qty === undefined || unit === undefined || qty < 0 || unit < 0) return undefined;
+      const feed = toNumberOrUndefined(m['feedCost']) ?? 0;
+      return Math.round((qty * unit + feed) * 100) / 100;
+    },
   },
   { key: 'notes', label: 'Observações', type: 'text' },
 ];
@@ -142,7 +188,7 @@ export class GestaoPlantel {
   );
 
   protected investimento(item: NovoLotePlantel): number {
-    return (item.eggCost ?? 0) + (item.feedCost ?? 0);
+    return item.eggCount * (item.eggCost ?? 0) + (item.feedCost ?? 0);
   }
 
   /** Monta o registro completo pra persistir, trocando só o histórico de nascimentos e o status — descarta os campos legados (`actualHatchDate`/`hatchedCount`) na primeira escrita. */
@@ -186,8 +232,9 @@ export class GestaoPlantel {
       species: 'quail',
       eggCount: 0,
       eggCost: 0,
-      feedCost: 0,
+      feedCost: '',
       notes: '',
+      __isNew: true,
     };
     this.formOpen.set(true);
   }
