@@ -25,9 +25,11 @@ import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubation
 import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
-import { daysUntil } from '@core/utils/date-diff';
+import { daysUntil, toLocalISO } from '@core/utils/date-diff';
 import { totalStockValue } from '@core/utils/stock-location';
 import { sortRows } from '@shared/table-sort/table-sort';
+import { CalendarDay, calendarMonthGrid, endOfMonth, isWholeMonth, startOfMonth } from '@core/utils/calendar-month';
+import { calcularEstatisticasVendasPorDia, heatmapTier, totalVendasPorDia } from '@core/utils/sales-by-day';
 
 interface DonutChartOptions {
   series: ApexNonAxisChartSeries;
@@ -280,4 +282,58 @@ export class Dashboard {
       fill: { type: 'solid' },
     };
   });
+
+  protected readonly diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  // Card "Vendas por dia" mostra sempre 1 mês inteiro, igual ao MonthTabs da
+  // topbar: mês selecionado quando o filtro corrente for exatamente um mês
+  // cheio, senão o mês corrente real (cobre tanto "Tudo" quanto um intervalo
+  // arbitrário do DatePicker que não seja um mês fechado).
+  protected readonly mesExibidoCalendario = computed(() => {
+    const active = this.periodFilter.active();
+    const [start, end] = this.periodFilter.range();
+    if (active && isWholeMonth(start, end)) return start;
+    return new Date();
+  });
+
+  protected readonly mesExibidoLabel = computed(() => {
+    const label = this.mesExibidoCalendario().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  });
+
+  protected readonly calendarioVendas = computed<(CalendarDay | null)[]>(() =>
+    calendarMonthGrid(this.mesExibidoCalendario()),
+  );
+
+  // Vendas do mês exibido no calendário — não usa `vendasNoPeriodo()`/`periodFilter.includes`
+  // de propósito: o card sempre mostra o mês inteiro (ver `mesExibidoCalendario`), mesmo que o
+  // filtro ativo seja um intervalo customizado menor que o mês.
+  private readonly vendasDoMesCalendario = computed(() => {
+    const mes = this.mesExibidoCalendario();
+    const inicio = toLocalISO(startOfMonth(mes));
+    const fim = toLocalISO(endOfMonth(mes));
+    return this.salesStore.items().filter((v) => {
+      const dia = v.date.slice(0, 10);
+      return dia >= inicio && dia <= fim;
+    });
+  });
+
+  protected readonly vendasPorDiaMapa = computed(() => totalVendasPorDia(this.vendasDoMesCalendario()));
+
+  protected readonly maiorVendaDoMes = computed(() => {
+    const totais = [...this.vendasPorDiaMapa().values()];
+    return totais.length ? Math.max(...totais) : 0;
+  });
+
+  protected readonly estatisticasVendasPorDia = computed(() =>
+    calcularEstatisticasVendasPorDia(this.calendarioVendas(), this.vendasPorDiaMapa()),
+  );
+
+  protected valorVendasDia(date: string): number {
+    return this.vendasPorDiaMapa().get(date) ?? 0;
+  }
+
+  protected tierVendasDia(date: string): 0 | 1 | 2 | 3 | 4 {
+    return heatmapTier(this.valorVendasDia(date), this.maiorVendaDoMes());
+  }
 }

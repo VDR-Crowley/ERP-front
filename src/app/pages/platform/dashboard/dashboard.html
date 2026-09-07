@@ -198,6 +198,64 @@
     </div>
   </section>
 
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Vendas por dia</h2>
+      <span class="panel__subtitle">{{ mesExibidoLabel() }}</span>
+    </div>
+
+    <div class="cal-weekdays">
+      @for (d of diasSemana; track d) {
+        <span class="cal-weekdays__day">{{ d }}</span>
+      }
+    </div>
+    <div class="cal-grid">
+      @for (cell of calendarioVendas(); track $index) {
+        @if (cell) {
+          <div
+            class="cal-day"
+            [class.cal-day--t0]="tierVendasDia(cell.date) === 0"
+            [class.cal-day--t1]="tierVendasDia(cell.date) === 1"
+            [class.cal-day--t2]="tierVendasDia(cell.date) === 2"
+            [class.cal-day--t3]="tierVendasDia(cell.date) === 3"
+            [class.cal-day--t4]="tierVendasDia(cell.date) === 4"
+            [title]="ptDate(cell.date) + ' — ' + (valorVendasDia(cell.date) > 0 ? brl(valorVendasDia(cell.date)) : 'sem venda')"
+          >
+            <span class="cal-day__num">{{ cell.day }}</span>
+            @if (valorVendasDia(cell.date) > 0) {
+              <span class="cal-day__value">{{ brl(valorVendasDia(cell.date)) }}</span>
+            }
+          </div>
+        } @else {
+          <div class="cal-day cal-day--blank"></div>
+        }
+      }
+    </div>
+
+    <div class="dash-summary dash-summary--single">
+      <div>
+        <span class="dash-summary__label">Média por dia</span>
+        <span class="dash-summary__value">{{ brl(estatisticasVendasPorDia().mediaPorDia) }}</span>
+      </div>
+      <div class="dash-summary__sep"></div>
+      <div>
+        <span class="dash-summary__label">Maior dia</span>
+        <span class="dash-summary__value">
+          @if (estatisticasVendasPorDia().maiorDia) {
+            {{ ptDate(estatisticasVendasPorDia().maiorDia!.date) }} · {{ brl(estatisticasVendasPorDia().maiorDia!.total) }}
+          } @else {
+            —
+          }
+        </span>
+      </div>
+      <div class="dash-summary__sep"></div>
+      <div>
+        <span class="dash-summary__label">Dias sem venda</span>
+        <span class="dash-summary__value">{{ num(estatisticasVendasPorDia().diasSemVenda) }}</span>
+      </div>
+    </div>
+  </div>
+
   <section class="panels-2">
     <div class="panel">
       <div class="panel__head">

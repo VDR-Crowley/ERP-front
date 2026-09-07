@@ -309,3 +309,85 @@ describe('Dashboard.bandejasProntasCodorna()/bandejasProntasGalinha() — lêem 
     expect(dashboard.prontasParaVendaTotal()).toBe(49);
   });
 });
+
+/**
+ * Card "Vendas por dia": calendário de agosto/2026 (mês fechado selecionado
+ * via MonthTabs) sempre mostra o mês inteiro, mesmo com vendas de fora dele
+ * na store — a grade/estatísticas só devem contar o que cai dentro do mês
+ * exibido.
+ */
+describe('Dashboard — card "Vendas por dia" (calendário do mês exibido)', () => {
+  const productsUrl = `${environment.apiUrl}/products`;
+  const salesUrl = `${environment.apiUrl}/sales`;
+
+  const PRODUCTS_API = [
+    { id: 1, name: '50 ovos de codorna', unit: 'pack', unit_price: '15.00', stock: 40, eggs_per_unit: 50 },
+  ];
+  const SALES_API = [
+    {
+      id: 1, date: '2026-08-01', product_id: 1, quantity: 4, unit_price: '15.00', total: '60.00',
+      payment_pending: false, buyer: 'Maria', seller_id: 1, delivery_pending: false,
+      delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+    },
+    // Mesmo dia, segunda venda — deve somar com a de cima em vez de sobrescrever.
+    {
+      id: 2, date: '2026-08-01', product_id: 1, quantity: 2, unit_price: '15.00', total: '30.00',
+      payment_pending: false, buyer: 'João', seller_id: 1, delivery_pending: false,
+      delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+    },
+    {
+      id: 3, date: '2026-08-15', product_id: 1, quantity: 1, unit_price: '15.00', total: '15.00',
+      payment_pending: false, buyer: 'Ana', seller_id: 1, delivery_pending: false,
+      delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+    },
+    // Venda de setembro — fora do mês exibido (agosto), não pode entrar na conta.
+    {
+      id: 4, date: '2026-09-03', product_id: 1, quantity: 10, unit_price: '15.00', total: '150.00',
+      payment_pending: false, buyer: 'Carlos', seller_id: 1, delivery_pending: false,
+      delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+    },
+  ];
+
+  it('mesExibidoCalendario/grade/mapa/estatísticas refletem só o mês selecionado (agosto/2026)', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    TestBed.inject(PeriodFilterService).setRange([new Date(2026, 7, 1), new Date(2026, 7, 31, 23, 59, 59, 999)]);
+    const httpMock = TestBed.inject(HttpTestingController);
+    await flushAllPendingGets(httpMock, { [productsUrl]: PRODUCTS_API, [salesUrl]: SALES_API });
+    await fixture.whenStable();
+
+    const dashboard = fixture.componentInstance as unknown as {
+      mesExibidoCalendario: () => Date;
+      calendarioVendas: () => ({ date: string; day: number } | null)[];
+      vendasPorDiaMapa: () => Map<string, number>;
+      estatisticasVendasPorDia: () => {
+        mediaPorDia: number;
+        maiorDia: { date: string; total: number } | null;
+        diasSemVenda: number;
+      };
+    };
+
+    expect(dashboard.mesExibidoCalendario().getMonth()).toBe(7); // agosto (0-indexed)
+    expect(dashboard.mesExibidoCalendario().getFullYear()).toBe(2026);
+
+    // Agosto/2026: 1º cai num sábado -> 6 células em branco antes do dia 1, 31 dias, 42 células (6 semanas).
+    const grid = dashboard.calendarioVendas();
+    expect(grid.length).toBe(42);
+    expect(grid.slice(0, 6)).toEqual([null, null, null, null, null, null]);
+    expect(grid[6]).toEqual({ date: '2026-08-01', day: 1 });
+
+    const porDia = dashboard.vendasPorDiaMapa();
+    expect(porDia.get('2026-08-01')).toBe(90); // 60+30, duas vendas do mesmo dia somadas
+    expect(porDia.get('2026-08-15')).toBe(15);
+    expect(porDia.has('2026-09-03')).toBe(false); // venda de setembro não entra no mês exibido
+
+    const stats = dashboard.estatisticasVendasPorDia();
+    expect(stats.mediaPorDia).toBeCloseTo(105 / 31, 5); // (90+15) / 31 dias de agosto
+    expect(stats.maiorDia).toEqual({ date: '2026-08-01', total: 90 });
+    expect(stats.diasSemVenda).toBe(29); // 31 dias - 2 dias com venda
+  });
+});

@@ -231,6 +231,17 @@
         "4221"
       ],
       "port": 4221
+    },
+    {
+      "name": "erp-front-dev-vendas-por-dia",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "start",
+        "--",
+        "--port",
+        "4222"
+      ],
+      "port": 4222
     }
   ]
 }

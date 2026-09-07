@@ -228,7 +228,97 @@
   }
 }
 
+/* ---------- Calendário "Vendas por dia" ---------- */
+.panel__subtitle {
+  font-size: 0.8rem;
+  color: var(--erp-muted);
+  font-weight: 600;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+
+  &__day {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--erp-dim);
+  }
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 1.1rem;
+}
+
+.cal-day {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border-radius: 10px;
+  border: 1px solid var(--erp-border);
+  background: var(--erp-surface-2);
+  padding: 0.25rem;
+  overflow: hidden;
+
+  &--blank {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  &__num {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--erp-muted);
+  }
+  &__value {
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    color: var(--erp-green-ink);
+  }
+
+  &--t1 {
+    background: color-mix(in srgb, var(--erp-green) 18%, var(--erp-surface-2));
+    border-color: color-mix(in srgb, var(--erp-green) 30%, var(--erp-border));
+  }
+  &--t2 {
+    background: color-mix(in srgb, var(--erp-green) 38%, var(--erp-surface-2));
+    border-color: color-mix(in srgb, var(--erp-green) 45%, var(--erp-border));
+  }
+  &--t3 {
+    background: color-mix(in srgb, var(--erp-green) 60%, var(--erp-surface-2));
+    border-color: color-mix(in srgb, var(--erp-green) 60%, var(--erp-border));
+  }
+  &--t4 {
+    background: color-mix(in srgb, var(--erp-green) 85%, var(--erp-surface-2));
+    border-color: var(--erp-green);
+  }
+  &--t2 &__num {
+    color: var(--erp-text);
+  }
+  &--t3 &__num,
+  &--t4 &__num,
+  &--t3 &__value,
+  &--t4 &__value {
+    color: var(--erp-btn-ink);
+  }
+}
+
 @media (max-width: 768px) {
+  .cal-day__value {
+    display: none;
+  }
+
   .legend__name {
     min-width: 0;
     flex: 1;
