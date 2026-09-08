@@ -25,11 +25,11 @@ import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubation
 import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
-import { daysUntil, toLocalISO } from '@core/utils/date-diff';
+import { daysUntil, todayLocalISO, toLocalISO } from '@core/utils/date-diff';
 import { totalStockValue } from '@core/utils/stock-location';
 import { sortRows } from '@shared/table-sort/table-sort';
 import { CalendarDay, calendarMonthGrid, endOfMonth, isWholeMonth, startOfMonth } from '@core/utils/calendar-month';
-import { calcularEstatisticasVendasPorDia, heatmapTier, totalVendasPorDia } from '@core/utils/sales-by-day';
+import { calcularEstatisticasVendasPorDia, heatmapTier, isDiaFuturo, totalVendasPorDia } from '@core/utils/sales-by-day';
 
 interface DonutChartOptions {
   series: ApexNonAxisChartSeries;
@@ -320,14 +320,14 @@ export class Dashboard {
 
   protected readonly vendasPorDiaMapa = computed(() => totalVendasPorDia(this.vendasDoMesCalendario()));
 
-  protected readonly maiorVendaDoMes = computed(() => {
-    const totais = [...this.vendasPorDiaMapa().values()];
-    return totais.length ? Math.max(...totais) : 0;
-  });
-
+  // Estatísticas (e o teto do heatmap) só sobre dias já passados — ver
+  // comentário de `calcularEstatisticasVendasPorDia`. Dia futuro nunca teve
+  // chance de vender nada, então nem entra como candidato a "maior dia".
   protected readonly estatisticasVendasPorDia = computed(() =>
-    calcularEstatisticasVendasPorDia(this.calendarioVendas(), this.vendasPorDiaMapa()),
+    calcularEstatisticasVendasPorDia(this.calendarioVendas(), this.vendasPorDiaMapa(), todayLocalISO()),
   );
+
+  protected readonly maiorVendaDoMes = computed(() => this.estatisticasVendasPorDia().maiorDia?.total ?? 0);
 
   protected valorVendasDia(date: string): number {
     return this.vendasPorDiaMapa().get(date) ?? 0;
@@ -335,5 +335,14 @@ export class Dashboard {
 
   protected tierVendasDia(date: string): 0 | 1 | 2 | 3 | 4 {
     return heatmapTier(this.valorVendasDia(date), this.maiorVendaDoMes());
+  }
+
+  // Dia depois de hoje: nunca teve chance de ter venda — célula mostra só o
+  // número, sem sombreado nem valor, visualmente distinta de um dia já
+  // passado com R$0,00 real (esse sim conta em "Dias sem venda"). Bug
+  // relatado: calendário sombreava/contava dias futuros como se já tivessem
+  // dado zero vendas.
+  protected diaEhFuturo(date: string): boolean {
+    return isDiaFuturo(date, todayLocalISO());
   }
 }

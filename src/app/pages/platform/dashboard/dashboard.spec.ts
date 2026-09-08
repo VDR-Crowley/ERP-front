@@ -385,9 +385,102 @@ describe('Dashboard — card "Vendas por dia" (calendário do mês exibido)', ()
     expect(porDia.get('2026-08-15')).toBe(15);
     expect(porDia.has('2026-09-03')).toBe(false); // venda de setembro não entra no mês exibido
 
+    // Assume que "hoje" (relógio real da máquina rodando o teste) já passou de
+    // 31/08/2026 — mesma convenção do resto da suíte, que trata 2026 como o
+    // "agora" fictício do app. Se isso um dia deixar de ser verdade, agosto/2026
+    // vira mês corrente/futuro e estas 3 asserções (que dependem do mês inteiro
+    // já ter "acontecido") precisam ser revistas.
     const stats = dashboard.estatisticasVendasPorDia();
     expect(stats.mediaPorDia).toBeCloseTo(105 / 31, 5); // (90+15) / 31 dias de agosto
     expect(stats.maiorDia).toEqual({ date: '2026-08-01', total: 90 });
     expect(stats.diasSemVenda).toBe(29); // 31 dias - 2 dias com venda
+  });
+});
+
+/**
+ * Bug relatado: o calendário sombreava/contava dias FUTUROS (depois de hoje)
+ * como se já tivessem tido a chance de vender — média divide por dias que
+ * ainda não aconteceram, e "Dias sem venda" contava dia futuro como "sem
+ * venda". Usa datas relativas a `new Date()` (não hardcoded) pra não depender
+ * de qual mês é "hoje" quando o teste roda de verdade.
+ */
+describe('Dashboard — card "Vendas por dia" não trata dia futuro como dia com dado', () => {
+  const productsUrl = `${environment.apiUrl}/products`;
+  const salesUrl = `${environment.apiUrl}/sales`;
+
+  const PRODUCTS_API = [
+    { id: 1, name: '50 ovos de codorna', unit: 'pack', unit_price: '15.00', stock: 40, eggs_per_unit: 50 },
+  ];
+
+  it('diaEhFuturo() marca amanhã como futuro e hoje como não-futuro', async () => {
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    const httpMock = TestBed.inject(HttpTestingController);
+    await flushAllPendingGets(httpMock, { [productsUrl]: PRODUCTS_API });
+    await fixture.whenStable();
+
+    const dashboard = fixture.componentInstance as unknown as {
+      diaEhFuturo: (date: string) => boolean;
+    };
+
+    const hoje = new Date();
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
+    const ontem = new Date(hoje);
+    ontem.setDate(ontem.getDate() - 1);
+
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    expect(dashboard.diaEhFuturo(iso(amanha))).toBe(true);
+    expect(dashboard.diaEhFuturo(iso(hoje))).toBe(false);
+    expect(dashboard.diaEhFuturo(iso(ontem))).toBe(false);
+  });
+
+  it('venda cadastrada com data futura (erro de digitação) não vira "maior dia" nem entra na média', async () => {
+    const hoje = new Date();
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    // Se "amanhã" cair no mês seguinte, o teste ainda funciona: a venda futura
+    // fica de fora do mês exibido de qualquer forma (não é sobre isso que
+    // este teste garante especificamente, mas não quebra a asserção principal).
+    const SALES_API = [
+      {
+        id: 1, date: iso(hoje), product_id: 1, quantity: 1, unit_price: '15.00', total: '15.00',
+        payment_pending: false, buyer: 'Hoje', seller_id: 1, delivery_pending: false,
+        delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+      },
+      {
+        id: 2, date: iso(amanha), product_id: 1, quantity: 1, unit_price: '15.00', total: '999999.00',
+        payment_pending: false, buyer: 'Futuro', seller_id: 1, delivery_pending: false,
+        delivery_date: null, stock_location_type: 'plantel', stock_location_vendedor_id: null,
+      },
+    ];
+
+    await TestBed.configureTestingModule({
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(Dashboard);
+    // Filtro "Tudo" -> mesExibidoCalendario cai no mês corrente real, que contém tanto hoje quanto amanhã (a menos que hoje seja o último dia do mês).
+    TestBed.inject(PeriodFilterService).clear();
+    const httpMock = TestBed.inject(HttpTestingController);
+    await flushAllPendingGets(httpMock, { [productsUrl]: PRODUCTS_API, [salesUrl]: SALES_API });
+    await fixture.whenStable();
+
+    const dashboard = fixture.componentInstance as unknown as {
+      estatisticasVendasPorDia: () => { mediaPorDia: number; maiorDia: { date: string; total: number } | null };
+    };
+
+    const stats = dashboard.estatisticasVendasPorDia();
+    // O valor absurdo (999999) da venda de amanhã nunca pode aparecer como maior dia.
+    expect(stats.maiorDia?.total).not.toBe(999999);
+    expect(stats.mediaPorDia).toBeLessThan(999999);
   });
 });

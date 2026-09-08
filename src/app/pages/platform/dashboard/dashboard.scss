@@ -274,6 +274,17 @@
     background: transparent;
   }
 
+  // Dia depois de hoje: nunca teve chance de vender — visual claramente
+  // diferente de um dia já passado com R$0,00 real (esse fica no card
+  // padrão --t0, plain, contando em "Dias sem venda"). Borda tracejada +
+  // opacidade baixa, sem entrar no heatmap.
+  &--future {
+    border-style: dashed;
+    border-color: var(--erp-border);
+    background: transparent;
+    opacity: 0.4;
+  }
+
   &__num {
     font-size: 0.75rem;
     font-weight: 700;

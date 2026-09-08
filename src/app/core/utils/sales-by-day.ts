@@ -17,30 +17,45 @@ export interface MaiorDiaVendas {
 }
 
 export interface EstatisticasVendasPorDia {
-  /** Faturamento total do mês / nº de dias do mês (inclui dias sem venda). */
+  /** Faturamento total dos dias já passados (até hoje) / nº desses dias. Dias futuros não entram — o mês ainda não "aconteceu" pra eles. */
   mediaPorDia: number;
-  /** Dia com maior faturamento do mês, ou `null` se nenhum dia teve venda. */
+  /** Dia com maior faturamento entre os dias já passados, ou `null` se nenhum teve venda. */
   maiorDia: MaiorDiaVendas | null;
-  /** Quantos dias do mês (dentro da grade, células reais — não os brancos de alinhamento) não tiveram nenhuma venda. */
+  /** Quantos dias já passados (até hoje) não tiveram nenhuma venda — dias futuros não contam como "sem venda" (ainda não é possível saber). */
   diasSemVenda: number;
+}
+
+/** `true` se `date` ('YYYY-MM-DD') for depois de `hojeIso` ('YYYY-MM-DD') — comparação lexicográfica, válida pro formato ISO. */
+export function isDiaFuturo(date: string, hojeIso: string): boolean {
+  return date > hojeIso;
 }
 
 /**
  * Estatísticas do card "Vendas por dia" a partir da grade do mês
  * (`calendarMonthGrid`, só as células reais — ignora os `null` de
  * alinhamento) e do total já somado por dia (`totalVendasPorDia`).
+ *
+ * Dias futuros (depois de `hojeIso`) são excluídos de tudo — média, maior
+ * dia e contagem de "sem venda": um dia que ainda não aconteceu não pode
+ * ser "sem venda", e incluí-lo na média divide por dias que não tiveram
+ * chance de vender nada, subestimando o resultado pra qualquer mês em
+ * andamento (bug relatado: calendário sombreava/contava dias futuros como
+ * se já tivessem dado zero vendas).
  */
 export function calcularEstatisticasVendasPorDia(
   grid: (CalendarDay | null)[],
   porDia: Map<string, number>,
+  hojeIso: string,
 ): EstatisticasVendasPorDia {
-  const diasDoMes = grid.filter((c): c is CalendarDay => c !== null);
+  const diasJaPassados = grid.filter(
+    (c): c is CalendarDay => c !== null && !isDiaFuturo(c.date, hojeIso),
+  );
 
   let soma = 0;
   let diasSemVenda = 0;
   let maiorDia: MaiorDiaVendas | null = null;
 
-  for (const d of diasDoMes) {
+  for (const d of diasJaPassados) {
     const total = porDia.get(d.date) ?? 0;
     soma += total;
     if (total === 0) diasSemVenda++;
@@ -50,7 +65,7 @@ export function calcularEstatisticasVendasPorDia(
   }
 
   return {
-    mediaPorDia: diasDoMes.length ? soma / diasDoMes.length : 0,
+    mediaPorDia: diasJaPassados.length ? soma / diasJaPassados.length : 0,
     maiorDia,
     diasSemVenda,
   };
