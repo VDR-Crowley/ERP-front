@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthSession } from '@core/services/auth-session.service';
 import { AuthApiService } from '@core/auth/auth-api.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
+import { SalesQuickCreate } from '@core/services/sales-quick-create.service';
 import { DatePicker, DateRange } from '@shared/components-ds/date-picker/date-picker';
 import { MonthTabs } from '@shared/components-ds/month-tabs/month-tabs';
 import { BottomSheet } from '@shared/components-ds/bottom-sheet/bottom-sheet';
@@ -32,6 +33,7 @@ export class LayoutApp {
   private readonly session = inject(AuthSession);
   private readonly authApi = inject(AuthApiService);
   protected readonly periodFilter = inject(PeriodFilterService);
+  private readonly quickCreate = inject(SalesQuickCreate);
 
   /** `null` = clique em "Limpar" no calendário — remove o filtro (mostra tudo). */
   protected onPeriodChange(range: Date | DateRange | null): void {
@@ -229,6 +231,18 @@ export class LayoutApp {
 
   protected closeMenu(): void {
     this.menuOpen.set(false);
+  }
+
+  /**
+   * Botão de destaque no topo da sidebar (atalho pedido pelo Ytallo, igual
+   * ao "Nova Simulação" do Consig360): sinaliza a `SalesQuickCreate` e navega
+   * pra Vendas — a própria tela reage ao sinal e abre o modal de criação já
+   * existente (`Sales.openNew`), sem duplicar form.
+   */
+  protected novaVenda(): void {
+    this.quickCreate.request();
+    this.closeMenu();
+    this.router.navigate(['/platform/sales']);
   }
 
   protected async exportar(): Promise<void> {

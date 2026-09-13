@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
@@ -9,6 +9,7 @@ import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
+import { SalesQuickCreate } from '@core/services/sales-quick-create.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import { PLANTEL_LOCATION, buildLocationOptions, locationLabel } from '@core/utils/stock-location';
@@ -97,6 +98,14 @@ export class Sales {
   private readonly vendedoresStore = createVendedoresStore();
   private readonly vendorStockStore = createVendorStockStore();
   private readonly periodFilter = inject(PeriodFilterService);
+  private readonly quickCreate = inject(SalesQuickCreate);
+
+  /** Atalho "Nova Venda" da sidebar — ignora o valor inicial (0), só abre em incrementos. */
+  private readonly quickCreateEffect = effect(() => {
+    if (this.quickCreate.signal() > 0) {
+      this.openNew();
+    }
+  });
 
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();

@@ -60,6 +60,33 @@ $sidebar: 240px;
     }
   }
 
+  /* Atalho de destaque acima do nav — "Nova Venda" (pedido do Ytallo, igual
+     ao "Nova Simulação" do Consig360). */
+  &__quick-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    margin: 0 0.75rem 0.6rem;
+    padding: 0.7rem 0.8rem;
+    border: none;
+    border-radius: 11px;
+    background: var(--erp-green);
+    color: #06120c;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s;
+
+    i {
+      font-size: 1rem;
+    }
+    &:hover {
+      filter: brightness(1.08);
+    }
+  }
+
   &__nav {
     flex: 1;
     overflow-y: auto;
@@ -249,6 +276,16 @@ $sidebar: 240px;
       gap: 0;
     }
     .side__link span {
+      display: none;
+    }
+    .side__quick-action {
+      margin-left: 0.6rem;
+      margin-right: 0.6rem;
+      padding-left: 0;
+      padding-right: 0;
+      gap: 0;
+    }
+    .side__quick-action span {
       display: none;
     }
     .side__user {

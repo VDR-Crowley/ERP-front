@@ -14,6 +14,16 @@
       </span>
     </div>
 
+    <button
+      type="button"
+      class="side__quick-action"
+      [title]="collapsed() ? 'Nova Venda' : ''"
+      (click)="novaVenda()"
+    >
+      <i class="pi pi-plus-circle"></i>
+      <span>Nova Venda</span>
+    </button>
+
     <nav class="side__nav">
       @for (item of nav; track item.path) {
         <a
