@@ -39,7 +39,7 @@
     @let filtered = rows() | filterBy: search() : searchKeys;
 
     <div class="tbl-wrap">
-      <table class="tbl" style="min-width: 560px">
+      <table class="tbl" style="min-width: 780px">
         <thead>
           <tr>
             <th class="sortable" (click)="sortBy('species')">
@@ -67,6 +67,8 @@
               <app-sort-icon [active]="sortField() === 'monthlyTotal'" [dir]="sortDir()" />
             </th>
             <th class="num" title="Custo/mês dividido pela Quantidade de aves">Custo/ave</th>
+            <th>Aquisição</th>
+            <th class="num">Investimento</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -79,8 +81,18 @@
               <td class="num" data-label="Preço saco">{{ brl(item.bagPrice) }}</td>
               <td class="num strong" data-label="Custo/mês">{{ brl(item.monthlyTotal) }}</td>
               <td class="num" data-label="Custo/ave">{{ brl(custoPorAve(item)) }}</td>
+              <td data-label="Aquisição">{{ item.acquiredDate ? ptDate(item.acquiredDate) : '—' }}</td>
+              <td class="num" data-label="Investimento">{{ item.investmentAmount !== null && item.investmentAmount !== undefined ? brl(item.investmentAmount) : '—' }}</td>
               <td>
                 <div class="row-actions">
+                  <a
+                    class="btn btn--icon"
+                    title="Relatório de investimento"
+                    routerLink="/platform/investimento-plantel"
+                    [queryParams]="{ flockId: item.id }"
+                  >
+                    <i class="pi pi-chart-line"></i>
+                  </a>
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(item)">
                     <i class="pi pi-pencil"></i>
                   </button>
@@ -107,6 +119,7 @@
   [title]="formTitle()"
   [fields]="fields"
   [model]="draft"
+  note="Data de aquisição + Valor investido são opcionais — preencha os dois pra habilitar o Relatório de Investimento desse plantel."
   (saved)="saveForm()"
   (cancelled)="cancelForm()"
 />

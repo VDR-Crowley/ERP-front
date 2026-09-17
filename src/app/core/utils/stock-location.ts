@@ -1,13 +1,17 @@
 /**
  * Estoque separado por LOCAL: "Plantel" (padrão, dono do campo `Product.stock`
- * já existente) ou "com um Vendedor" (novo store `vendorStock`, um registro
- * por par produto+vendedor). O local vira uma string simples pra caber nos
- * selects do crud-form-modal sem precisar de mais uma entidade: 'plantel' ou
+ * já existente), opcionalmente um PLANTEL ESPECÍFICO (`flock_stock` do lote,
+ * mantido em sincronia com `Product.stock` pelo backend — não é um pool à
+ * parte, só uma marcação de qual lote foi debitado) ou "com um Vendedor"
+ * (novo store `vendorStock`, um registro por par produto+vendedor). O local
+ * vira uma string simples pra caber nos selects do crud-form-modal sem
+ * precisar de mais uma entidade: 'plantel', `plantel:<flockId>` ou
  * `vendedor:<id>`. Funções aqui são puras (sem IDB) — a leitura/escrita real
  * do estoque fica nos componentes que injetam os entity-stores.
  */
 
 export const PLANTEL_LOCATION = 'plantel';
+const PLANTEL_FLOCK_PREFIX = 'plantel:';
 const VENDEDOR_PREFIX = 'vendedor:';
 
 export interface VendorStockLike {
@@ -22,6 +26,11 @@ export interface VendedorLike {
   active: boolean;
 }
 
+export interface FlockLike {
+  id: string;
+  species: string;
+}
+
 export function vendedorLocation(vendedorId: string): string {
   return `${VENDEDOR_PREFIX}${vendedorId}`;
 }
@@ -30,22 +39,40 @@ export function vendedorIdFromLocation(location: string): string | null {
   return location.startsWith(VENDEDOR_PREFIX) ? location.slice(VENDEDOR_PREFIX.length) : null;
 }
 
-export function isPlantelLocation(location: string): boolean {
-  return location === PLANTEL_LOCATION;
+export function flockLocation(flockId: string): string {
+  return `${PLANTEL_FLOCK_PREFIX}${flockId}`;
 }
 
-/** Rótulo pra exibir em tabelas/históricos. Vendedor apagado ainda mostra algo legível. */
-export function locationLabel(location: string, vendedores: VendedorLike[]): string {
-  if (isPlantelLocation(location)) return 'Plantel';
+export function flockIdFromLocation(location: string): string | null {
+  return location.startsWith(PLANTEL_FLOCK_PREFIX) ? location.slice(PLANTEL_FLOCK_PREFIX.length) : null;
+}
+
+/** `true` pro Plantel genérico E pro Plantel de um lote específico — os dois debitam do mesmo pool (`Product.stock`), só muda se a baixa também marca um `flock_stock`. */
+export function isPlantelLocation(location: string): boolean {
+  return location === PLANTEL_LOCATION || location.startsWith(PLANTEL_FLOCK_PREFIX);
+}
+
+/** Rótulo pra exibir em tabelas/históricos. Vendedor/lote apagado ainda mostra algo legível. */
+export function locationLabel(location: string, vendedores: VendedorLike[], flocks: FlockLike[] = []): string {
+  if (location === PLANTEL_LOCATION) return 'Plantel';
+  const flockId = flockIdFromLocation(location);
+  if (flockId) {
+    const flock = flocks.find((f) => f.id === flockId);
+    return flock ? `Plantel: ${flock.species}` : 'Plantel: lote removido';
+  }
   const id = vendedorIdFromLocation(location);
   const vendedor = vendedores.find((v) => v.id === id);
   return vendedor ? `Vendedor: ${vendedor.name}` : 'Vendedor removido';
 }
 
-/** Opções pro select de local (Plantel + vendedores ativos), pro campo da venda/transferência. */
-export function buildLocationOptions(vendedores: VendedorLike[]): { value: string; label: string }[] {
+/** Opções pro select de local (Plantel genérico + planteis específicos + vendedores ativos), pro campo da venda/transferência. */
+export function buildLocationOptions(
+  vendedores: VendedorLike[],
+  flocks: FlockLike[] = [],
+): { value: string; label: string }[] {
   return [
     { value: PLANTEL_LOCATION, label: 'Plantel' },
+    ...flocks.map((f) => ({ value: flockLocation(f.id), label: `Plantel: ${f.species}` })),
     ...vendedores
       .filter((v) => v.active)
       .map((v) => ({ value: vendedorLocation(v.id), label: `Vendedor: ${v.name}` })),

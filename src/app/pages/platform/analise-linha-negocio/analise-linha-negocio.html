@@ -1,4 +1,20 @@
 <div class="page">
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Filtro por plantel</h2>
+      <select
+        [ngModel]="flockFilter()"
+        (ngModelChange)="flockFilter.set($event)"
+        title="Filtrar o relatório por um plantel específico"
+      >
+        <option value="">Todos os planteis</option>
+        @for (opt of flockOptions(); track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
   <section class="kpi-grid">
     <article class="kpi kpi--blue">
       <div class="kpi__row">

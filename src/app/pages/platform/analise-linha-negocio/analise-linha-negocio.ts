@@ -22,6 +22,7 @@ import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { createSaleExclusionsStore } from '@core/api/adapters/sale-exclusions.adapter';
 import { createExpenseSpeciesOverridesStore } from '@core/api/adapters/expense-species-overrides.adapter';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { BusinessLineReportApiService, BusinessLineReportResult } from '@core/api/business-line-report-api.service';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ThemeService } from '@core/utils/theme.service';
@@ -103,24 +104,36 @@ export class AnaliseLinhaNegocio {
   private readonly expensesStore = createExpensesStore();
   private readonly excludedSalesStore = createSaleExclusionsStore();
   private readonly expenseOverridesStore = createExpenseSpeciesOverridesStore();
+  private readonly flockStore = createFlockStore();
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
   private readonly businessLineReportApi = inject(BusinessLineReportApiService);
 
+  protected readonly flockOptions = computed(() =>
+    this.flockStore.items().map((f) => ({ value: f.id, label: f.species })),
+  );
+
+  /** Filtro opcional por plantel específico — `''` = todos os planteis (comportamento padrão). */
+  protected readonly flockFilter = signal('');
+
   /**
    * Rateio/cálculo (codorna x galinha, por produto, série mensal) agora vem
-   * pronto de `GET /business-line-report?start=&end=` — o backend já lê
+   * pronto de `GET /business-line-report?start=&end=&flock_id=` — o backend já lê
    * `sales`/`sale_exclusions`/`expenses`/`expense_species_overrides`/`flock`/
    * `products` reais (ver `business-line-report-api.service.ts`). Reavalia
-   * sozinho quando o período do DatePicker da topbar muda.
+   * sozinho quando o período do DatePicker da topbar ou o filtro de plantel mudam.
    */
   private readonly reportResource = resource({
-    params: () => ({ active: this.periodFilter.active(), range: this.periodFilter.range() }),
+    params: () => ({
+      active: this.periodFilter.active(),
+      range: this.periodFilter.range(),
+      flockId: this.flockFilter(),
+    }),
     loader: ({ params }): Promise<BusinessLineReportResult> => {
       const [start, end] = params.active
         ? [toLocalISO(params.range[0]), toLocalISO(params.range[1])]
         : [undefined, undefined];
-      return firstValueFrom(this.businessLineReportApi.get(start, end));
+      return firstValueFrom(this.businessLineReportApi.get(start, end, params.flockId || undefined));
     },
   });
 

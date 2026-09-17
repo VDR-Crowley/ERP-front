@@ -1,11 +1,12 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Plantel as PlantelModel } from '@core/interfaces/plantel.interface';
 import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { WithId } from '@core/api/entity-store';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
-import { brl, num } from '@core/utils/format';
+import { brl, num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -31,17 +32,20 @@ const FIELDS: CrudField[] = [
   { key: 'quantity', label: 'Quantidade', type: 'number', step: 1, required: true },
   { key: 'feedBagsPerMonth', label: 'Sacos de ração/mês', type: 'number', step: 1, required: true },
   { key: 'bagPrice', label: 'Preço do saco', type: 'number', step: 0.01, required: true },
+  { key: 'acquiredDate', label: 'Data de aquisição (opcional)', type: 'date' },
+  { key: 'investmentAmount', label: 'Valor investido (opcional)', type: 'number', step: 0.01 },
 ];
 
 @Component({
   selector: 'app-plantel',
-  imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
+  imports: [FormsModule, RouterLink, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
   templateUrl: './plantel.html',
   styleUrl: './plantel.scss',
 })
 export class Plantel {
   protected readonly brl = brl;
   protected readonly num = num;
+  protected readonly ptDate = ptDate;
   protected readonly fields = FIELDS;
 
   private readonly store = createFlockStore();
@@ -84,7 +88,14 @@ export class Plantel {
   protected openNew(): void {
     this.editingId = null;
     this.formTitle.set('Nova espécie');
-    this.draft = { species: '', quantity: 0, feedBagsPerMonth: 0, bagPrice: 0 };
+    this.draft = {
+      species: '',
+      quantity: 0,
+      feedBagsPerMonth: 0,
+      bagPrice: 0,
+      acquiredDate: '',
+      investmentAmount: '',
+    };
     this.formOpen.set(true);
   }
 
@@ -103,12 +114,17 @@ export class Plantel {
     const d = this.draft;
     const feedBagsPerMonth = Number(d['feedBagsPerMonth']);
     const bagPrice = Number(d['bagPrice']);
+    const acquiredDate = d['acquiredDate'] ? String(d['acquiredDate']) : null;
+    const investmentAmount =
+      d['investmentAmount'] === '' || d['investmentAmount'] == null ? null : Number(d['investmentAmount']);
     const record: PlantelModel = {
       species: String(d['species']),
       quantity: Number(d['quantity']),
       feedBagsPerMonth,
       bagPrice,
       monthlyTotal: feedBagsPerMonth * bagPrice,
+      acquiredDate,
+      investmentAmount,
     };
 
     if (this.editingId) {

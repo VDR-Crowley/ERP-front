@@ -5,6 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Sales } from './sales';
 import { vendedorLocation } from '@core/utils/stock-location';
 import { settleHttp } from '@core/testing/http-settle';
+import { todayLocalISO } from '@core/utils/date-diff';
 import { environment } from '../../../../environments/environment';
 
 /**
@@ -23,6 +24,7 @@ describe('Sales — venda baixando do estoque de um vendedor', () => {
   const productsUrl = `${environment.apiUrl}/products`;
   const vendedoresUrl = `${environment.apiUrl}/vendedores`;
   const vendorStockUrl = `${environment.apiUrl}/vendor-stock`;
+  const flockUrl = `${environment.apiUrl}/flock`;
 
   const PRODUCT_API = { id: 1, name: '50 ovos de codorna', unit: 'pack', unit_price: '15.00', stock: 40, eggs_per_unit: 50 };
   const VENDEDOR_API = { id: 1, name: 'Karol', contact: '', active: true };
@@ -45,11 +47,13 @@ describe('Sales — venda baixando do estoque de um vendedor', () => {
 
     // Construção da tela dispara: salesStore (GET /sales + refs /products+/vendedores),
     // productsStore (GET /products), vendedoresStore (GET /vendedores), vendorStockStore
-    // (GET /vendor-stock + GET /products) — cada store busca sua própria referência.
+    // (GET /vendor-stock + GET /products), flockStore (GET /flock) — cada store busca
+    // sua própria referência.
     httpMock.expectOne(salesUrl).flush([]);
     flushAll(productsUrl, [PRODUCT_API]);
     flushAll(vendedoresUrl, [VENDEDOR_API]);
     httpMock.expectOne(vendorStockUrl).flush([{ id: 1, product_id: 1, vendedor_id: 1, quantity: 12 }]);
+    httpMock.expectOne(flockUrl).flush([]);
     await fixture.whenStable();
   });
 
@@ -94,6 +98,7 @@ describe('Sales — venda baixando do estoque de um vendedor', () => {
       delivery_date: null,
       stock_location_type: 'vendedor',
       stock_location_vendedor_id: 1,
+      stock_location_flock_id: null,
     });
     postReq.flush({
       id: 10,
@@ -138,7 +143,7 @@ describe('Sales — venda baixando do estoque de um vendedor', () => {
     httpMock.expectOne(salesUrl).flush([
       {
         id: 10,
-        date: '2026-08-20',
+        date: todayLocalISO(),
         product_id: 1,
         quantity: 5,
         unit_price: '15.00',
@@ -155,6 +160,7 @@ describe('Sales — venda baixando do estoque de um vendedor', () => {
     flushAll(productsUrl, [PRODUCT_API]);
     flushAll(vendedoresUrl, [VENDEDOR_API]);
     httpMock.expectOne(vendorStockUrl).flush([{ id: 1, product_id: 1, vendedor_id: 1, quantity: 7 }]);
+    httpMock.expectOne(flockUrl).flush([]);
     await fixture.whenStable();
 
     const venda = component['rows']().find((v) => v.buyer === 'Cliente Teste')!;

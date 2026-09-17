@@ -8,4 +8,6 @@ export interface Expense {
   unitPrice?: number;
   amount: number;
   paid: boolean;
+  /** Opcional: vincula a despesa a um plantel específico (ração/veterinário daquele lote). `undefined`/ausente = despesa geral. */
+  flockId?: string;
 }

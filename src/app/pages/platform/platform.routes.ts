@@ -48,6 +48,11 @@ export const PLATFORM_ROUTES: Routes = [
       import('./analise-linha-negocio/analise-linha-negocio').then((m) => m.AnaliseLinhaNegocio),
   },
   {
+    path: 'investimento-plantel',
+    loadComponent: () =>
+      import('./investimento-plantel/investimento-plantel').then((m) => m.InvestimentoPlantel),
+  },
+  {
     path: 'products',
     loadComponent: () => import('./products/products').then((m) => m.Products),
   },
