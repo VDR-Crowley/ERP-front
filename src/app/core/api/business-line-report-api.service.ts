@@ -49,10 +49,11 @@ export class BusinessLineReportApiService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/business-line-report`;
 
-  get(start?: string, end?: string): Observable<BusinessLineReportResult> {
+  get(start?: string, end?: string, flockId?: string): Observable<BusinessLineReportResult> {
     let params = new HttpParams();
     if (start) params = params.set('start', start);
     if (end) params = params.set('end', end);
+    if (flockId) params = params.set('flock_id', flockId);
 
     return this.http.get<BusinessLineReportApi>(this.base, { params }).pipe(map(toFront));
   }

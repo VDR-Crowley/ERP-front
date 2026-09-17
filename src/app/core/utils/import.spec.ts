@@ -84,6 +84,7 @@ describe('importWorkbookFile', () => {
       unit_price: 106,
       amount: 106,
       paid: true,
+      flock_id: null,
     });
     postReq.flush({
       id: 1,

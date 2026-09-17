@@ -1,9 +1,12 @@
 import {
+  FlockLike,
   PLANTEL_LOCATION,
   ProductLike,
   VendedorLike,
   VendorStockLike,
   buildLocationOptions,
+  flockIdFromLocation,
+  flockLocation,
   isPlantelLocation,
   locationLabel,
   productStockValue,
@@ -20,6 +23,10 @@ function vendedor(overrides: Partial<VendedorLike> = {}): VendedorLike {
   return { id: 'v1', name: 'Karol', active: true, ...overrides };
 }
 
+function flock(overrides: Partial<FlockLike> = {}): FlockLike {
+  return { id: 'f1', species: 'Galinha Embrapa 051', ...overrides };
+}
+
 describe('vendedorLocation / vendedorIdFromLocation', () => {
   it('faz o round-trip do id do vendedor pro local e de volta', () => {
     const location = vendedorLocation('abc-123');
@@ -32,9 +39,23 @@ describe('vendedorLocation / vendedorIdFromLocation', () => {
   });
 });
 
+describe('flockLocation / flockIdFromLocation', () => {
+  it('faz o round-trip do id do lote pro local e de volta', () => {
+    const location = flockLocation('2');
+    expect(location).toBe('plantel:2');
+    expect(flockIdFromLocation(location)).toBe('2');
+  });
+
+  it('retorna null pro local Plantel genérico e pro local de vendedor', () => {
+    expect(flockIdFromLocation(PLANTEL_LOCATION)).toBeNull();
+    expect(flockIdFromLocation(vendedorLocation('v1'))).toBeNull();
+  });
+});
+
 describe('isPlantelLocation', () => {
-  it('reconhece o local Plantel e rejeita local de vendedor', () => {
+  it('reconhece o Plantel genérico e o Plantel de um lote específico, rejeita local de vendedor', () => {
     expect(isPlantelLocation(PLANTEL_LOCATION)).toBe(true);
+    expect(isPlantelLocation(flockLocation('f1'))).toBe(true);
     expect(isPlantelLocation(vendedorLocation('v1'))).toBe(false);
   });
 });
@@ -51,6 +72,15 @@ describe('locationLabel', () => {
 
   it('cai pra "Vendedor removido" quando o id não existe mais na lista', () => {
     expect(locationLabel(vendedorLocation('sumiu'), [])).toBe('Vendedor removido');
+  });
+
+  it('rotula um plantel específico cadastrado', () => {
+    const flocks = [flock({ id: 'f1', species: 'Codorna' })];
+    expect(locationLabel(flockLocation('f1'), [], flocks)).toBe('Plantel: Codorna');
+  });
+
+  it('cai pra "Plantel: lote removido" quando o id não existe mais na lista', () => {
+    expect(locationLabel(flockLocation('sumiu'), [], [])).toBe('Plantel: lote removido');
   });
 });
 
@@ -70,6 +100,17 @@ describe('buildLocationOptions', () => {
   it('exclui vendedores inativos', () => {
     const vendedores = [vendedor({ id: 'v1', active: false })];
     expect(buildLocationOptions(vendedores)).toEqual([{ value: 'plantel', label: 'Plantel' }]);
+  });
+
+  it('inclui os planteis específicos entre o Plantel genérico e os vendedores', () => {
+    const vendedores = [vendedor({ id: 'v1', name: 'Karol', active: true })];
+    const flocks = [flock({ id: 'f1', species: 'Codorna' }), flock({ id: 'f2', species: 'Galinha' })];
+    expect(buildLocationOptions(vendedores, flocks)).toEqual([
+      { value: 'plantel', label: 'Plantel' },
+      { value: 'plantel:f1', label: 'Plantel: Codorna' },
+      { value: 'plantel:f2', label: 'Plantel: Galinha' },
+      { value: 'vendedor:v1', label: 'Vendedor: Karol' },
+    ]);
   });
 });
 

@@ -4,6 +4,8 @@ import { firstValueFrom } from 'rxjs';
 import { Venda } from '@core/interfaces/venda.interface';
 import {
   PLANTEL_LOCATION,
+  flockIdFromLocation,
+  flockLocation,
   isPlantelLocation,
   vendedorIdFromLocation,
   vendedorLocation,
@@ -44,6 +46,7 @@ interface SaleApi {
   delivery_date: string | null;
   stock_location_type: 'plantel' | 'vendedor';
   stock_location_vendedor_id: number | null;
+  stock_location_flock_id: number | null;
 }
 
 /**
@@ -67,9 +70,12 @@ export function createSalesStore(): SalesStore {
   const items = signal<WithId<Venda>[]>([]);
 
   function toFront(api: SaleApi, products: NameIdMaps, vendedores: NameIdMaps): WithId<Venda> {
-    const stockLocation = api.stock_location_type === 'vendedor' && api.stock_location_vendedor_id != null
-      ? vendedorLocation(String(api.stock_location_vendedor_id))
-      : PLANTEL_LOCATION;
+    const stockLocation =
+      api.stock_location_type === 'vendedor' && api.stock_location_vendedor_id != null
+        ? vendedorLocation(String(api.stock_location_vendedor_id))
+        : api.stock_location_flock_id != null
+          ? flockLocation(String(api.stock_location_flock_id))
+          : PLANTEL_LOCATION;
     return {
       date: toDateOnly(api.date),
       product: products.byId.get(api.product_id) ?? '',
@@ -89,6 +95,7 @@ export function createSalesStore(): SalesStore {
   function toApi(item: Venda, products: NameIdMaps, vendedores: NameIdMaps) {
     const location = item.stockLocation ?? PLANTEL_LOCATION;
     const plantel = isPlantelLocation(location);
+    const flockId = flockIdFromLocation(location);
     return {
       date: item.date,
       product_id: resolveIdByName(products, item.product, 'Produto'),
@@ -102,6 +109,7 @@ export function createSalesStore(): SalesStore {
       delivery_date: item.deliveryDate,
       stock_location_type: plantel ? 'plantel' : 'vendedor',
       stock_location_vendedor_id: plantel ? null : Number(vendedorIdFromLocation(location)),
+      stock_location_flock_id: flockId ? Number(flockId) : null,
     };
   }
 

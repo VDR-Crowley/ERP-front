@@ -144,6 +144,12 @@ export class LayoutApp {
       sub: 'Rentabilidade: codorna x galinha, por produto',
     },
     {
+      path: '/platform/investimento-plantel',
+      icon: 'pi-money-bill',
+      label: 'Investimento no Plantel',
+      sub: 'Payback mensal de planteis comprados como investimento',
+    },
+    {
       path: '/platform/products',
       icon: 'pi-box',
       label: 'Produtos',

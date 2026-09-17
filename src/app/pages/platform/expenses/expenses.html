@@ -38,7 +38,7 @@
     @let filtered = rows() | filterBy: search() : searchKeys;
 
     <div class="tbl-wrap">
-      <table class="tbl" style="min-width: 780px">
+      <table class="tbl" style="min-width: 880px">
         <thead>
           <tr>
             <th class="sortable" (click)="sortBy('date')">
@@ -69,6 +69,7 @@
               Situação
               <app-sort-icon [active]="sortField() === 'paid'" [dir]="sortDir()" />
             </th>
+            <th>Plantel</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -88,6 +89,7 @@
                   <span class="badge badge--warn">Pendente</span>
                 }
               </td>
+              <td data-label="Plantel">{{ flockSpeciesFor(e) ?? '—' }}</td>
               <td>
                 <div class="row-actions">
                   <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(e)">
@@ -114,7 +116,7 @@
 <app-crud-form-modal
   [open]="formOpen()"
   [title]="formTitle()"
-  [fields]="fields"
+  [fields]="fields()"
   [model]="draft"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"

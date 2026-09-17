@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Expense } from '@core/interfaces/expense.interface';
 import { WithId } from '@core/api/entity-store';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -20,38 +21,46 @@ function toNumberOrUndefined(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-const FIELDS: CrudField[] = [
-  { key: 'date', label: 'Data', type: 'date', required: true },
-  { key: 'description', label: 'Descrição', type: 'text', required: true },
-  { key: 'category', label: 'Categoria', type: 'text', required: true },
-  { key: 'quantity', label: 'Quantidade comprada', type: 'number', step: 1 },
-  { key: 'unitPrice', label: 'Valor da unidade', type: 'number', step: 0.01 },
-  {
-    key: 'amount',
-    label: 'Valor total',
-    type: 'number',
-    step: 0.01,
-    required: true,
-    compute: (m) => {
-      const quantity = toNumberOrUndefined(m['quantity']);
-      const unitPrice = toNumberOrUndefined(m['unitPrice']);
-      if (quantity === undefined || unitPrice === undefined || quantity <= 0 || unitPrice <= 0) {
-        return undefined;
-      }
-      return Math.round(quantity * unitPrice * 100) / 100;
+function buildFields(flockOptions: { value: string; label: string }[]): CrudField[] {
+  return [
+    { key: 'date', label: 'Data', type: 'date', required: true },
+    { key: 'description', label: 'Descrição', type: 'text', required: true },
+    { key: 'category', label: 'Categoria', type: 'text', required: true },
+    { key: 'quantity', label: 'Quantidade comprada', type: 'number', step: 1 },
+    { key: 'unitPrice', label: 'Valor da unidade', type: 'number', step: 0.01 },
+    {
+      key: 'amount',
+      label: 'Valor total',
+      type: 'number',
+      step: 0.01,
+      required: true,
+      compute: (m) => {
+        const quantity = toNumberOrUndefined(m['quantity']);
+        const unitPrice = toNumberOrUndefined(m['unitPrice']);
+        if (quantity === undefined || unitPrice === undefined || quantity <= 0 || unitPrice <= 0) {
+          return undefined;
+        }
+        return Math.round(quantity * unitPrice * 100) / 100;
+      },
     },
-  },
-  {
-    key: 'paid',
-    label: 'Situação',
-    type: 'select',
-    options: [
-      { value: 'true', label: 'Pago' },
-      { value: 'false', label: 'Pendente' },
-    ],
-    required: true,
-  },
-];
+    {
+      key: 'paid',
+      label: 'Situação',
+      type: 'select',
+      options: [
+        { value: 'true', label: 'Pago' },
+        { value: 'false', label: 'Pendente' },
+      ],
+      required: true,
+    },
+    {
+      key: 'flockId',
+      label: 'Plantel (opcional)',
+      type: 'select',
+      options: [{ value: '', label: 'Geral (nenhum plantel específico)' }, ...flockOptions],
+    },
+  ];
+}
 
 @Component({
   selector: 'app-expenses',
@@ -62,10 +71,19 @@ const FIELDS: CrudField[] = [
 export class Expenses {
   protected readonly brl = brl;
   protected readonly ptDate = ptDate;
-  protected readonly fields = FIELDS;
 
   private readonly store = createExpensesStore();
+  private readonly flockStore = createFlockStore();
   private readonly periodFilter = inject(PeriodFilterService);
+
+  protected readonly fields = computed<CrudField[]>(() =>
+    buildFields(this.flockStore.items().map((f) => ({ value: f.id, label: f.species }))),
+  );
+
+  protected flockSpeciesFor(e: Expense): string | null {
+    if (!e.flockId) return null;
+    return this.flockStore.items().find((f) => f.id === e.flockId)?.species ?? 'Plantel removido';
+  }
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description', 'category'];
@@ -117,6 +135,7 @@ export class Expenses {
       unitPrice: '',
       amount: 0,
       paid: 'false',
+      flockId: '',
     };
     this.formOpen.set(true);
   }
@@ -124,7 +143,7 @@ export class Expenses {
   protected openEdit(e: WithId<Expense>): void {
     this.editingId = e.id;
     this.formTitle.set('Editar despesa');
-    this.draft = { ...e, paid: String(e.paid) };
+    this.draft = { ...e, paid: String(e.paid), flockId: e.flockId ?? '' };
     this.formOpen.set(true);
   }
 
@@ -142,6 +161,7 @@ export class Expenses {
       unitPrice: toNumberOrUndefined(d['unitPrice']),
       amount: Number(d['amount']),
       paid: d['paid'] === 'true' || d['paid'] === true,
+      flockId: d['flockId'] ? String(d['flockId']) : undefined,
     };
 
     if (this.editingId) {

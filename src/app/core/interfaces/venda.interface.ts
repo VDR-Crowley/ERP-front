@@ -10,10 +10,11 @@ export interface Venda {
   deliveryPending: boolean;
   deliveryDate: string | null;
   /**
-   * Local de onde a venda baixa o estoque: 'plantel' ou `vendedor:<id>` (ver
-   * `core/utils/stock-location.ts`). Opcional pra não quebrar vendas
-   * gravadas antes dessa feature — leitura sempre trata ausente como
-   * PLANTEL_LOCATION.
+   * Local de onde a venda baixa o estoque: 'plantel', `plantel:<flockId>`
+   * (debita `flock_stock` de um lote específico, sincronizado com o estoque
+   * geral) ou `vendedor:<id>` (ver `core/utils/stock-location.ts`). Opcional
+   * pra não quebrar vendas gravadas antes dessa feature — leitura sempre
+   * trata ausente como PLANTEL_LOCATION.
    */
   stockLocation?: string;
 }

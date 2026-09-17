@@ -15,6 +15,7 @@ export interface ExpenseApi {
   unit_price: string | null;
   amount: string;
   paid: boolean;
+  flock_id: number | null;
   species_override?: { id: number; expense_id: number; species: 'quail' | 'chicken' | null; reason: string; created_at: string } | null;
 }
 
@@ -27,6 +28,7 @@ export function expenseToFront(api: ExpenseApi): Expense {
     unitPrice: decimalToNullableNumber(api.unit_price) ?? undefined,
     amount: decimalToNumber(api.amount),
     paid: api.paid,
+    flockId: api.flock_id != null ? String(api.flock_id) : undefined,
   };
 }
 
@@ -39,6 +41,7 @@ function toApi(item: Expense) {
     unit_price: item.unitPrice ?? null,
     amount: item.amount,
     paid: item.paid,
+    flock_id: item.flockId ? Number(item.flockId) : null,
   };
 }
 

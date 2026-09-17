@@ -1,0 +1,115 @@
+<div class="page">
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Investimento no Plantel</h2>
+      <select
+        [ngModel]="selectedFlockId()"
+        (ngModelChange)="selectedFlockId.set($event)"
+        title="Escolha o plantel"
+      >
+        <option value="">Selecione um plantel...</option>
+        @for (opt of flockOptions(); track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+
+    @if (!selectedFlockId()) {
+      <div class="empty">Escolha um plantel acima pra ver o payback do investimento.</div>
+    } @else if (!hasInvestmentData()) {
+      <div class="empty">
+        Este plantel ainda não tem <strong>Data de aquisição</strong> e/ou <strong>Valor investido</strong>
+        cadastrados. Preencha esses dados na tela <a routerLink="/platform/plantel">Plantel</a> pra habilitar
+        o relatório de investimento.
+      </div>
+    } @else if (isLoading()) {
+      <div class="empty">Carregando...</div>
+    } @else if (loadError()) {
+      <div class="empty">{{ loadError() }}</div>
+    } @else {
+      <section class="kpi-grid kpi-grid--compact">
+        <article class="kpi kpi--amber kpi--ink-red">
+          <div class="kpi__label">Valor investido</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(totalInvested()) }}</div>
+        </article>
+        <article class="kpi kpi--green">
+          <div class="kpi__label">Já pago</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(paidSoFar()) }}</div>
+        </article>
+        <article class="kpi kpi--blue">
+          <div class="kpi__label">Falta pagar</div>
+          <div class="kpi__value kpi__value--sm">{{ brl(remainingInvestment()) }}</div>
+        </article>
+        <article class="kpi kpi--purple">
+          <div class="kpi__label">% do investimento pago</div>
+          <div class="kpi__value">{{ num(percentPaid(), 1) }}%</div>
+        </article>
+      </section>
+    }
+  </div>
+
+  @if (selectedFlockId() && hasInvestmentData() && !isLoading() && !loadError()) {
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Receita, despesas e investimento pago por mês</h2>
+      </div>
+      @if (months().length) {
+        <apx-chart
+          [series]="chart().series"
+          [chart]="chart().chart"
+          [colors]="chart().colors"
+          [stroke]="chart().stroke"
+          [dataLabels]="chart().dataLabels"
+          [xaxis]="chart().xaxis"
+          [yaxis]="chart().yaxis"
+          [grid]="chart().grid"
+          [legend]="chart().legend"
+          [tooltip]="chart().tooltip"
+        />
+      } @else {
+        <div class="empty">Sem meses no período (desde a aquisição até hoje).</div>
+      }
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Detalhamento mensal</h2>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 720px">
+          <thead>
+            <tr>
+              <th>Mês</th>
+              <th class="num">Receita</th>
+              <th class="num">Despesas</th>
+              <th>Despesas cobertas?</th>
+              <th class="num">Investimento pago no mês</th>
+              <th class="num">Falta pagar</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of months(); track row.month) {
+              <tr>
+                <td class="strong" data-label="Mês">{{ row.month }}</td>
+                <td class="num" data-label="Receita">{{ brl(row.revenue) }}</td>
+                <td class="num" data-label="Despesas">{{ brl(row.expenses) }}</td>
+                <td data-label="Despesas cobertas?">
+                  @if (row.expensesCovered) {
+                    <span class="badge badge--ok">Sim</span>
+                  } @else {
+                    <span class="badge badge--warn">Não</span>
+                  }
+                </td>
+                <td class="num" data-label="Investimento pago no mês">{{ brl(row.investmentPaidThisMonth) }}</td>
+                <td class="num" data-label="Falta pagar">{{ brl(row.remainingInvestment) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (months().length === 0) {
+        <div class="empty">Sem meses no período (desde a aquisição até hoje).</div>
+      }
+    </div>
+  }
+</div>

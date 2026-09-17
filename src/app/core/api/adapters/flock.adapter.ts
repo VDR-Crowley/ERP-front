@@ -2,7 +2,8 @@ import { inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Plantel } from '@core/interfaces/plantel.interface';
 import { environment } from '../../../../environments/environment';
-import { createRestEntityStore, decimalToNumber, EntityStore } from '../entity-store';
+import { createRestEntityStore, decimalToNullableNumber, decimalToNumber, EntityStore } from '../entity-store';
+import { toDateOnly } from '@core/utils/date-diff';
 
 interface FlockApi {
   id: number;
@@ -11,6 +12,8 @@ interface FlockApi {
   feed_bags_per_month: number;
   bag_price: string;
   monthly_total: string;
+  acquired_date: string | null;
+  investment_amount: string | null;
 }
 
 function toFront(api: FlockApi): Plantel {
@@ -20,6 +23,8 @@ function toFront(api: FlockApi): Plantel {
     feedBagsPerMonth: api.feed_bags_per_month,
     bagPrice: decimalToNumber(api.bag_price),
     monthlyTotal: decimalToNumber(api.monthly_total),
+    acquiredDate: toDateOnly(api.acquired_date),
+    investmentAmount: decimalToNullableNumber(api.investment_amount),
   };
 }
 
@@ -30,6 +35,8 @@ function toApi(item: Plantel) {
     feed_bags_per_month: item.feedBagsPerMonth,
     bag_price: item.bagPrice,
     monthly_total: item.monthlyTotal,
+    acquired_date: item.acquiredDate || null,
+    investment_amount: item.investmentAmount ?? null,
   };
 }
 

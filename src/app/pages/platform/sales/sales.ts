@@ -3,11 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
 import { Vendedor } from '@core/interfaces/vendedor.interface';
+import { Plantel } from '@core/interfaces/plantel.interface';
 import { WithId } from '@core/api/entity-store';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { SalesQuickCreate } from '@core/services/sales-quick-create.service';
 import { brl, num, ptDate } from '@core/utils/format';
@@ -25,6 +27,7 @@ function buildFields(
   productOptions: { value: string; label: string }[],
   products: WithId<Product>[],
   vendedores: WithId<Vendedor>[],
+  flocks: WithId<Plantel>[],
 ): CrudField[] {
   return [
   { key: 'date', label: 'Data', type: 'date', required: true },
@@ -48,7 +51,7 @@ function buildFields(
     label: 'Local do estoque (baixa ao salvar)',
     type: 'select',
     required: true,
-    optionsFor: () => buildLocationOptions(vendedores),
+    optionsFor: () => buildLocationOptions(vendedores, flocks),
   },
   { key: 'buyer', label: 'Comprador', type: 'text', required: true },
   {
@@ -97,6 +100,7 @@ export class Sales {
   private readonly productsStore = createProductsStore();
   private readonly vendedoresStore = createVendedoresStore();
   private readonly vendorStockStore = createVendorStockStore();
+  private readonly flockStore = createFlockStore();
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly quickCreate = inject(SalesQuickCreate);
 
@@ -110,7 +114,7 @@ export class Sales {
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
     const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
-    return buildFields(productOptions, products, this.vendedoresStore.items());
+    return buildFields(productOptions, products, this.vendedoresStore.items(), this.flockStore.items());
   });
 
   protected readonly search = signal('');
@@ -153,7 +157,7 @@ export class Sales {
   );
 
   protected locationLabelFor(v: Venda): string {
-    return locationLabel(v.stockLocation ?? PLANTEL_LOCATION, this.vendedoresStore.items());
+    return locationLabel(v.stockLocation ?? PLANTEL_LOCATION, this.vendedoresStore.items(), this.flockStore.items());
   }
 
   protected openNew(): void {
