@@ -325,6 +325,19 @@
   }
 }
 
+/* ---------- "Últimas vendas": tabela preenche a altura do card (que estica
+   junto do calendário ao lado, via grid stretch) e rola por dentro se passar,
+   em vez de deixar espaço vazio embaixo. ---------- */
+.panel--sales-fill {
+  min-height: 0;
+
+  .tbl-wrap {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 768px) {
   .cal-day__value {
     display: none;

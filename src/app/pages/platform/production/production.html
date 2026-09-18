@@ -72,6 +72,10 @@
               Data
               <app-sort-icon [active]="sortField() === 'date'" [dir]="sortDir()" />
             </th>
+            <th class="sortable" (click)="sortBy('barnId')">
+              Galpão
+              <app-sort-icon [active]="sortField() === 'barnId'" [dir]="sortDir()" />
+            </th>
             <th class="num sortable" (click)="sortBy('quailEggs')">
               Codorna
               <app-sort-icon [active]="sortField() === 'quailEggs'" [dir]="sortDir()" />
@@ -84,13 +88,14 @@
               Total
               <app-sort-icon [active]="sortField() === 'total'" [dir]="sortDir()" />
             </th>
-            <th>Ações</th>
+            <th class="actions">Ações</th>
           </tr>
         </thead>
         <tbody>
           @for (p of filtered; track p.id) {
             <tr>
               <td class="strong" data-label="Data">{{ ptDate(p.date) }}</td>
+              <td data-label="Galpão">{{ barnName(p.barnId) }}</td>
               <td class="num" data-label="Codorna">{{ num(p.quailEggs) }}</td>
               <td class="num" data-label="Galinha">{{ num(p.chickenEggs) }}</td>
               <td class="num strong" data-label="Total">{{ num(p.total) }}</td>
@@ -120,7 +125,7 @@
 <app-crud-form-modal
   [open]="formOpen()"
   [title]="formTitle()"
-  [fields]="fields"
+  [fields]="fields()"
   [model]="draft"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"

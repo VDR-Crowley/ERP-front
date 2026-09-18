@@ -1,0 +1,96 @@
+<div class="page">
+  <section class="kpi-grid kpi-grid--compact">
+    <article class="kpi kpi--green">
+      <div class="kpi__label">Galpões</div>
+      <div class="kpi__value">{{ num(totalGalpoes()) }}</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">Galpões (plantéis)</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar por nome, localização..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo galpão
+      </button>
+    </div>
+
+    @let filtered = rows() | filterBy: search() : searchKeys;
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 640px">
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('name')">
+              Nome
+              <app-sort-icon [active]="sortField() === 'name'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('location')">
+              Localização
+              <app-sort-icon [active]="sortField() === 'location'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('startDate')">
+              Início
+              <app-sort-icon [active]="sortField() === 'startDate'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('notes')">
+              Observação
+              <app-sort-icon [active]="sortField() === 'notes'" [dir]="sortDir()" />
+            </th>
+            <th class="actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of filtered; track b.id) {
+            <tr>
+              <td class="strong" data-label="Nome">{{ b.name }}</td>
+              <td data-label="Localização">{{ b.location || '—' }}</td>
+              <td data-label="Início">{{ b.startDate ? ptDate(b.startDate) : '—' }}</td>
+              <td data-label="Observação">{{ b.notes || '—' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(b)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(b)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (filtered.length === 0) {
+      <div class="empty">Nenhum galpão cadastrado.</div>
+    }
+    <div class="tbl-foot">{{ filtered.length }} galpão(ões)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  note="O galpão é o local físico (plantel). As espécies/lotes que vivem nele são cadastrados à parte."
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o galpão ' + (deleteTarget()?.name ?? '') + '? Essa ação não pode ser desfeita.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

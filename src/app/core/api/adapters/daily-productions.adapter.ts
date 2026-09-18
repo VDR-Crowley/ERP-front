@@ -7,17 +7,28 @@ import { createRestEntityStore, EntityStore } from '../entity-store';
 
 interface DailyProductionApi {
   id: number;
+  barn_id: number | null;
   date: string;
   quail_eggs: number | null;
   chicken_eggs: number | null;
 }
 
 function toFront(api: DailyProductionApi): ProducaoDiaria {
-  return { date: toDateOnly(api.date), quailEggs: api.quail_eggs, chickenEggs: api.chicken_eggs };
+  return {
+    date: toDateOnly(api.date),
+    quailEggs: api.quail_eggs,
+    chickenEggs: api.chicken_eggs,
+    barnId: api.barn_id ?? null,
+  };
 }
 
 function toApi(item: ProducaoDiaria) {
-  return { date: item.date, quail_eggs: item.quailEggs, chicken_eggs: item.chickenEggs };
+  return {
+    date: item.date,
+    quail_eggs: item.quailEggs,
+    chicken_eggs: item.chickenEggs,
+    barn_id: item.barnId ?? null,
+  };
 }
 
 export function createDailyProductionsStore(): EntityStore<ProducaoDiaria> {

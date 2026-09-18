@@ -5,6 +5,9 @@ import { Venda } from '@core/interfaces/venda.interface';
 import {
   PLANTEL_LOCATION,
   isPlantelLocation,
+  isBarnLocation,
+  barnIdFromLocation,
+  barnLocation,
   vendedorIdFromLocation,
   vendedorLocation,
 } from '@core/utils/stock-location';
@@ -42,8 +45,9 @@ interface SaleApi {
   seller_id: number;
   delivery_pending: boolean;
   delivery_date: string | null;
-  stock_location_type: 'plantel' | 'vendedor';
+  stock_location_type: 'plantel' | 'vendedor' | 'barn';
   stock_location_vendedor_id: number | null;
+  stock_location_barn_id: number | null;
 }
 
 /**
@@ -67,9 +71,12 @@ export function createSalesStore(): SalesStore {
   const items = signal<WithId<Venda>[]>([]);
 
   function toFront(api: SaleApi, products: NameIdMaps, vendedores: NameIdMaps): WithId<Venda> {
-    const stockLocation = api.stock_location_type === 'vendedor' && api.stock_location_vendedor_id != null
-      ? vendedorLocation(String(api.stock_location_vendedor_id))
-      : PLANTEL_LOCATION;
+    const stockLocation =
+      api.stock_location_type === 'barn' && api.stock_location_barn_id != null
+        ? barnLocation(String(api.stock_location_barn_id))
+        : api.stock_location_type === 'vendedor' && api.stock_location_vendedor_id != null
+          ? vendedorLocation(String(api.stock_location_vendedor_id))
+          : PLANTEL_LOCATION;
     return {
       date: toDateOnly(api.date),
       product: products.byId.get(api.product_id) ?? '',
@@ -88,7 +95,9 @@ export function createSalesStore(): SalesStore {
 
   function toApi(item: Venda, products: NameIdMaps, vendedores: NameIdMaps) {
     const location = item.stockLocation ?? PLANTEL_LOCATION;
+    const barn = isBarnLocation(location);
     const plantel = isPlantelLocation(location);
+    const type = barn ? 'barn' : plantel ? 'plantel' : 'vendedor';
     return {
       date: item.date,
       product_id: resolveIdByName(products, item.product, 'Produto'),
@@ -100,8 +109,9 @@ export function createSalesStore(): SalesStore {
       seller_id: resolveIdByName(vendedores, item.seller, 'Vendedor'),
       delivery_pending: item.deliveryPending,
       delivery_date: item.deliveryDate,
-      stock_location_type: plantel ? 'plantel' : 'vendedor',
-      stock_location_vendedor_id: plantel ? null : Number(vendedorIdFromLocation(location)),
+      stock_location_type: type,
+      stock_location_vendedor_id: type === 'vendedor' ? Number(vendedorIdFromLocation(location)) : null,
+      stock_location_barn_id: type === 'barn' ? Number(barnIdFromLocation(location)) : null,
     };
   }
 

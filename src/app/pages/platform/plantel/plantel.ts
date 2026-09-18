@@ -4,6 +4,7 @@ import { Plantel as PlantelModel } from '@core/interfaces/plantel.interface';
 import { FeedStock } from '@core/interfaces/feed-stock.interface';
 import { WithId } from '@core/api/entity-store';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
 import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { brl, num } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -26,7 +27,7 @@ function normalizeSpecies(value: string): string {
  * padrão atual; não afeta FeedStocks já existentes com 20kg. */
 const DEFAULT_BAG_WEIGHT_KG = 40;
 
-const FIELDS: CrudField[] = [
+const BASE_FIELDS: CrudField[] = [
   { key: 'species', label: 'Espécie', type: 'text', required: true },
   { key: 'quantity', label: 'Quantidade', type: 'number', step: 1, required: true },
   { key: 'feedBagsPerMonth', label: 'Sacos de ração/mês', type: 'number', step: 1, required: true },
@@ -42,10 +43,31 @@ const FIELDS: CrudField[] = [
 export class Plantel {
   protected readonly brl = brl;
   protected readonly num = num;
-  protected readonly fields = FIELDS;
 
   private readonly store = createFlockStore();
+  private readonly barnStore = createBarnStore();
   private readonly feedStockStore = createFeedStockStore();
+
+  /** Campos do form + seletor de Galpão (options vêm dos galpões cadastrados). */
+  protected readonly fields = computed<CrudField[]>(() => [
+    ...BASE_FIELDS,
+    {
+      key: 'barnId',
+      label: 'Galpão',
+      type: 'select',
+      options: [
+        { value: '', label: '— Sem galpão —' },
+        ...this.barnStore.items().map((b) => ({ value: b.id, label: b.name })),
+      ],
+    },
+  ]);
+
+  /** Nome do galpão de um lote (pra coluna da tabela). '—' quando sem galpão. */
+  protected barnName(barnId: number | null | undefined): string {
+    if (barnId == null) return '—';
+    const b = this.barnStore.items().find((x) => Number(x.id) === Number(barnId));
+    return b ? b.name : '—';
+  }
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['species'];
@@ -84,14 +106,15 @@ export class Plantel {
   protected openNew(): void {
     this.editingId = null;
     this.formTitle.set('Nova espécie');
-    this.draft = { species: '', quantity: 0, feedBagsPerMonth: 0, bagPrice: 0 };
+    this.draft = { species: '', quantity: 0, feedBagsPerMonth: 0, bagPrice: 0, barnId: '' };
     this.formOpen.set(true);
   }
 
   protected openEdit(p: WithId<PlantelModel>): void {
     this.editingId = p.id;
     this.formTitle.set('Editar espécie');
-    this.draft = { ...p };
+    // barnId vai como string no form (o <select> compara valores de texto).
+    this.draft = { ...p, barnId: p.barnId != null ? String(p.barnId) : '' };
     this.formOpen.set(true);
   }
 
@@ -103,12 +126,14 @@ export class Plantel {
     const d = this.draft;
     const feedBagsPerMonth = Number(d['feedBagsPerMonth']);
     const bagPrice = Number(d['bagPrice']);
+    const barnIdRaw = d['barnId'];
     const record: PlantelModel = {
       species: String(d['species']),
       quantity: Number(d['quantity']),
       feedBagsPerMonth,
       bagPrice,
       monthlyTotal: feedBagsPerMonth * bagPrice,
+      barnId: barnIdRaw ? Number(barnIdRaw) : null,
     };
 
     if (this.editingId) {

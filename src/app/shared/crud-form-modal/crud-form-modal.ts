@@ -40,6 +40,12 @@ export interface CrudField {
    * quando o campo do qual ele depende muda).
    */
   onChange?: (value: unknown, model: Record<string, unknown>) => void;
+  /**
+   * Opcional: esconde o campo dinamicamente conforme o model atual (ex.:
+   * esconder "Ovos codorna" quando o galpão escolhido não tem codornas).
+   * Reavaliado a cada mudança de campo do form.
+   */
+  hiddenFor?: (model: Record<string, unknown>) => boolean;
 }
 
 /**
@@ -76,6 +82,10 @@ export class CrudFormModal implements OnChanges {
 
   protected isReadonly(field: CrudField): boolean {
     return !!field.compute && field.compute(this.model) !== undefined;
+  }
+
+  protected isHidden(field: CrudField): boolean {
+    return !!field.hiddenFor && field.hiddenFor(this.model);
   }
 
   protected getOptions(field: CrudField): { value: string; label: string }[] {

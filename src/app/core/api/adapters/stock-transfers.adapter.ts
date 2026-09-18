@@ -2,7 +2,17 @@ import { inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { StockTransfer } from '@core/interfaces/stock-transfer.interface';
-import { PLANTEL_LOCATION, isPlantelLocation, vendedorIdFromLocation, vendedorLocation } from '@core/utils/stock-location';
+import {
+  PLANTEL_LOCATION,
+  isPlantelLocation,
+  isBarnLocation,
+  barnIdFromLocation,
+  barnLocation,
+  vendedorIdFromLocation,
+  vendedorLocation,
+} from '@core/utils/stock-location';
+
+type LocationType = 'plantel' | 'vendedor' | 'barn';
 import { environment } from '../../../../environments/environment';
 import { toDateOnly } from '@core/utils/date-diff';
 import { EntityStore, WithId } from '../entity-store';
@@ -13,10 +23,12 @@ interface StockTransferApi {
   date: string;
   product_id: number;
   quantity: number;
-  from_location_type: 'plantel' | 'vendedor';
+  from_location_type: LocationType;
   from_vendedor_id: number | null;
-  to_location_type: 'plantel' | 'vendedor';
+  from_location_barn_id: number | null;
+  to_location_type: LocationType;
   to_vendedor_id: number | null;
+  to_location_barn_id: number | null;
   note: string | null;
 }
 
@@ -34,13 +46,22 @@ export function createStockTransfersStore(): EntityStore<StockTransfer> {
   const productsUrl = `${environment.apiUrl}/products`;
   const items = signal<WithId<StockTransfer>[]>([]);
 
-  function locationToFront(type: 'plantel' | 'vendedor', vendedorId: number | null): string {
-    return type === 'vendedor' && vendedorId != null ? vendedorLocation(String(vendedorId)) : PLANTEL_LOCATION;
+  function locationToFront(type: LocationType, vendedorId: number | null, barnId: number | null): string {
+    if (type === 'barn' && barnId != null) return barnLocation(String(barnId));
+    if (type === 'vendedor' && vendedorId != null) return vendedorLocation(String(vendedorId));
+    return PLANTEL_LOCATION;
   }
 
-  function locationToApi(location: string): { type: 'plantel' | 'vendedor'; vendedorId: number | null } {
-    if (isPlantelLocation(location)) return { type: 'plantel', vendedorId: null };
-    return { type: 'vendedor', vendedorId: Number(vendedorIdFromLocation(location)) };
+  function locationToApi(location: string): {
+    type: LocationType;
+    vendedorId: number | null;
+    barnId: number | null;
+  } {
+    if (isBarnLocation(location)) {
+      return { type: 'barn', vendedorId: null, barnId: Number(barnIdFromLocation(location)) };
+    }
+    if (isPlantelLocation(location)) return { type: 'plantel', vendedorId: null, barnId: null };
+    return { type: 'vendedor', vendedorId: Number(vendedorIdFromLocation(location)), barnId: null };
   }
 
   function toFront(api: StockTransferApi, products: NameIdMaps): WithId<StockTransfer> {
@@ -48,8 +69,8 @@ export function createStockTransfersStore(): EntityStore<StockTransfer> {
       date: toDateOnly(api.date),
       product: products.byId.get(api.product_id) ?? '',
       quantity: api.quantity,
-      fromLocation: locationToFront(api.from_location_type, api.from_vendedor_id),
-      toLocation: locationToFront(api.to_location_type, api.to_vendedor_id),
+      fromLocation: locationToFront(api.from_location_type, api.from_vendedor_id, api.from_location_barn_id),
+      toLocation: locationToFront(api.to_location_type, api.to_vendedor_id, api.to_location_barn_id),
       note: api.note,
       id: String(api.id),
     };
@@ -64,8 +85,10 @@ export function createStockTransfersStore(): EntityStore<StockTransfer> {
       quantity: item.quantity,
       from_location_type: from.type,
       from_vendedor_id: from.vendedorId,
+      from_location_barn_id: from.barnId,
       to_location_type: to.type,
       to_vendedor_id: to.vendedorId,
+      to_location_barn_id: to.barnId,
       note: item.note || null,
     };
   }

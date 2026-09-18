@@ -14,6 +14,10 @@ export const PLATFORM_ROUTES: Routes = [
     loadComponent: () => import('./sales/sales').then((m) => m.Sales),
   },
   {
+    path: 'galpoes',
+    loadComponent: () => import('./galpoes/galpoes').then((m) => m.Galpoes),
+  },
+  {
     path: 'plantel',
     loadComponent: () => import('./plantel/plantel').then((m) => m.Plantel),
   },

@@ -96,6 +96,12 @@ export class LayoutApp {
       sub: 'Todas as vendas realizadas',
     },
     {
+      path: '/platform/galpoes',
+      icon: 'pi-building',
+      label: 'Galpões',
+      sub: 'Locais físicos (plantéis) e o que há neles',
+    },
+    {
       path: '/platform/plantel',
       icon: 'pi-users',
       label: 'Plantel',

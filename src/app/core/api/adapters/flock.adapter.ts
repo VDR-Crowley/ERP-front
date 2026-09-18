@@ -6,6 +6,7 @@ import { createRestEntityStore, decimalToNumber, EntityStore } from '../entity-s
 
 interface FlockApi {
   id: number;
+  barn_id: number | null;
   species: string;
   quantity: number;
   feed_bags_per_month: number;
@@ -20,6 +21,7 @@ function toFront(api: FlockApi): Plantel {
     feedBagsPerMonth: api.feed_bags_per_month,
     bagPrice: decimalToNumber(api.bag_price),
     monthlyTotal: decimalToNumber(api.monthly_total),
+    barnId: api.barn_id ?? null,
   };
 }
 
@@ -30,6 +32,7 @@ function toApi(item: Plantel) {
     feed_bags_per_month: item.feedBagsPerMonth,
     bag_price: item.bagPrice,
     monthly_total: item.monthlyTotal,
+    barn_id: item.barnId ?? null,
   };
 }
 

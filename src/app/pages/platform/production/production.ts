@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { WithId } from '@core/api/entity-store';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -15,11 +17,19 @@ import { SortIcon } from '@shared/sort-icon/sort-icon';
 type Row = WithId<ProducaoDiaria> & { total: number };
 type SortField = keyof Row;
 
-const FIELDS: CrudField[] = [
-  { key: 'date', label: 'Data', type: 'date', required: true },
-  { key: 'quailEggs', label: 'Ovos codorna', type: 'number', step: 1 },
-  { key: 'chickenEggs', label: 'Ovos galinha', type: 'number', step: 1 },
-];
+const DATE_FIELD: CrudField = { key: 'date', label: 'Data', type: 'date', required: true };
+
+/** Normaliza nome de espécie (sem acento, minúsculo) — mesmo padrão do resto do app. */
+const DIACRITICS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g');
+function normalizeSpecies(value: string): string {
+  return value.trim().toLowerCase().normalize('NFD').replace(DIACRITICS, '');
+}
+function isQuail(species: string): boolean {
+  return normalizeSpecies(species).includes('codorna');
+}
+function isChicken(species: string): boolean {
+  return normalizeSpecies(species).includes('galinha');
+}
 
 @Component({
   selector: 'app-production',
@@ -30,14 +40,68 @@ const FIELDS: CrudField[] = [
 export class Production {
   protected readonly num = num;
   protected readonly ptDate = ptDate;
-  protected readonly fields = FIELDS;
 
   private readonly store = createDailyProductionsStore();
+  private readonly barnStore = createBarnStore();
+  private readonly flockStore = createFlockStore();
   private readonly periodFilter = inject(PeriodFilterService);
+
+  /**
+   * Espécies presentes num galpão (a partir dos lotes cadastrados no Plantel).
+   * Sem galpão escolhido, ou galpão sem lote cadastrado → ambas liberadas (não
+   * bloqueia o lançamento). Só filtra quando o galpão TEM lotes e a espécie
+   * não está entre eles.
+   */
+  private speciesInBarn(barnIdRaw: unknown): { quail: boolean; chicken: boolean } {
+    if (barnIdRaw === '' || barnIdRaw == null) return { quail: true, chicken: true };
+    const barnId = Number(barnIdRaw);
+    const flocks = this.flockStore.items().filter((f) => Number(f.barnId) === barnId);
+    if (flocks.length === 0) return { quail: true, chicken: true };
+    return {
+      quail: flocks.some((f) => isQuail(f.species)),
+      chicken: flocks.some((f) => isChicken(f.species)),
+    };
+  }
+
+  /** Campos do form + seletor de Galpão. Os campos de ovos aparecem só pras
+   * espécies que existem no galpão escolhido. */
+  protected readonly fields = computed<CrudField[]>(() => [
+    DATE_FIELD,
+    {
+      key: 'barnId',
+      label: 'Galpão',
+      type: 'select',
+      options: [
+        { value: '', label: '— Sem galpão —' },
+        ...this.barnStore.items().map((b) => ({ value: b.id, label: b.name })),
+      ],
+    },
+    {
+      key: 'quailEggs',
+      label: 'Ovos codorna',
+      type: 'number',
+      step: 1,
+      hiddenFor: (model) => !this.speciesInBarn(model['barnId']).quail,
+    },
+    {
+      key: 'chickenEggs',
+      label: 'Ovos galinha',
+      type: 'number',
+      step: 1,
+      hiddenFor: (model) => !this.speciesInBarn(model['barnId']).chicken,
+    },
+  ]);
+
+  /** Nome do galpão de um registro (pra coluna da tabela). '—' quando sem galpão. */
+  protected barnName(barnId: number | null | undefined): string {
+    if (barnId == null) return '—';
+    const b = this.barnStore.items().find((x) => Number(x.id) === Number(barnId));
+    return b ? b.name : '—';
+  }
 
   protected readonly search = signal('');
   protected readonly searchKeys: (keyof Row)[] = ['date'];
-  private readonly sortState = createSortState<SortField>('date', 1);
+  private readonly sortState = createSortState<SortField>('date', -1);
   protected readonly sortField = this.sortState.sortField;
   protected readonly sortDir = this.sortState.sortDir;
   protected readonly sortBy = this.sortState.sortBy;
@@ -103,14 +167,15 @@ export class Production {
   protected openNew(): void {
     this.editingId = null;
     this.formTitle.set('Novo registro');
-    this.draft = { date: todayLocalISO(), quailEggs: 0, chickenEggs: 0 };
+    this.draft = { date: todayLocalISO(), quailEggs: 0, chickenEggs: 0, barnId: '' };
     this.formOpen.set(true);
   }
 
   protected openEdit(p: WithId<ProducaoDiaria>): void {
     this.editingId = p.id;
     this.formTitle.set('Editar registro');
-    this.draft = { ...p };
+    // barnId vai como string no form (o <select> compara valores de texto).
+    this.draft = { ...p, barnId: p.barnId != null ? String(p.barnId) : '' };
     this.formOpen.set(true);
   }
 
@@ -120,11 +185,23 @@ export class Production {
 
   protected async saveForm(): Promise<void> {
     const d = this.draft;
+    const barnIdRaw = d['barnId'];
+    // Espécies do galpão: se a espécie não existe nele, grava null (não 0),
+    // pra não poluir o galpão com ovos de uma espécie que ele não tem.
+    const sp = this.speciesInBarn(barnIdRaw);
     const record: ProducaoDiaria = {
       date: String(d['date']),
-      quailEggs: d['quailEggs'] === '' || d['quailEggs'] === null ? null : Number(d['quailEggs']),
-      chickenEggs:
-        d['chickenEggs'] === '' || d['chickenEggs'] === null ? null : Number(d['chickenEggs']),
+      quailEggs: !sp.quail
+        ? null
+        : d['quailEggs'] === '' || d['quailEggs'] === null
+          ? null
+          : Number(d['quailEggs']),
+      chickenEggs: !sp.chicken
+        ? null
+        : d['chickenEggs'] === '' || d['chickenEggs'] === null
+          ? null
+          : Number(d['chickenEggs']),
+      barnId: barnIdRaw ? Number(barnIdRaw) : null,
     };
 
     if (this.editingId) {

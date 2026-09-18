@@ -46,6 +46,10 @@
               Espécie
               <app-sort-icon [active]="sortField() === 'species'" [dir]="sortDir()" />
             </th>
+            <th class="sortable" (click)="sortBy('barnId')">
+              Galpão
+              <app-sort-icon [active]="sortField() === 'barnId'" [dir]="sortDir()" />
+            </th>
             <th class="num sortable" (click)="sortBy('quantity')">
               Quantidade
               <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
@@ -67,13 +71,14 @@
               <app-sort-icon [active]="sortField() === 'monthlyTotal'" [dir]="sortDir()" />
             </th>
             <th class="num" title="Custo/mês dividido pela Quantidade de aves">Custo/ave</th>
-            <th>Ações</th>
+            <th class="actions">Ações</th>
           </tr>
         </thead>
         <tbody>
           @for (item of filtered; track item.id) {
             <tr>
               <td class="strong" data-label="Espécie">{{ item.species }}</td>
+              <td data-label="Galpão">{{ barnName(item.barnId) }}</td>
               <td class="num" data-label="Quantidade">{{ num(item.quantity) }}</td>
               <td class="num" data-label="Sacos/mês">{{ num(item.feedBagsPerMonth) }}</td>
               <td class="num" data-label="Preço saco">{{ brl(item.bagPrice) }}</td>
@@ -105,7 +110,7 @@
 <app-crud-form-modal
   [open]="formOpen()"
   [title]="formTitle()"
-  [fields]="fields"
+  [fields]="fields()"
   [model]="draft"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"

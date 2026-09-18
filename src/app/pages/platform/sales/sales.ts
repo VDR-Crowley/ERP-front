@@ -8,11 +8,18 @@ import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
+import { Barn } from '@core/interfaces/barn.interface';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { SalesQuickCreate } from '@core/services/sales-quick-create.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
-import { PLANTEL_LOCATION, buildLocationOptions, locationLabel } from '@core/utils/stock-location';
+import {
+  PLANTEL_LOCATION,
+  buildSaleLocationOptions,
+  locationLabel,
+  barnLocation,
+} from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -25,6 +32,7 @@ function buildFields(
   productOptions: { value: string; label: string }[],
   products: WithId<Product>[],
   vendedores: WithId<Vendedor>[],
+  barns: WithId<Barn>[],
 ): CrudField[] {
   return [
   { key: 'date', label: 'Data', type: 'date', required: true },
@@ -48,7 +56,7 @@ function buildFields(
     label: 'Local do estoque (baixa ao salvar)',
     type: 'select',
     required: true,
-    optionsFor: () => buildLocationOptions(vendedores),
+    optionsFor: () => buildSaleLocationOptions(vendedores, barns),
   },
   { key: 'buyer', label: 'Comprador', type: 'text', required: true },
   {
@@ -97,7 +105,14 @@ export class Sales {
   private readonly productsStore = createProductsStore();
   private readonly vendedoresStore = createVendedoresStore();
   private readonly vendorStockStore = createVendorStockStore();
+  private readonly barnStore = createBarnStore();
   private readonly periodFilter = inject(PeriodFilterService);
+
+  /** Local padrão de uma venda nova: o primeiro galpão cadastrado (substituiu o "Plantel"). */
+  private defaultLocation(): string {
+    const first = this.barnStore.items()[0];
+    return first ? barnLocation(first.id) : PLANTEL_LOCATION;
+  }
   private readonly quickCreate = inject(SalesQuickCreate);
 
   /** Atalho "Nova Venda" da sidebar — ignora o valor inicial (0), só abre em incrementos. */
@@ -110,7 +125,7 @@ export class Sales {
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
     const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
-    return buildFields(productOptions, products, this.vendedoresStore.items());
+    return buildFields(productOptions, products, this.vendedoresStore.items(), this.barnStore.items());
   });
 
   protected readonly search = signal('');
@@ -153,7 +168,11 @@ export class Sales {
   );
 
   protected locationLabelFor(v: Venda): string {
-    return locationLabel(v.stockLocation ?? PLANTEL_LOCATION, this.vendedoresStore.items());
+    return locationLabel(
+      v.stockLocation ?? PLANTEL_LOCATION,
+      this.vendedoresStore.items(),
+      this.barnStore.items(),
+    );
   }
 
   protected openNew(): void {
@@ -165,7 +184,7 @@ export class Sales {
       product: '',
       quantity: 1,
       unitPrice: 0,
-      stockLocation: PLANTEL_LOCATION,
+      stockLocation: this.defaultLocation(),
       buyer: '',
       seller: '',
       paymentPending: 'F',
@@ -181,7 +200,7 @@ export class Sales {
     this.formTitle.set('Editar venda');
     this.draft = {
       ...v,
-      stockLocation: v.stockLocation ?? PLANTEL_LOCATION,
+      stockLocation: v.stockLocation ?? this.defaultLocation(),
       paymentPending: v.paymentPending ? 'F' : 'PAGO',
       deliveryPending: v.deliveryPending ? 'FALTA' : 'ENTREGUE',
       deliveryDate: v.deliveryDate ?? '',
@@ -211,7 +230,7 @@ export class Sales {
     const d = this.draft;
     const quantity = Number(d['quantity']);
     const unitPrice = Number(d['unitPrice']);
-    const stockLocation = String(d['stockLocation'] || PLANTEL_LOCATION);
+    const stockLocation = String(d['stockLocation'] || this.defaultLocation());
     const product = String(d['product']);
     const venda: Venda = {
       date: String(d['date']),

@@ -20,6 +20,7 @@ import { createDailyProductionsStore } from '@core/api/adapters/daily-production
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { createBarnStockStore } from '@core/api/adapters/barn-stock.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubations.adapter';
 import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
@@ -104,6 +105,7 @@ export class Dashboard {
   private readonly flockStore = createFlockStore();
   private readonly productsStore = createProductsStore();
   private readonly vendorStockStore = createVendorStockStore();
+  private readonly barnStockStore = createBarnStockStore();
   private readonly expensesStore = createExpensesStore();
   // `dashboard` não é entidade persistida no backend (ver plano-entidades.md) — nunca foi
   // escrito nem pelo antigo store do IndexedDB, `resumo` sempre cai no fallback `RESUMO_VAZIO`.
@@ -154,7 +156,7 @@ export class Dashboard {
     ).slice(0, 10),
   );
   protected readonly ultimasVendas = computed(() =>
-    sortRows(this.salesStore.items(), 'date', -1).slice(0, 5),
+    sortRows(this.salesStore.items(), 'date', -1).slice(0, 20),
   );
   protected readonly plantel = computed(() => this.flockStore.items());
   protected readonly produtos = computed(() => this.productsStore.items());
@@ -243,7 +245,7 @@ export class Dashboard {
   // de Ovos (packs × preço, removido), cobrindo só 2 produtos e divergindo
   // do total real da granja — bug relatado pelo Ytallo.
   protected readonly valorEstoque = computed(() =>
-    totalStockValue(this.productsStore.items(), this.vendorStockStore.items()),
+    totalStockValue(this.productsStore.items(), this.vendorStockStore.items(), this.barnStockStore.items()),
   );
 
   // Mesma fórmula de resumo().eggsSold em Relatórios (produto.eggsPerUnit × quantidade,

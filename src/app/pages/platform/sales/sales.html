@@ -103,7 +103,10 @@
               Vendedor
               <app-sort-icon [active]="sortField() === 'seller'" [dir]="sortDir()" />
             </th>
-            <th>Local do estoque</th>
+            <th class="sortable" (click)="sortBy('stockLocation')">
+              Local do estoque
+              <app-sort-icon [active]="sortField() === 'stockLocation'" [dir]="sortDir()" />
+            </th>
             <th class="sortable" (click)="sortBy('paymentPending')">
               Situação
               <app-sort-icon [active]="sortField() === 'paymentPending'" [dir]="sortDir()" />
@@ -116,7 +119,7 @@
               Entrega em
               <app-sort-icon [active]="sortField() === 'deliveryDate'" [dir]="sortDir()" />
             </th>
-            <th>Ações</th>
+            <th class="actions">Ações</th>
           </tr>
         </thead>
         <tbody>

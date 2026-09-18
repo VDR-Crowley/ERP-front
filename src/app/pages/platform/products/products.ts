@@ -4,6 +4,8 @@ import { Product } from '@core/interfaces/product.interface';
 import { WithId } from '@core/api/entity-store';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { createBarnStockStore } from '@core/api/adapters/barn-stock.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
 import { brl, num } from '@core/utils/format';
 import { totalStockAllLocations, totalStockValue } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -14,14 +16,6 @@ import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof Product;
 
-const FIELDS: CrudField[] = [
-  { key: 'name', label: 'Produto', type: 'text', required: true },
-  { key: 'unit', label: 'Unidade', type: 'text', required: true },
-  { key: 'unitPrice', label: 'Preço', type: 'number', step: 0.01, required: true },
-  { key: 'stock', label: 'Estoque', type: 'number', step: 1, required: true },
-  { key: 'eggsPerUnit', label: 'Ovos por unidade', type: 'number', step: 1, required: true },
-];
-
 @Component({
   selector: 'app-products',
   imports: [FormsModule, CrudFormModal, ConfirmModal, FilterByPipe, SortIcon],
@@ -31,10 +25,31 @@ const FIELDS: CrudField[] = [
 export class Products {
   protected readonly brl = brl;
   protected readonly num = num;
-  protected readonly fields = FIELDS;
 
   private readonly store = createProductsStore();
   private readonly vendorStockStore = createVendorStockStore();
+  private readonly barnStockStore = createBarnStockStore();
+  private readonly barnStore = createBarnStore();
+
+  /** Campos do form: nome, preço e um campo de estoque POR GALPÃO. */
+  protected readonly fields = computed<CrudField[]>(() => [
+    { key: 'name', label: 'Produto', type: 'text', required: true },
+    { key: 'unitPrice', label: 'Preço', type: 'number', step: 0.01, required: true },
+    ...this.barnStore.items().map((b) => ({
+      key: `barn_${b.id}`,
+      label: `Estoque ${b.name}`,
+      type: 'number' as const,
+      step: 1,
+    })),
+  ]);
+
+  /** Saldo atual de um produto num galpão (pra pré-preencher o form). */
+  private barnStockQty(barnId: string, productName: string): number {
+    const found = this.barnStockStore
+      .items()
+      .find((b) => b.barnId === barnId && b.product === productName);
+    return found?.quantity ?? 0;
+  }
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name'];
@@ -64,7 +79,20 @@ export class Products {
    * Estoque total do produto = Plantel (p.stock) + soma do que está com cada vendedor.
    */
   protected estoqueTotal(p: Product): number {
-    return totalStockAllLocations(p.stock, this.vendorStockStore.items(), p.name);
+    return totalStockAllLocations(
+      p.stock,
+      this.vendorStockStore.items(),
+      p.name,
+      this.barnStockStore.items(),
+    );
+  }
+
+  /** "Estoque no Plantel" = soma de todos os galpões (Galpão 1 + Galpão 2 + ...) desse produto. */
+  protected estoqueNoPlantel(p: Product): number {
+    return this.barnStockStore
+      .items()
+      .filter((b) => b.product === p.name)
+      .reduce((soma, b) => soma + b.quantity, 0);
   }
 
   protected readonly totalProdutos = computed(() => this.store.items().length);
@@ -72,7 +100,7 @@ export class Products {
   // produtos) — a mesma função usada linha a linha em Transferência de
   // Estoque, pra nunca divergir entre as duas telas.
   protected readonly valorEstoque = computed(() =>
-    totalStockValue(this.store.items(), this.vendorStockStore.items()),
+    totalStockValue(this.store.items(), this.vendorStockStore.items(), this.barnStockStore.items()),
   );
   protected readonly precoMedio = computed(() => {
     const items = this.store.items();
@@ -86,7 +114,10 @@ export class Products {
   protected openNew(): void {
     this.editingId = null;
     this.formTitle.set('Novo produto');
-    this.draft = { name: '', unit: '', unitPrice: 0, stock: 0, eggsPerUnit: 0 };
+    this.draft = { name: '', unit: 'un', unitPrice: 0, stock: 0, eggsPerUnit: 0 };
+    for (const b of this.barnStore.items()) {
+      this.draft[`barn_${b.id}`] = 0;
+    }
     this.formOpen.set(true);
   }
 
@@ -94,6 +125,9 @@ export class Products {
     this.editingId = p.id;
     this.formTitle.set('Editar produto');
     this.draft = { ...p };
+    for (const b of this.barnStore.items()) {
+      this.draft[`barn_${b.id}`] = this.barnStockQty(b.id, p.name);
+    }
     this.formOpen.set(true);
   }
 
@@ -103,12 +137,14 @@ export class Products {
 
   protected async saveForm(): Promise<void> {
     const d = this.draft;
+    // `unit`/`eggsPerUnit` não são mais editados na tela — preservados do
+    // registro (ou default no produto novo), pra não quebrar a API.
     const record: Product = {
       name: String(d['name']),
-      unit: String(d['unit']),
+      unit: String(d['unit'] ?? 'un') || 'un',
       unitPrice: Number(d['unitPrice']),
-      stock: Number(d['stock']),
-      eggsPerUnit: Number(d['eggsPerUnit']),
+      stock: 0,
+      eggsPerUnit: Number(d['eggsPerUnit'] ?? 0),
     };
 
     if (this.editingId) {
@@ -116,6 +152,18 @@ export class Products {
     } else {
       await this.store.add(record);
     }
+
+    // Grava o estoque de cada galpão (upsert).
+    const saved = this.store.items().find((p) => p.name === record.name);
+    const productId = this.editingId ? Number(this.editingId) : saved ? Number(saved.id) : null;
+    if (productId !== null) {
+      for (const b of this.barnStore.items()) {
+        const qty = Number(d[`barn_${b.id}`] ?? 0);
+        await this.barnStockStore.set(b.id, productId, qty);
+      }
+      this.barnStockStore.reload();
+    }
+
     this.formOpen.set(false);
   }
 

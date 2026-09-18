@@ -9,6 +9,41 @@
 
 export const PLANTEL_LOCATION = 'plantel';
 const VENDEDOR_PREFIX = 'vendedor:';
+const BARN_PREFIX = 'barn:';
+
+export interface BarnLike {
+  id: string;
+  name: string;
+}
+
+export function barnLocation(barnId: string): string {
+  return `${BARN_PREFIX}${barnId}`;
+}
+
+export function barnIdFromLocation(location: string): string | null {
+  return location.startsWith(BARN_PREFIX) ? location.slice(BARN_PREFIX.length) : null;
+}
+
+export function isBarnLocation(location: string): boolean {
+  return location.startsWith(BARN_PREFIX);
+}
+
+/**
+ * Opções de local pra VENDA: cada galpão + cada vendedor ativo. O "Plantel"
+ * genérico foi substituído pelos galpões (decisão do usuário — todo estoque de
+ * ovos mora num galpão).
+ */
+export function buildSaleLocationOptions(
+  vendedores: VendedorLike[],
+  barns: BarnLike[],
+): { value: string; label: string }[] {
+  return [
+    ...barns.map((b) => ({ value: barnLocation(b.id), label: `Galpão: ${b.name}` })),
+    ...vendedores
+      .filter((v) => v.active)
+      .map((v) => ({ value: vendedorLocation(v.id), label: `Vendedor: ${v.name}` })),
+  ];
+}
 
 export interface VendorStockLike {
   product: string;
@@ -34,9 +69,14 @@ export function isPlantelLocation(location: string): boolean {
   return location === PLANTEL_LOCATION;
 }
 
-/** Rótulo pra exibir em tabelas/históricos. Vendedor apagado ainda mostra algo legível. */
-export function locationLabel(location: string, vendedores: VendedorLike[]): string {
+/** Rótulo pra exibir em tabelas/históricos. Vendedor/galpão apagado ainda mostra algo legível. */
+export function locationLabel(location: string, vendedores: VendedorLike[], barns: BarnLike[] = []): string {
   if (isPlantelLocation(location)) return 'Plantel';
+  if (isBarnLocation(location)) {
+    const barnId = barnIdFromLocation(location);
+    const barn = barns.find((b) => b.id === barnId);
+    return barn ? `Galpão: ${barn.name}` : 'Galpão removido';
+  }
   const id = vendedorIdFromLocation(location);
   const vendedor = vendedores.find((v) => v.id === id);
   return vendedor ? `Vendedor: ${vendedor.name}` : 'Vendedor removido';
@@ -74,16 +114,25 @@ export function quantityAtLocation(
   return vendorStockQuantity(vendorStockItems, product, vendedorId);
 }
 
-/** Valor total de estoque de um produto = soma de todos os locais (Plantel + cada vendedor). */
+export interface BarnStockLike {
+  product: string;
+  quantity: number;
+}
+
+/** Valor total de estoque de um produto = soma de todos os locais (Plantel legado + cada galpão + cada vendedor). */
 export function totalStockAllLocations(
   plantelQty: number,
   vendorStockItems: VendorStockLike[],
   product: string,
+  barnStockItems: BarnStockLike[] = [],
 ): number {
   const vendorTotal = vendorStockItems
     .filter((i) => i.product === product)
     .reduce((soma, i) => soma + i.quantity, 0);
-  return plantelQty + vendorTotal;
+  const barnTotal = barnStockItems
+    .filter((i) => i.product === product)
+    .reduce((soma, i) => soma + i.quantity, 0);
+  return plantelQty + vendorTotal + barnTotal;
 }
 
 export interface ProductLike {
@@ -104,11 +153,22 @@ export function stockValue(quantity: number, unitPrice: number): number {
 }
 
 /** Valor de estoque de UM produto = soma de todos os locais × preço unitário. Mesma fonte usada linha a linha na Transferência de Estoque e somada no card de Produtos. */
-export function productStockValue(product: ProductLike, vendorStockItems: VendorStockLike[]): number {
-  return stockValue(totalStockAllLocations(product.stock, vendorStockItems, product.name), product.unitPrice);
+export function productStockValue(
+  product: ProductLike,
+  vendorStockItems: VendorStockLike[],
+  barnStockItems: BarnStockLike[] = [],
+): number {
+  return stockValue(
+    totalStockAllLocations(product.stock, vendorStockItems, product.name, barnStockItems),
+    product.unitPrice,
+  );
 }
 
 /** Valor total de estoque de TODOS os produtos, todos os locais — fonte única do card "Valor em estoque". */
-export function totalStockValue(products: ProductLike[], vendorStockItems: VendorStockLike[]): number {
-  return products.reduce((soma, p) => soma + productStockValue(p, vendorStockItems), 0);
+export function totalStockValue(
+  products: ProductLike[],
+  vendorStockItems: VendorStockLike[],
+  barnStockItems: BarnStockLike[] = [],
+): number {
+  return products.reduce((soma, p) => soma + productStockValue(p, vendorStockItems, barnStockItems), 0);
 }

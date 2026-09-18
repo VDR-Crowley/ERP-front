@@ -295,8 +295,8 @@ body {
     margin-left: 0.15rem;
 
     &--muted {
-      color: var(--erp-dim);
-      opacity: 0.55;
+      color: var(--erp-muted);
+      opacity: 0.9;
       font-size: 0.7rem;
     }
   }
@@ -960,6 +960,12 @@ body {
     justify-content: flex-end;
     width: 100%;
   }
+}
+
+/* Cabeçalho da coluna de ações alinhado à direita, junto dos botões
+   (que ficam em flex-end via .row-actions). */
+.tbl th.actions {
+  text-align: right;
 }
 
 /* ---------- Ações de linha nas tabelas CRUD ---------- */
