@@ -40,6 +40,8 @@ export interface ImportResult {
   summary: Record<string, number>;
   /** Aba -> quantidade de linhas que falharam (validação ou API). Só entra aqui se > 0. */
   failed: Record<string, number>;
+  /** Aba -> quantidade de linhas IGNORADAS por já existirem (violação de unicidade). Só entra se > 0. */
+  skipped: Record<string, number>;
   /** Uma mensagem por linha que falhou (validação de planilha ou erro 422 da API), pra exibir ao usuário. */
   rowErrors: string[];
   /**
@@ -204,7 +206,7 @@ function createImportContext(injector: Injector): ImportContext {
 // que aparece nos dois) — acontece quando não existe validação `unique:` no
 // FormRequest e o erro só é pego no nível do banco (500, mensagem crua).
 // Detectado em qualquer status pra virar mensagem legível em vez do SQLSTATE.
-const UNIQUE_CONSTRAINT_PATTERN = /SQLSTATE\[23000\]|UNIQUE constraint failed|Integrity constraint violation|Duplicate entry/i;
+const UNIQUE_CONSTRAINT_PATTERN = /SQLSTATE\[23000\]|SQLSTATE\[23505\]|UNIQUE constraint failed|Integrity constraint violation|Duplicate entry|Unique violation|duplicate key value/i;
 
 function friendlyIfUniqueConstraint(message: string): string {
   return UNIQUE_CONSTRAINT_PATTERN.test(message) ? 'Já existe um registro com esses dados.' : message;
@@ -239,6 +241,26 @@ function isConflict(e: unknown): boolean {
   return e instanceof HttpErrorResponse && e.status === 409;
 }
 
+/**
+ * Erro de "já existe esse registro" (violação de unicidade), em qualquer forma:
+ * 409 limpo do backend, ou o SQLSTATE cru (23000/23505 — SQLite/Postgres) que
+ * vaza num 500 quando não há validação `unique` no FormRequest. O import IGNORA
+ * essas linhas (conta como "ignorada", não como falha).
+ */
+function isDuplicate(e: unknown): boolean {
+  if (isConflict(e)) return true;
+  if (e instanceof HttpErrorResponse) {
+    const parts: string[] = [];
+    if (typeof e.error === 'string') parts.push(e.error);
+    if (e.error?.message) parts.push(String(e.error.message));
+    const apiErrors = e.error?.errors as Record<string, string[]> | undefined;
+    if (apiErrors) parts.push(Object.values(apiErrors).flat().join(' '));
+    if (e.message) parts.push(e.message);
+    return UNIQUE_CONSTRAINT_PATTERN.test(parts.join(' '));
+  }
+  return e instanceof Error && UNIQUE_CONSTRAINT_PATTERN.test(e.message);
+}
+
 /** Reporta progresso linha a linha durante o import — só pra feedback visual (ver `ImportProgress` no modal), não afeta o resultado. */
 export interface ImportProgress {
   label: string;
@@ -254,7 +276,7 @@ interface EntityImporter {
     warnings: string[],
     ctx: ImportContext,
     onProgress?: (progress: ImportProgress) => void,
-  ): Promise<{ imported: number; failed: number } | undefined>;
+  ): Promise<{ imported: number; failed: number; skipped: number } | undefined>;
 }
 
 /**
@@ -304,6 +326,7 @@ function makeImporter<T>(
 
       let imported = 0;
       let failed = 0;
+      let skipped = 0;
       const total = rows.length;
       let done = 0;
       for (const { row, item, id } of rows) {
@@ -311,13 +334,19 @@ function makeImporter<T>(
           await run(item, ctx, id, row, warnings);
           imported++;
         } catch (e) {
-          failed++;
-          rowErrors.push(`${label} linha ${row}: ${describeImportError(e)}`);
+          if (isDuplicate(e)) {
+            // Já existe um registro igual — IGNORA a linha (não é falha).
+            skipped++;
+            warnings.push(`${label} linha ${row}: já existia (mesmos dados) — ignorada.`);
+          } else {
+            failed++;
+            rowErrors.push(`${label} linha ${row}: ${describeImportError(e)}`);
+          }
         }
         done++;
         onProgress?.({ label, row: done, total });
       }
-      return { imported, failed };
+      return { imported, failed, skipped };
     },
   };
 }
@@ -553,7 +582,7 @@ export async function importWorkbookFile(
   try {
     workbook = XLSX.read(buffer, { type: 'array' });
   } catch {
-    return { success: false, errors: ['Arquivo inválido ou corrompido.'], summary: {}, failed: {}, rowErrors: [], warnings: [] };
+    return { success: false, errors: ['Arquivo inválido ou corrompido.'], summary: {}, failed: {}, skipped: {}, rowErrors: [], warnings: [] };
   }
 
   const present = IMPORTERS.filter((imp) => getSheet(workbook, imp.label) !== null);
@@ -563,6 +592,7 @@ export async function importWorkbookFile(
       errors: ['Nenhuma aba reconhecida no arquivo. Baixe o modelo de exemplo pra conferir o formato.'],
       summary: {},
       failed: {},
+      skipped: {},
       rowErrors: [],
       warnings: [],
     };
@@ -573,6 +603,7 @@ export async function importWorkbookFile(
   const warnings: string[] = [];
   const summary: Record<string, number> = {};
   const failed: Record<string, number> = {};
+  const skipped: Record<string, number> = {};
 
   for (const importer of present) {
     const ws = getSheet(workbook, importer.label)!;
@@ -580,9 +611,10 @@ export async function importWorkbookFile(
     if (result === undefined) continue; // coluna obrigatória faltando — mensagem já em rowErrors, aba inteira pulada
     summary[importer.label] = result.imported;
     if (result.failed > 0) failed[importer.label] = result.failed;
+    if (result.skipped > 0) skipped[importer.label] = result.skipped;
   }
 
-  return { success: true, errors: [], summary, failed, rowErrors, warnings };
+  return { success: true, errors: [], summary, failed, skipped, rowErrors, warnings };
 }
 
 function getSheet(wb: XLSX.WorkBook, name: string): XLSX.WorkSheet | null {
