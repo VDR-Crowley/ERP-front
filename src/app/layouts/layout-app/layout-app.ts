@@ -72,6 +72,7 @@ export class LayoutApp {
   protected readonly importErrors = signal<string[]>([]);
   protected readonly importSummary = signal<Record<string, number>>({});
   protected readonly importFailed = signal<Record<string, number>>({});
+  protected readonly importSkipped = signal<Record<string, number>>({});
   protected readonly importRowErrors = signal<string[]>([]);
   protected readonly importProgress = signal<{ label: string; row: number; total: number } | null>(null);
   private pendingFile: File | null = null;
@@ -304,6 +305,7 @@ export class LayoutApp {
       }
       this.importSummary.set(result.summary);
       this.importFailed.set(result.failed);
+      this.importSkipped.set(result.skipped);
       this.importRowErrors.set(result.rowErrors);
       this.importState.set('success');
     } catch (e) {

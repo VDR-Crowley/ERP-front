@@ -189,6 +189,9 @@
                   <span>{{ item.key }}</span>
                   <strong>
                     {{ item.value }} importado(s)
+                    @if (importSkipped()[item.key]) {
+                      · {{ importSkipped()[item.key] }} já existia(m)
+                    }
                     @if (importFailed()[item.key]) {
                       · {{ importFailed()[item.key] }} falhou(aram)
                     }

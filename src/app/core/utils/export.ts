@@ -29,8 +29,11 @@ interface SaleApi {
   id: number; date: string; product_id: number; quantity: number; unit_price: string; total: string;
   payment_pending: boolean; buyer: string; seller_id: number; delivery_pending: boolean; delivery_date: string | null;
 }
-interface DailyProductionApi { id: number; date: string; quail_eggs: number | null; chicken_eggs: number | null }
-interface FlockApi { id: number; species: string; quantity: number; feed_bags_per_month: number; bag_price: string; monthly_total: string }
+interface DailyProductionApi { id: number; date: string; quail_eggs: number | null; chicken_eggs: number | null; barn_id: number | null }
+interface BarnApi { id: number; name: string; location: string | null; start_date: string | null; notes: string | null }
+interface FlockApi { id: number; species: string; quantity: number; feed_bags_per_month: number; bag_price: string; monthly_total: string; barn_id: number | null }
+interface BarnStockApi { barn_id: number; product_id: number; quantity: number }
+interface VendorStockApi { product_id: number; vendedor_id: number; quantity: number }
 interface ExpenseApi {
   id: number; date: string; description: string; category: string;
   quantity: number | null; unit_price: string | null; amount: string; paid: boolean;
@@ -106,6 +109,9 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     feedStockApi,
     feedOpenLogApi,
     flockCleaningApi,
+    barnsApi,
+    barnStockApi,
+    vendorStockApi,
     dashboardRows,
   ] = await Promise.all([
     get<ProductApi>('products'),
@@ -120,6 +126,9 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     get<FeedStockApi>('feed-stocks'),
     get<FeedOpenLogApi>('feed-open-logs'),
     get<FlockCleaningApi>('flock-cleanings'),
+    get<BarnApi>('barns'),
+    get<BarnStockApi>('barn-stocks'),
+    get<VendorStockApi>('vendor-stock'),
     firstValueFrom(idb.getAll<DashboardResumo>(IDB_STORES.dashboard)),
   ]);
   const dashboard = dashboardRows[0] ?? DASHBOARD_VAZIO;
@@ -129,6 +138,7 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   // Produtos/Vendedores, sem GET extra (mesmo dado, 2 usos).
   const productNameById = new Map(produtosApi.map((p) => [p.id, p.name]));
   const vendedorNameById = new Map(vendedoresApi.map((v) => [v.id, v.name]));
+  const barnNameById = new Map(barnsApi.map((b) => [b.id, b.name]));
 
   const wb = XLSX.utils.book_new();
 
@@ -146,6 +156,19 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     { header: vendedoresHeader },
   );
   XLSX.utils.book_append_sheet(wb, vendedoresSheet, 'Vendedores');
+
+  const galpoesHeader = ['ID', 'Nome', 'Localização', 'Início', 'Observação'];
+  const galpoesSheet = XLSX.utils.json_to_sheet(
+    barnsApi.map((b) => ({
+      ID: b.id,
+      Nome: b.name,
+      'Localização': b.location ?? '',
+      'Início': b.start_date ? ptDate(b.start_date) : '',
+      'Observação': b.notes ?? '',
+    })),
+    { header: galpoesHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, galpoesSheet, 'Galpões');
 
   const produtosHeader = ['ID', 'Produto', 'Unidade', 'Preço Unitário', 'Estoque', 'Ovos por Unidade'];
   const produtosSheet = XLSX.utils.json_to_sheet(
@@ -183,11 +206,12 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, vendasSheet, 'Vendas');
 
-  const producaoHeader = ['ID', 'Data', 'Ovos Codorna', 'Ovos Galinha'];
+  const producaoHeader = ['ID', 'Data', 'Galpão', 'Ovos Codorna', 'Ovos Galinha'];
   const producaoSheet = XLSX.utils.json_to_sheet(
     producaoApi.map((p) => ({
       ID: p.id,
       Data: ptDate(p.date),
+      'Galpão': p.barn_id != null ? (barnNameById.get(p.barn_id) ?? '') : '',
       'Ovos Codorna': p.quail_eggs ?? '',
       'Ovos Galinha': p.chicken_eggs ?? '',
     })),
@@ -195,11 +219,12 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, producaoSheet, 'Produção');
 
-  const plantelHeader = ['ID', 'Espécie', 'Quantidade', 'Sacos Ração/Mês', 'Preço Saco', 'Total Mês'];
+  const plantelHeader = ['ID', 'Espécie', 'Galpão', 'Quantidade', 'Sacos Ração/Mês', 'Preço Saco', 'Total Mês'];
   const plantelSheet = XLSX.utils.json_to_sheet(
     plantelApi.map((p) => ({
       ID: p.id,
       Espécie: p.species,
+      'Galpão': p.barn_id != null ? (barnNameById.get(p.barn_id) ?? '') : '',
       Quantidade: p.quantity,
       'Sacos Ração/Mês': p.feed_bags_per_month,
       'Preço Saco': decimalToNumber(p.bag_price),
@@ -208,6 +233,28 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
     { header: plantelHeader },
   );
   XLSX.utils.book_append_sheet(wb, plantelSheet, 'Plantel');
+
+  const estoqueGalpaoHeader = ['Galpão', 'Produto', 'Quantidade'];
+  const estoqueGalpaoSheet = XLSX.utils.json_to_sheet(
+    barnStockApi.map((b) => ({
+      'Galpão': barnNameById.get(b.barn_id) ?? '',
+      Produto: productNameById.get(b.product_id) ?? '',
+      Quantidade: b.quantity,
+    })),
+    { header: estoqueGalpaoHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, estoqueGalpaoSheet, 'Estoque Galpão');
+
+  const estoqueVendedorHeader = ['Vendedor', 'Produto', 'Quantidade'];
+  const estoqueVendedorSheet = XLSX.utils.json_to_sheet(
+    vendorStockApi.map((v) => ({
+      Vendedor: vendedorNameById.get(v.vendedor_id) ?? '',
+      Produto: productNameById.get(v.product_id) ?? '',
+      Quantidade: v.quantity,
+    })),
+    { header: estoqueVendedorHeader },
+  );
+  XLSX.utils.book_append_sheet(wb, estoqueVendedorSheet, 'Estoque Vendedor');
 
   const despesasHeader = ['ID', 'Data', 'Descrição', 'Categoria', 'Qtd.', 'Valor unit.', 'Valor', 'Pago'];
   const despesasSheet = XLSX.utils.json_to_sheet(
