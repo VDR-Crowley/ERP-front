@@ -17,6 +17,10 @@ import { FlockCleaning, CleaningType } from '@core/interfaces/flock-cleaning.int
 import { createSalesStore, SalesRefs } from '@core/api/adapters/sales.adapter';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
+import { createBarnStockStore } from '@core/api/adapters/barn-stock.adapter';
+import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
+import { Barn } from '@core/interfaces/barn.interface';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { createCashFlowsStore } from '@core/api/adapters/cash-flows.adapter';
@@ -72,7 +76,13 @@ const SHEET_NAMES = {
   feedStock: 'Ração',
   feedOpenLog: 'Ração - Sacos Abertos',
   flockCleaning: 'Higienização',
+  barn: 'Galpões',
+  barnStock: 'Estoque Galpão',
+  vendorStock: 'Estoque Vendedor',
 } as const;
+
+interface BarnStockRow { barnName: string; product: string; quantity: number }
+interface VendorStockRow { vendedorName: string; product: string; quantity: number }
 
 /**
  * Contexto de import: cria cada store/adapter da API preguiçosamente (só se a aba
@@ -90,6 +100,9 @@ interface ImportContext {
   salesRefs: () => Promise<SalesRefs>;
   dailyProductionsStore: () => ReturnType<typeof createDailyProductionsStore>;
   flockStore: () => ReturnType<typeof createFlockStore>;
+  barnsStore: () => ReturnType<typeof createBarnStore>;
+  barnStockStore: () => ReturnType<typeof createBarnStockStore>;
+  vendorStockStore: () => ReturnType<typeof createVendorStockStore>;
   productsStore: () => ReturnType<typeof createProductsStore>;
   expensesStore: () => ReturnType<typeof createExpensesStore>;
   cashFlowsStore: () => ReturnType<typeof createCashFlowsStore>;
@@ -105,6 +118,8 @@ interface ImportContext {
   httpClient: () => HttpClient;
   /** Ids (como string) hoje existentes em `feed-open-logs` — memoizado, 1 GET pro import inteiro. Usado só quando uma linha de "Ração - Sacos Abertos" vem com "ID" preenchido (não existe endpoint de update pra esse recurso, ver `runFeedOpenLog`). */
   feedOpenLogIds: () => Promise<Set<string>>;
+  /** "Galpão" (nome) -> id do `barn`, pra resolver a coluna Galpão da Produção. Memoizado. */
+  barnIdByName: () => Promise<Map<string, number>>;
 }
 
 /** Memoiza uma factory síncrona: só chama `factory()` na primeira leitura. */
@@ -141,6 +156,13 @@ async function fetchFeedOpenLogIds(http: HttpClient): Promise<Set<string>> {
   return new Set(list.map((item) => String(item.id)));
 }
 
+async function fetchBarnIdByName(http: HttpClient): Promise<Map<string, number>> {
+  const list = await firstValueFrom(http.get<{ id: number; name: string }[]>(`${environment.apiUrl}/barns`));
+  const map = new Map<string, number>();
+  for (const item of list) map.set(item.name, item.id);
+  return map;
+}
+
 function createImportContext(injector: Injector): ImportContext {
   const run = <T,>(factory: () => T): T => runInInjectionContext(injector, factory);
   const http = memo(() => run(() => inject(HttpClient)));
@@ -152,6 +174,9 @@ function createImportContext(injector: Injector): ImportContext {
     salesRefs: memoAsync(() => salesStore().fetchRefs()),
     dailyProductionsStore: memo(() => run(() => createDailyProductionsStore())),
     flockStore: memo(() => run(() => createFlockStore())),
+    barnsStore: memo(() => run(() => createBarnStore())),
+    barnStockStore: memo(() => run(() => createBarnStockStore())),
+    vendorStockStore: memo(() => run(() => createVendorStockStore())),
     productsStore: memo(() => run(() => createProductsStore())),
     expensesStore: memo(() => run(() => createExpensesStore())),
     cashFlowsStore: memo(() => run(() => createCashFlowsStore())),
@@ -164,6 +189,7 @@ function createImportContext(injector: Injector): ImportContext {
     feedStockIdByType: memoAsync(() => fetchFeedStockIdByType(http())),
     httpClient: http,
     feedOpenLogIds: memoAsync(() => fetchFeedOpenLogIds(http())),
+    barnIdByName: memoAsync(() => fetchBarnIdByName(http())),
   };
 }
 
@@ -206,6 +232,11 @@ export function describeImportError(e: unknown): string {
 /** true quando `e` é um 404 real da API — usado pra decidir "id da planilha não existe mais no backend" (ver `upsert`). */
 function isNotFound(e: unknown): boolean {
   return e instanceof HttpErrorResponse && e.status === 404;
+}
+
+/** 409 (Conflict) = já existe um registro igual (violação de unicidade). O import IGNORA a linha em vez de falhar. */
+function isConflict(e: unknown): boolean {
+  return e instanceof HttpErrorResponse && e.status === 409;
 }
 
 /** Reporta progresso linha a linha durante o import — só pra feedback visual (ver `ImportProgress` no modal), não afeta o resultado. */
@@ -321,15 +352,26 @@ async function upsert<T>(
   warnings: string[],
 ): Promise<void> {
   if (id === undefined) {
-    await store.add(item);
+    try {
+      await store.add(item);
+    } catch (e) {
+      if (isConflict(e)) { warnings.push(`${label} linha ${row}: já existe um registro igual — ignorado.`); return; }
+      throw e;
+    }
     return;
   }
   try {
     await store.update(id, item);
   } catch (e) {
+    if (isConflict(e)) { warnings.push(`${label} linha ${row}: já existe um registro igual — ignorado.`); return; }
     if (!isNotFound(e)) throw e;
     warnings.push(`${label} linha ${row}: ID ${id} não encontrado no backend (registro excluído lá?) — recriado como novo registro.`);
-    await store.add(item);
+    try {
+      await store.add(item);
+    } catch (e2) {
+      if (isConflict(e2)) { warnings.push(`${label} linha ${row}: já existe um registro igual — ignorado.`); return; }
+      throw e2;
+    }
   }
 }
 
@@ -471,13 +513,14 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.vendedores, parseVendedores, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.vendedoresStore(), SHEET_NAMES.vendedores, row, warnings),
   ),
+  // Galpões ANTES de Produção: a coluna "Galpão" da Produção resolve pelo nome
+  // do galpão (ver runDailyProduction), então os galpões precisam já existir.
+  makeImporter(SHEET_NAMES.barn, parseBarn, (item, ctx, id, row, warnings) =>
+    upsert(id, item, ctx.barnsStore(), SHEET_NAMES.barn, row, warnings),
+  ),
   makeImporter(SHEET_NAMES.sales, parseSales, runSales),
-  makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, (item, ctx, id, row, warnings) =>
-    upsert(id, item, ctx.dailyProductionsStore(), SHEET_NAMES.dailyProduction, row, warnings),
-  ),
-  makeImporter(SHEET_NAMES.flock, parseFlock, (item, ctx, id, row, warnings) =>
-    upsert(id, item, ctx.flockStore(), SHEET_NAMES.flock, row, warnings),
-  ),
+  makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, runDailyProduction),
+  makeImporter(SHEET_NAMES.flock, parseFlock, runFlock),
   makeImporter(SHEET_NAMES.expenses, parseExpenses, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.expensesStore(), SHEET_NAMES.expenses, row, warnings),
   ),
@@ -492,6 +535,10 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.flockCleaning, parseFlockCleaning, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.flockCleaningsStore(), SHEET_NAMES.flockCleaning, row, warnings),
   ),
+  // Estoques por local: dependem de Galpões, Produtos e Vendedores já criados
+  // (resolvidos por nome). Sem coluna "ID" — upsert por chave natural no backend.
+  makeImporter(SHEET_NAMES.barnStock, parseBarnStock, runBarnStock),
+  makeImporter(SHEET_NAMES.vendorStock, parseVendorStock, runVendorStock),
 ];
 
 /** Lê o arquivo e cria/atualiza, via API, cada linha válida nas 12 entidades com adapter (dashboard não tem endpoint de criação — ignorado). */
@@ -741,6 +788,36 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | un
   return result;
 }
 
+function parseBarn(ws: XLSX.WorkSheet, errors: string[]): RowItem<Barn>[] | undefined {
+  const label = SHEET_NAMES.barn;
+  const header = readHeader(ws);
+  if (!requireColumns(header, label, ['Nome'], errors)) return undefined;
+
+  const rows = readRows(ws);
+  const result: RowItem<Barn>[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const idRaw = parseId(row['ID']);
+    const name = toRequiredString(row['Nome']);
+    const location = toRequiredString(row['Localização']);
+    const startDate = parseDate(row['Início']);
+    const notes = toRequiredString(row['Observação']);
+
+    if (idRaw === undefined) errors.push(`${label} linha ${r}: "ID" inválido (deve ser um número inteiro).`);
+    if (!name) errors.push(`${label} linha ${r}: "Nome" vazio.`);
+    if (startDate === undefined) errors.push(`${label} linha ${r}: "Início" em formato inválido.`);
+
+    if (idRaw !== undefined && name && startDate !== undefined) {
+      result.push({
+        row: r,
+        id: idRaw ?? undefined,
+        item: { name, location: location || null, startDate: startDate ?? null, notes: notes || null },
+      });
+    }
+  });
+  return result;
+}
+
 function parseDailyProduction(ws: XLSX.WorkSheet, errors: string[]): RowItem<ProducaoDiaria>[] | undefined {
   const label = SHEET_NAMES.dailyProduction;
   const header = readHeader(ws);
@@ -761,14 +838,29 @@ function parseDailyProduction(ws: XLSX.WorkSheet, errors: string[]): RowItem<Pro
     if (chickenEggs === undefined) errors.push(`${label} linha ${r}: "Ovos Galinha" inválido.`);
 
     if (idRaw !== undefined && date) {
+      const barnName = toRequiredString(row['Galpão']);
       result.push({
         row: r,
         id: idRaw ?? undefined,
-        item: { date, quailEggs: quailEggs ?? null, chickenEggs: chickenEggs ?? null },
+        item: { date, quailEggs: quailEggs ?? null, chickenEggs: chickenEggs ?? null, ...(barnName ? { barnName } : {}) },
       });
     }
   });
   return result;
+}
+
+/** Resolve o nome do galpão (coluna "Galpão") pro `barnId` e faz o upsert. Sem galpão na planilha → null (legado). */
+async function runDailyProduction(item: ProducaoDiaria, ctx: ImportContext, id: string | undefined, row: number, warnings: string[]): Promise<void> {
+  if (item.barnName) {
+    const barns = await ctx.barnIdByName();
+    const barnId = barns.get(item.barnName);
+    if (barnId === undefined) {
+      warnings.push(`${SHEET_NAMES.dailyProduction} linha ${row}: galpão "${item.barnName}" não encontrado — produção importada sem galpão.`);
+    }
+    item.barnId = barnId ?? null;
+  }
+  delete item.barnName;
+  await upsert(id, item, ctx.dailyProductionsStore(), SHEET_NAMES.dailyProduction, row, warnings);
 }
 
 function parseFlock(ws: XLSX.WorkSheet, errors: string[]): RowItem<Plantel>[] | undefined {
@@ -803,10 +895,77 @@ function parseFlock(ws: XLSX.WorkSheet, errors: string[]): RowItem<Plantel>[] | 
       bagPrice !== undefined &&
       monthlyTotal !== undefined
     ) {
-      result.push({ row: r, id: idRaw ?? undefined, item: { species, quantity, feedBagsPerMonth, bagPrice, monthlyTotal } });
+      const barnName = toRequiredString(row['Galpão']);
+      result.push({ row: r, id: idRaw ?? undefined, item: { species, quantity, feedBagsPerMonth, bagPrice, monthlyTotal, ...(barnName ? { barnName } : {}) } });
     }
   });
   return result;
+}
+
+/** Resolve o galpão (coluna "Galpão") pro `barnId` e faz upsert do flock. */
+async function runFlock(item: Plantel, ctx: ImportContext, id: string | undefined, row: number, warnings: string[]): Promise<void> {
+  if (item.barnName) {
+    const barns = await ctx.barnIdByName();
+    const barnId = barns.get(item.barnName);
+    if (barnId === undefined) warnings.push(`${SHEET_NAMES.flock} linha ${row}: galpão "${item.barnName}" não encontrado — espécie importada sem galpão.`);
+    item.barnId = barnId ?? null;
+  }
+  delete item.barnName;
+  await upsert(id, item, ctx.flockStore(), SHEET_NAMES.flock, row, warnings);
+}
+
+function parseBarnStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<BarnStockRow>[] | undefined {
+  const label = SHEET_NAMES.barnStock;
+  const header = readHeader(ws);
+  if (!requireColumns(header, label, ['Galpão', 'Produto', 'Quantidade'], errors)) return undefined;
+  const rows = readRows(ws);
+  const result: RowItem<BarnStockRow>[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const barnName = toRequiredString(row['Galpão']);
+    const product = toRequiredString(row['Produto']);
+    const quantity = toNumber(row['Quantidade']);
+    if (!barnName) errors.push(`${label} linha ${r}: "Galpão" vazio.`);
+    if (!product) errors.push(`${label} linha ${r}: "Produto" vazio.`);
+    if (quantity === undefined) errors.push(`${label} linha ${r}: "Quantidade" inválida.`);
+    if (barnName && product && quantity !== undefined) result.push({ row: r, item: { barnName, product, quantity } });
+  });
+  return result;
+}
+
+async function runBarnStock(item: BarnStockRow, ctx: ImportContext, _id: string | undefined, row: number, warnings: string[]): Promise<void> {
+  const [barns, refs] = await Promise.all([ctx.barnIdByName(), ctx.salesRefs()]);
+  const barnId = barns.get(item.barnName);
+  const productId = refs.products.byName.get(item.product);
+  if (barnId === undefined) { warnings.push(`${SHEET_NAMES.barnStock} linha ${row}: galpão "${item.barnName}" não encontrado — pulado.`); return; }
+  if (productId === undefined) { warnings.push(`${SHEET_NAMES.barnStock} linha ${row}: produto "${item.product}" não encontrado — pulado.`); return; }
+  await ctx.barnStockStore().set(String(barnId), productId, item.quantity);
+}
+
+function parseVendorStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<VendorStockRow>[] | undefined {
+  const label = SHEET_NAMES.vendorStock;
+  const header = readHeader(ws);
+  if (!requireColumns(header, label, ['Vendedor', 'Produto', 'Quantidade'], errors)) return undefined;
+  const rows = readRows(ws);
+  const result: RowItem<VendorStockRow>[] = [];
+  rows.forEach((row, i) => {
+    const r = rowRef(i);
+    const vendedorName = toRequiredString(row['Vendedor']);
+    const product = toRequiredString(row['Produto']);
+    const quantity = toNumber(row['Quantidade']);
+    if (!vendedorName) errors.push(`${label} linha ${r}: "Vendedor" vazio.`);
+    if (!product) errors.push(`${label} linha ${r}: "Produto" vazio.`);
+    if (quantity === undefined) errors.push(`${label} linha ${r}: "Quantidade" inválida.`);
+    if (vendedorName && product && quantity !== undefined) result.push({ row: r, item: { vendedorName, product, quantity } });
+  });
+  return result;
+}
+
+async function runVendorStock(item: VendorStockRow, ctx: ImportContext, _id: string | undefined, row: number, warnings: string[]): Promise<void> {
+  const refs = await ctx.salesRefs();
+  const vendedorId = refs.vendedores.byName.get(item.vendedorName);
+  if (vendedorId === undefined) { warnings.push(`${SHEET_NAMES.vendorStock} linha ${row}: vendedor "${item.vendedorName}" não encontrado — pulado.`); return; }
+  await ctx.vendorStockStore().add({ product: item.product, vendedorId: String(vendedorId), quantity: item.quantity });
 }
 
 function parseProducts(ws: XLSX.WorkSheet, errors: string[]): RowItem<Product>[] | undefined {

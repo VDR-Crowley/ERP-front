@@ -9,4 +9,6 @@ export interface Plantel {
    * da planilha) não traz galpão — fica null até ser atribuído na tela.
    */
   barnId?: number | null;
+  /** Nome do galpão vindo da planilha (coluna "Galpão"), transitório do import — resolvido pra `barnId` e nunca persistido. */
+  barnName?: string;
 }
