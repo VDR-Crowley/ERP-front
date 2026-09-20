@@ -550,9 +550,7 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.sales, parseSales, runSales),
   makeImporter(SHEET_NAMES.dailyProduction, parseDailyProduction, runDailyProduction),
   makeImporter(SHEET_NAMES.flock, parseFlock, runFlock),
-  makeImporter(SHEET_NAMES.expenses, parseExpenses, (item, ctx, id, row, warnings) =>
-    upsert(id, item, ctx.expensesStore(), SHEET_NAMES.expenses, row, warnings),
-  ),
+  makeImporter(SHEET_NAMES.expenses, parseExpenses, runExpense),
   // Fluxo de Caixa e Usuários não ganharam coluna "ID" (fora do pedido original) — sempre create.
   makeImporter(SHEET_NAMES.cashFlow, parseCashFlow, (item, ctx) => ctx.cashFlowsStore().add(item)),
   makeImporter(SHEET_NAMES.users, parseUsers, (item, ctx) => runUser(item, ctx)),
@@ -1045,6 +1043,7 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
     const date = parseDate(row['Data']);
     const description = toRequiredString(row['Descrição']);
     const category = toRequiredString(row['Categoria']);
+    const barnName = toRequiredString(row['Galpão']);
     const quantity = toOptionalNumber(row['Qtd.']);
     const unitPrice = toOptionalNumber(row['Valor unit.']);
     const amount = toNumber(row['Valor']);
@@ -1082,6 +1081,7 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
           date,
           description,
           category,
+          ...(barnName ? { barnName } : {}),
           ...(quantity !== null ? { quantity } : {}),
           ...(unitPrice !== null ? { unitPrice } : {}),
           amount: computedAmount,
@@ -1091,6 +1091,20 @@ function parseExpenses(ws: XLSX.WorkSheet, errors: string[]): RowItem<Expense>[]
     }
   });
   return result;
+}
+
+/** Resolve o nome do galpão (coluna "Galpão") pro `barnId` e faz o upsert. Sem galpão na planilha → despesa geral (sem galpão). */
+async function runExpense(item: Expense, ctx: ImportContext, id: string | undefined, row: number, warnings: string[]): Promise<void> {
+  if (item.barnName) {
+    const barns = await ctx.barnIdByName();
+    const barnId = barns.get(item.barnName);
+    if (barnId === undefined) {
+      warnings.push(`${SHEET_NAMES.expenses} linha ${row}: galpão "${item.barnName}" não encontrado — despesa importada sem galpão.`);
+    }
+    item.barnId = barnId !== undefined ? String(barnId) : undefined;
+  }
+  delete item.barnName;
+  await upsert(id, item, ctx.expensesStore(), SHEET_NAMES.expenses, row, warnings);
 }
 
 function parseCashFlow(ws: XLSX.WorkSheet, errors: string[]): RowItem<CashEntry>[] | undefined {

@@ -35,7 +35,7 @@ interface FlockApi { id: number; species: string; quantity: number; feed_bags_pe
 interface BarnStockApi { barn_id: number; product_id: number; quantity: number }
 interface VendorStockApi { product_id: number; vendedor_id: number; quantity: number }
 interface ExpenseApi {
-  id: number; date: string; description: string; category: string;
+  id: number; date: string; description: string; category: string; barn_id: number | null;
   quantity: number | null; unit_price: string | null; amount: string; paid: boolean;
 }
 interface CashFlowApi { id: number; date: string; description: string; inflow: boolean; amount: string }
@@ -256,13 +256,14 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
   );
   XLSX.utils.book_append_sheet(wb, estoqueVendedorSheet, 'Estoque Vendedor');
 
-  const despesasHeader = ['ID', 'Data', 'Descrição', 'Categoria', 'Qtd.', 'Valor unit.', 'Valor', 'Pago'];
+  const despesasHeader = ['ID', 'Data', 'Descrição', 'Categoria', 'Galpão', 'Qtd.', 'Valor unit.', 'Valor', 'Pago'];
   const despesasSheet = XLSX.utils.json_to_sheet(
     despesasApi.map((e) => ({
       ID: e.id,
       Data: ptDate(e.date),
       Descrição: e.description,
       Categoria: e.category,
+      'Galpão': e.barn_id != null ? (barnNameById.get(e.barn_id) ?? '') : '',
       'Qtd.': e.quantity ?? '',
       'Valor unit.': decimalToNullableNumber(e.unit_price) ?? '',
       Valor: decimalToNumber(e.amount),

@@ -11,6 +11,7 @@ export interface ExpenseApi {
   date: string;
   description: string;
   category: string;
+  barn_id: number | null;
   quantity: number | null;
   unit_price: string | null;
   amount: string;
@@ -23,6 +24,7 @@ export function expenseToFront(api: ExpenseApi): Expense {
     date: toDateOnly(api.date),
     description: api.description,
     category: api.category,
+    barnId: api.barn_id != null ? String(api.barn_id) : undefined,
     quantity: api.quantity ?? undefined,
     unitPrice: decimalToNullableNumber(api.unit_price) ?? undefined,
     amount: decimalToNumber(api.amount),
@@ -35,6 +37,7 @@ function toApi(item: Expense) {
     date: item.date,
     description: item.description,
     category: item.category,
+    barn_id: item.barnId ? Number(item.barnId) : null,
     quantity: item.quantity ?? null,
     unit_price: item.unitPrice ?? null,
     amount: item.amount,

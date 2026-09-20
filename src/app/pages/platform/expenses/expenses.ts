@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { Expense } from '@core/interfaces/expense.interface';
 import { WithId } from '@core/api/entity-store';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
+import { Barn } from '@core/interfaces/barn.interface';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -20,10 +22,23 @@ function toNumberOrUndefined(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-const FIELDS: CrudField[] = [
+function buildFields(barns: WithId<Barn>[]): CrudField[] {
+  return [
   { key: 'date', label: 'Data', type: 'date', required: true },
   { key: 'description', label: 'Descrição', type: 'text', required: true },
   { key: 'category', label: 'Categoria', type: 'text', required: true },
+  {
+    key: 'barnId',
+    label: 'Galpão',
+    type: 'select',
+    // Opcional: "— (geral)" é a despesa não atribuída a um galpão (custo
+    // compartilhado). No relatório por galpão só as com galpão entram no
+    // payback daquele galpão.
+    options: [
+      { value: '', label: '— (geral)' },
+      ...barns.map((b) => ({ value: b.id, label: `Galpão: ${b.name}` })),
+    ],
+  },
   { key: 'quantity', label: 'Quantidade comprada', type: 'number', step: 1 },
   { key: 'unitPrice', label: 'Valor da unidade', type: 'number', step: 0.01 },
   {
@@ -51,7 +66,8 @@ const FIELDS: CrudField[] = [
     ],
     required: true,
   },
-];
+  ];
+}
 
 @Component({
   selector: 'app-expenses',
@@ -62,10 +78,19 @@ const FIELDS: CrudField[] = [
 export class Expenses {
   protected readonly brl = brl;
   protected readonly ptDate = ptDate;
-  protected readonly fields = FIELDS;
 
   private readonly store = createExpensesStore();
+  private readonly barnStore = createBarnStore();
   private readonly periodFilter = inject(PeriodFilterService);
+
+  protected readonly fields = computed<CrudField[]>(() => buildFields(this.barnStore.items()));
+
+  /** Nome do galpão de uma despesa, pra coluna da tabela. Vazio quando geral/removido. */
+  protected barnName(barnId?: string): string {
+    if (!barnId) return '—';
+    const barn = this.barnStore.items().find((b) => b.id === barnId);
+    return barn ? barn.name : '—';
+  }
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description', 'category'];
@@ -113,6 +138,7 @@ export class Expenses {
       date: todayLocalISO(),
       description: '',
       category: '',
+      barnId: '',
       quantity: '',
       unitPrice: '',
       amount: 0,
@@ -124,7 +150,7 @@ export class Expenses {
   protected openEdit(e: WithId<Expense>): void {
     this.editingId = e.id;
     this.formTitle.set('Editar despesa');
-    this.draft = { ...e, paid: String(e.paid) };
+    this.draft = { ...e, paid: String(e.paid), barnId: e.barnId ?? '' };
     this.formOpen.set(true);
   }
 
@@ -138,6 +164,7 @@ export class Expenses {
       date: String(d['date']),
       description: String(d['description']),
       category: String(d['category']),
+      barnId: d['barnId'] ? String(d['barnId']) : undefined,
       quantity: toNumberOrUndefined(d['quantity']),
       unitPrice: toNumberOrUndefined(d['unitPrice']),
       amount: Number(d['amount']),
