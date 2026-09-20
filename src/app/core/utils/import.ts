@@ -206,7 +206,7 @@ function createImportContext(injector: Injector): ImportContext {
 // que aparece nos dois) — acontece quando não existe validação `unique:` no
 // FormRequest e o erro só é pego no nível do banco (500, mensagem crua).
 // Detectado em qualquer status pra virar mensagem legível em vez do SQLSTATE.
-const UNIQUE_CONSTRAINT_PATTERN = /SQLSTATE\[23000\]|SQLSTATE\[23505\]|UNIQUE constraint failed|Integrity constraint violation|Duplicate entry|Unique violation|duplicate key value/i;
+const UNIQUE_CONSTRAINT_PATTERN = /SQLSTATE\[23000\]|SQLSTATE\[23505\]|UNIQUE constraint failed|Integrity constraint violation|Duplicate entry|Unique violation|duplicate key value|has already been taken|already been taken|já foi escolhido|já está em uso|já existe/i;
 
 function friendlyIfUniqueConstraint(message: string): string {
   return UNIQUE_CONSTRAINT_PATTERN.test(message) ? 'Já existe um registro com esses dados.' : message;
