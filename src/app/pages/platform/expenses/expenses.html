@@ -53,6 +53,10 @@
               Categoria
               <app-sort-icon [active]="sortField() === 'category'" [dir]="sortDir()" />
             </th>
+            <th class="sortable" (click)="sortBy('barnId')">
+              Galpão
+              <app-sort-icon [active]="sortField() === 'barnId'" [dir]="sortDir()" />
+            </th>
             <th class="num sortable" (click)="sortBy('quantity')">
               Qtd.
               <app-sort-icon [active]="sortField() === 'quantity'" [dir]="sortDir()" />
@@ -78,6 +82,7 @@
               <td data-label="Data">{{ ptDate(e.date) }}</td>
               <td class="strong" data-label="Descrição">{{ e.description }}</td>
               <td data-label="Categoria">{{ e.category }}</td>
+              <td data-label="Galpão">{{ barnName(e.barnId) }}</td>
               <td class="num" data-label="Qtd.">{{ e.quantity ?? '—' }}</td>
               <td class="num" data-label="Valor unit.">{{ e.unitPrice !== undefined ? brl(e.unitPrice) : '—' }}</td>
               <td class="num strong" data-label="Valor total">{{ brl(e.amount) }}</td>
@@ -114,7 +119,7 @@
 <app-crud-form-modal
   [open]="formOpen()"
   [title]="formTitle()"
-  [fields]="fields"
+  [fields]="fields()"
   [model]="draft"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"

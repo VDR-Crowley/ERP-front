@@ -63,3 +63,43 @@
     flex: 1;
   }
 }
+
+// Filtro por galpão do relatório — mesma linguagem visual dos month-tabs.
+.barn-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+
+  &__label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--erp-muted);
+    margin-right: 0.15rem;
+  }
+
+  &__chip {
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid var(--erp-ghost-border);
+    background: var(--erp-ghost-bg);
+    color: var(--erp-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+    &:hover {
+      background: var(--erp-ghost-hover);
+      color: var(--erp-text);
+    }
+
+    &--active {
+      background: color-mix(in srgb, var(--erp-green) 18%, transparent);
+      border-color: color-mix(in srgb, var(--erp-green) 40%, transparent);
+      color: var(--erp-green-ink);
+    }
+  }
+}

@@ -1,4 +1,28 @@
 <div class="page">
+  @if (barns().length > 0) {
+    <section class="barn-filter">
+      <span class="barn-filter__label">Galpão:</span>
+      <button
+        type="button"
+        class="barn-filter__chip"
+        [class.barn-filter__chip--active]="selectedBarn() === ''"
+        (click)="selectedBarn.set('')"
+      >
+        Todos
+      </button>
+      @for (b of barns(); track b.id) {
+        <button
+          type="button"
+          class="barn-filter__chip"
+          [class.barn-filter__chip--active]="selectedBarn() === b.id"
+          (click)="selectedBarn.set(b.id)"
+        >
+          {{ b.name }}
+        </button>
+      }
+    </section>
+  }
+
   <section class="kpi-grid">
     <article class="kpi kpi--green">
       <div class="kpi__label">Faturamento total</div>

@@ -1,4 +1,5 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import {
   ApexAxisChartSeries,
   ApexChart,
@@ -20,6 +21,8 @@ import { Product } from '@core/interfaces/product.interface';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
+import { createBarnStore } from '@core/api/adapters/barn.adapter';
+import { barnIdFromLocation } from '@core/utils/stock-location';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ThemeService } from '@core/utils/theme.service';
 import { brl, num } from '@core/utils/format';
@@ -145,7 +148,7 @@ function calcularDistribuicaoOvos(vendas: Venda[], produtos: Product[]): Produto
 
 @Component({
   selector: 'app-reports',
-  imports: [NgApexchartsModule],
+  imports: [NgApexchartsModule, FormsModule],
   templateUrl: './reports.html',
   styleUrl: './reports.scss',
 })
@@ -156,22 +159,49 @@ export class Reports {
   private readonly salesStore = createSalesStore();
   private readonly productsStore = createProductsStore();
   private readonly expensesStore = createExpensesStore();
+  private readonly barnStore = createBarnStore();
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
 
-  /** Vendas do store restritas ao período selecionado no DatePicker da topbar. */
-  protected readonly vendasFiltradas = computed(() =>
-    this.salesStore
+  /** Galpão selecionado no filtro do relatório. '' = Todos (visão consolidada). */
+  protected readonly selectedBarn = signal<string>('');
+  /** Galpões pro seletor. */
+  protected readonly barns = computed(() => this.barnStore.items());
+
+  /**
+   * Vendas do período selecionado, opcionalmente restritas ao galpão escolhido.
+   * Ao filtrar um galpão, contam só as vendas que baixaram estoque DESSE galpão
+   * (`stockLocation = barn:<id>`) — vendas de estoque com vendedor não são
+   * atribuídas a um galpão aqui.
+   */
+  protected readonly vendasFiltradas = computed(() => {
+    const barn = this.selectedBarn();
+    return this.salesStore
       .items()
-      .filter((v) => this.periodFilter.includes(v.date) && !isFuturePeriod(v.date)),
-  );
-  /** Despesas do store restritas ao mesmo período selecionado no DatePicker. */
-  protected readonly despesasFiltradas = computed(() =>
-    this.expensesStore
+      .filter(
+        (v) =>
+          this.periodFilter.includes(v.date) &&
+          !isFuturePeriod(v.date) &&
+          (barn === '' || barnIdFromLocation(v.stockLocation ?? '') === barn),
+      );
+  });
+  /**
+   * Despesas do período, opcionalmente restritas ao galpão escolhido. Ao filtrar
+   * um galpão, entram só as despesas atribuídas a ele (`barnId`) — despesas
+   * gerais (sem galpão) ficam de fora do payback de um galpão específico.
+   */
+  protected readonly despesasFiltradas = computed(() => {
+    const barn = this.selectedBarn();
+    return this.expensesStore
       .items()
-      .filter((e) => this.periodFilter.includes(e.date) && !isFuturePeriod(e.date))
-      .reduce((soma, e) => soma + e.amount, 0),
-  );
+      .filter(
+        (e) =>
+          this.periodFilter.includes(e.date) &&
+          !isFuturePeriod(e.date) &&
+          (barn === '' || e.barnId === barn),
+      )
+      .reduce((soma, e) => soma + e.amount, 0);
+  });
   /**
    * `true` quando o período selecionado é inteiramente futuro (ex.: chip
    * "próximo mês" do MonthTabs, ou custom range que só começa depois de
