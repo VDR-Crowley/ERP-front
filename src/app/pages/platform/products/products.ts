@@ -5,7 +5,6 @@ import { WithId } from '@core/api/entity-store';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { createBarnStockStore } from '@core/api/adapters/barn-stock.adapter';
-import { createBarnStore } from '@core/api/adapters/barn.adapter';
 import { brl, num } from '@core/utils/format';
 import { totalStockAllLocations, totalStockValue } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -29,27 +28,17 @@ export class Products {
   private readonly store = createProductsStore();
   private readonly vendorStockStore = createVendorStockStore();
   private readonly barnStockStore = createBarnStockStore();
-  private readonly barnStore = createBarnStore();
 
-  /** Campos do form: nome, preço e um campo de estoque POR GALPÃO. */
+  /**
+   * Campos do form: nome, preço e UM estoque (Plantel = `product.stock`). Galpão
+   * deixou de ser local de estoque — o saldo é único no Plantel (antes havia um
+   * campo "Estoque <galpão>" por galpão).
+   */
   protected readonly fields = computed<CrudField[]>(() => [
     { key: 'name', label: 'Produto', type: 'text', required: true },
     { key: 'unitPrice', label: 'Preço', type: 'number', step: 0.01, required: true },
-    ...this.barnStore.items().map((b) => ({
-      key: `barn_${b.id}`,
-      label: `Estoque ${b.name}`,
-      type: 'number' as const,
-      step: 1,
-    })),
+    { key: 'stock', label: 'Estoque (Plantel)', type: 'number', step: 1 },
   ]);
-
-  /** Saldo atual de um produto num galpão (pra pré-preencher o form). */
-  private barnStockQty(barnId: string, productName: string): number {
-    const found = this.barnStockStore
-      .items()
-      .find((b) => b.barnId === barnId && b.product === productName);
-    return found?.quantity ?? 0;
-  }
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name'];
@@ -87,12 +76,9 @@ export class Products {
     );
   }
 
-  /** "Estoque no Plantel" = soma de todos os galpões (Galpão 1 + Galpão 2 + ...) desse produto. */
+  /** "Estoque no Plantel" = `product.stock` (galpão foi consolidado em Plantel). */
   protected estoqueNoPlantel(p: Product): number {
-    return this.barnStockStore
-      .items()
-      .filter((b) => b.product === p.name)
-      .reduce((soma, b) => soma + b.quantity, 0);
+    return p.stock;
   }
 
   protected readonly totalProdutos = computed(() => this.store.items().length);
@@ -115,9 +101,6 @@ export class Products {
     this.editingId = null;
     this.formTitle.set('Novo produto');
     this.draft = { name: '', unit: 'un', unitPrice: 0, stock: 0, eggsPerUnit: 0 };
-    for (const b of this.barnStore.items()) {
-      this.draft[`barn_${b.id}`] = 0;
-    }
     this.formOpen.set(true);
   }
 
@@ -125,9 +108,6 @@ export class Products {
     this.editingId = p.id;
     this.formTitle.set('Editar produto');
     this.draft = { ...p };
-    for (const b of this.barnStore.items()) {
-      this.draft[`barn_${b.id}`] = this.barnStockQty(b.id, p.name);
-    }
     this.formOpen.set(true);
   }
 
@@ -138,12 +118,13 @@ export class Products {
   protected async saveForm(): Promise<void> {
     const d = this.draft;
     // `unit`/`eggsPerUnit` não são mais editados na tela — preservados do
-    // registro (ou default no produto novo), pra não quebrar a API.
+    // registro (ou default no produto novo), pra não quebrar a API. `stock` é o
+    // saldo único do Plantel (galpão deixou de ser local de estoque).
     const record: Product = {
       name: String(d['name']),
       unit: String(d['unit'] ?? 'un') || 'un',
       unitPrice: Number(d['unitPrice']),
-      stock: 0,
+      stock: Number(d['stock'] ?? 0),
       eggsPerUnit: Number(d['eggsPerUnit'] ?? 0),
     };
 
@@ -151,17 +132,6 @@ export class Products {
       await this.store.update(this.editingId, record);
     } else {
       await this.store.add(record);
-    }
-
-    // Grava o estoque de cada galpão (upsert).
-    const saved = this.store.items().find((p) => p.name === record.name);
-    const productId = this.editingId ? Number(this.editingId) : saved ? Number(saved.id) : null;
-    if (productId !== null) {
-      for (const b of this.barnStore.items()) {
-        const qty = Number(d[`barn_${b.id}`] ?? 0);
-        await this.barnStockStore.set(b.id, productId, qty);
-      }
-      this.barnStockStore.reload();
     }
 
     this.formOpen.set(false);

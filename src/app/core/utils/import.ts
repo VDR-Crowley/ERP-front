@@ -18,7 +18,6 @@ import { createSalesStore, SalesRefs } from '@core/api/adapters/sales.adapter';
 import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { createBarnStore } from '@core/api/adapters/barn.adapter';
-import { createBarnStockStore } from '@core/api/adapters/barn-stock.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { Barn } from '@core/interfaces/barn.interface';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
@@ -84,7 +83,6 @@ const SHEET_NAMES = {
   vendorStock: 'Estoque Vendedor',
 } as const;
 
-interface BarnStockRow { barnName: string; product: string; quantity: number }
 interface VendorStockRow { vendedorName: string; product: string; quantity: number }
 
 /**
@@ -104,7 +102,6 @@ interface ImportContext {
   dailyProductionsStore: () => ReturnType<typeof createDailyProductionsStore>;
   flockStore: () => ReturnType<typeof createFlockStore>;
   barnsStore: () => ReturnType<typeof createBarnStore>;
-  barnStockStore: () => ReturnType<typeof createBarnStockStore>;
   vendorStockStore: () => ReturnType<typeof createVendorStockStore>;
   productsStore: () => ReturnType<typeof createProductsStore>;
   expensesStore: () => ReturnType<typeof createExpensesStore>;
@@ -188,7 +185,6 @@ function createImportContext(injector: Injector, forceCreate: boolean): ImportCo
     dailyProductionsStore: memo(() => run(() => createDailyProductionsStore())),
     flockStore: memo(() => run(() => createFlockStore())),
     barnsStore: memo(() => run(() => createBarnStore())),
-    barnStockStore: memo(() => run(() => createBarnStockStore())),
     vendorStockStore: memo(() => run(() => createVendorStockStore())),
     productsStore: memo(() => run(() => createProductsStore())),
     expensesStore: memo(() => run(() => createExpensesStore())),
@@ -599,9 +595,10 @@ const IMPORTERS: EntityImporter[] = [
   makeImporter(SHEET_NAMES.flockCleaning, parseFlockCleaning, (item, ctx, id, row, warnings) =>
     upsert(id, item, ctx.flockCleaningsStore(), SHEET_NAMES.flockCleaning, row, warnings),
   ),
-  // Estoques por local: dependem de Galpões, Produtos e Vendedores já criados
-  // (resolvidos por nome). Sem coluna "ID" — upsert por chave natural no backend.
-  makeImporter(SHEET_NAMES.barnStock, parseBarnStock, runBarnStock),
+  // Estoque de vendedor: depende de Vendedores e Produtos já criados. Sem coluna
+  // "ID" — upsert por chave natural no backend. (A aba "Estoque Galpão" NÃO é
+  // mais importada como barn_stock: seu saldo é consolidado em Plantel no
+  // resetStockFromSheet — galpão virou só dimensão de produção.)
   makeImporter(SHEET_NAMES.vendorStock, parseVendorStock, runVendorStock),
 ];
 
@@ -727,6 +724,20 @@ async function wipeBeforeImport(ctx: ImportContext, warnings: string[]): Promise
  * CLEAN). Cada PUT é isolado — uma falha vira warning, não trava o import.
  */
 async function resetStockFromSheet(wb: XLSX.WorkBook, ctx: ImportContext, warnings: string[]): Promise<void> {
+  // "Estoque Galpão" foi CONSOLIDADO em Plantel (galpão virou só dimensão de
+  // produção — não é mais local de estoque). Soma a quantidade de cada galpão
+  // por produto e joga no `product.stock` (Plantel), junto do que já vem na
+  // coluna "Estoque" de Produtos. barn_stock não é mais criado (ver IMPORTERS).
+  const galpaoPorProduto = new Map<string, number>();
+  const galpaoSheet = wb.Sheets[SHEET_NAMES.barnStock];
+  if (galpaoSheet) {
+    for (const r of XLSX.utils.sheet_to_json<Record<string, unknown>>(galpaoSheet, { defval: '' })) {
+      const prod = toRequiredString(r['Produto']);
+      if (!prod) continue;
+      galpaoPorProduto.set(prod, (galpaoPorProduto.get(prod) ?? 0) + (toNumber(r['Quantidade']) ?? 0));
+    }
+  }
+
   const prodSheet = wb.Sheets[SHEET_NAMES.products];
   if (prodSheet) {
     const refs = await ctx.salesRefs();
@@ -737,7 +748,8 @@ async function resetStockFromSheet(wb: XLSX.WorkBook, ctx: ImportContext, warnin
       const id = refs.products.byName.get(name);
       const item = store.items().find((p) => p.name === name);
       if (id === undefined || !item) continue;
-      const stock = toNumber(row['Estoque']) ?? 0;
+      // Plantel = coluna "Estoque" + tudo que estava nos galpões desse produto.
+      const stock = (toNumber(row['Estoque']) ?? 0) + (galpaoPorProduto.get(name) ?? 0);
       // Sempre reaplica o PUT: o `item` do store no front carrega o stock de
       // CRIAÇÃO (o front nunca viu a baixa que o backend aplicou por venda),
       // então comparar com ele não detectaria o negativo no banco.
@@ -1103,33 +1115,6 @@ async function runFlock(item: Plantel, ctx: ImportContext, id: string | undefine
   await upsert(id, item, ctx.flockStore(), SHEET_NAMES.flock, row, warnings);
 }
 
-function parseBarnStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<BarnStockRow>[] | undefined {
-  const label = SHEET_NAMES.barnStock;
-  const header = readHeader(ws);
-  if (!requireColumns(header, label, ['Galpão', 'Produto', 'Quantidade'], errors)) return undefined;
-  const rows = readRows(ws);
-  const result: RowItem<BarnStockRow>[] = [];
-  rows.forEach((row, i) => {
-    const r = rowRef(i);
-    const barnName = toRequiredString(row['Galpão']);
-    const product = toRequiredString(row['Produto']);
-    const quantity = toNumber(row['Quantidade']);
-    if (!barnName) errors.push(`${label} linha ${r}: "Galpão" vazio.`);
-    if (!product) errors.push(`${label} linha ${r}: "Produto" vazio.`);
-    if (quantity === undefined) errors.push(`${label} linha ${r}: "Quantidade" inválida.`);
-    if (barnName && product && quantity !== undefined) result.push({ row: r, item: { barnName, product, quantity } });
-  });
-  return result;
-}
-
-async function runBarnStock(item: BarnStockRow, ctx: ImportContext, _id: string | undefined, row: number, warnings: string[]): Promise<void> {
-  const [barns, refs] = await Promise.all([ctx.barnIdByName(), ctx.salesRefs()]);
-  const barnId = barns.get(item.barnName);
-  const productId = refs.products.byName.get(item.product);
-  if (barnId === undefined) { warnings.push(`${SHEET_NAMES.barnStock} linha ${row}: galpão "${item.barnName}" não encontrado — pulado.`); return; }
-  if (productId === undefined) { warnings.push(`${SHEET_NAMES.barnStock} linha ${row}: produto "${item.product}" não encontrado — pulado.`); return; }
-  await ctx.barnStockStore().set(String(barnId), productId, item.quantity);
-}
 
 function parseVendorStock(ws: XLSX.WorkSheet, errors: string[]): RowItem<VendorStockRow>[] | undefined {
   const label = SHEET_NAMES.vendorStock;

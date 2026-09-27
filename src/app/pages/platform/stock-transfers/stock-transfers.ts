@@ -12,7 +12,7 @@ import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import {
   PLANTEL_LOCATION,
-  buildSaleLocationOptions,
+  buildLocationOptions,
   locationLabel,
   barnLocation,
   stockValue,
@@ -50,10 +50,13 @@ export class StockTransfers {
   private readonly barnStockStore = createBarnStockStore();
   private readonly transferStore = createStockTransfersStore();
 
-  /** Local padrão (primeiro galpão) — o "Plantel" foi substituído pelos galpões. */
+  /**
+   * Local padrão: Plantel. Galpão deixou de ser local de estoque (virou só
+   * dimensão de produção — o saldo dos galpões foi consolidado em Plantel).
+   * Transferências agora são entre Plantel e vendedores.
+   */
   private defaultLocation(): string {
-    const first = this.barnStore.items()[0];
-    return first ? barnLocation(first.id) : PLANTEL_LOCATION;
+    return PLANTEL_LOCATION;
   }
 
   /**
@@ -121,7 +124,7 @@ export class StockTransfers {
     const products = this.productsStore.items();
     const vendedores = this.vendedoresStore.items();
     const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
-    const locationOptions = buildSaleLocationOptions(vendedores, this.barnStore.items());
+    const locationOptions = buildLocationOptions(vendedores);
     return [
       { key: 'date', label: 'Data', type: 'date', required: true },
       { key: 'product', label: 'Produto', type: 'autocomplete', options: productOptions, required: true },
