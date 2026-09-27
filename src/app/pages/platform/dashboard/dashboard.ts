@@ -27,7 +27,7 @@ import { createFeedStockStore } from '@core/api/adapters/feed-stocks.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { daysUntil, todayLocalISO, toLocalISO } from '@core/utils/date-diff';
-import { totalStockValue } from '@core/utils/stock-location';
+import { totalStockValue, totalStockAllLocations } from '@core/utils/stock-location';
 import { sortRows } from '@shared/table-sort/table-sort';
 import { CalendarDay, calendarMonthGrid, endOfMonth, isWholeMonth, startOfMonth } from '@core/utils/calendar-month';
 import { calcularEstatisticasVendasPorDia, heatmapTier, isDiaFuturo, totalVendasPorDia } from '@core/utils/sales-by-day';
@@ -228,11 +228,26 @@ export class Dashboard {
   // estoque real (mesmo motivo da reversão do módulo Estoque de Ovos, ver
   // comentário de valorEstoque abaixo). Decisão do usuário: "tudo que é de
   // estoque, puxa de Produtos" — daily_productions não entra mais aqui.
-  protected readonly bandejasProntasCodorna = computed(
-    () => this.productsStore.items().find((p) => p.name === '50 ovos de codorna')?.stock ?? 0,
+  // "Prontas para venda" = estoque LÍQUIDO somando TODOS os locais (Plantel +
+  // galpões + vendedores), não só `product.stock` (Plantel). Ex.: Plantel 20 e
+  // Karol -5 (vendeu, falta entregar) => 15 prontas. Antes lia só product.stock
+  // (dava 0 com estoque no galpão) e a galinha buscava "30 ovos galinha", nome
+  // que não existe — o produto é "1 Bandeja de ovos de galinha".
+  private prontasDoProduto(nome: string): number {
+    const p = this.productsStore.items().find((item) => item.name === nome);
+    if (!p) return 0;
+    return totalStockAllLocations(
+      p.stock,
+      this.vendorStockStore.items(),
+      p.name,
+      this.barnStockStore.items(),
+    );
+  }
+  protected readonly bandejasProntasCodorna = computed(() =>
+    this.prontasDoProduto('50 ovos de codorna'),
   );
-  protected readonly bandejasProntasGalinha = computed(
-    () => this.productsStore.items().find((p) => p.name === '30 ovos galinha')?.stock ?? 0,
+  protected readonly bandejasProntasGalinha = computed(() =>
+    this.prontasDoProduto('1 Bandeja de ovos de galinha'),
   );
   protected readonly prontasParaVendaTotal = computed(
     () => this.bandejasProntasCodorna() + this.bandejasProntasGalinha(),
