@@ -1,28 +1,4 @@
 <div class="page">
-  @if (barns().length > 0) {
-    <section class="barn-filter">
-      <span class="barn-filter__label">Galpão:</span>
-      <button
-        type="button"
-        class="barn-filter__chip"
-        [class.barn-filter__chip--active]="selectedBarn() === ''"
-        (click)="selectedBarn.set('')"
-      >
-        Todos
-      </button>
-      @for (b of barns(); track b.id) {
-        <button
-          type="button"
-          class="barn-filter__chip"
-          [class.barn-filter__chip--active]="selectedBarn() === b.id"
-          (click)="selectedBarn.set(b.id)"
-        >
-          {{ b.name }}
-        </button>
-      }
-    </section>
-  }
-
   <section class="kpi-grid">
     <article class="kpi kpi--green">
       <div class="kpi__label">Faturamento total</div>
@@ -50,6 +26,44 @@
       }
     </article>
   </section>
+
+  @if (ovosPorGalpao().length > 0) {
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Ovos produzidos por galpão</h2>
+        <span style="font-size: 0.78rem; color: var(--erp-dim)">
+          {{ num(ovosPorGalpaoTotal()) }} ovos no período
+        </span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 320px">
+          <thead>
+            <tr>
+              <th>Galpão</th>
+              <th class="num">Ovos produzidos</th>
+              <th>Participação</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (g of ovosPorGalpao(); track g.name) {
+              <tr>
+                <td class="strong" data-label="Galpão">{{ g.name }}</td>
+                <td class="num strong" data-label="Ovos produzidos">{{ num(g.eggs) }}</td>
+                <td data-label="Participação">
+                  <span class="bar-track">
+                    <span
+                      class="bar-fill"
+                      [style.width.%]="ovosPorGalpaoTotal() ? (g.eggs / ovosPorGalpaoTotal()) * 100 : 0"
+                    ></span>
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
 
   <section class="panels-2">
     <div class="panel">

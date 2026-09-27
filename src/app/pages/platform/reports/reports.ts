@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ApexAxisChartSeries,
@@ -22,7 +22,7 @@ import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { createBarnStore } from '@core/api/adapters/barn.adapter';
-import { barnIdFromLocation } from '@core/utils/stock-location';
+import { createDailyProductionsStore } from '@core/api/adapters/daily-productions.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { ThemeService } from '@core/utils/theme.service';
 import { brl, num } from '@core/utils/format';
@@ -32,6 +32,12 @@ interface ProdutoDistribuicao {
   eggs: number;
   pct: number;
   color: string;
+}
+
+/** Uma linha do painel "Ovos produzidos por galpão" do relatório. */
+interface OvosGalpao {
+  name: string;
+  eggs: number;
 }
 
 interface BarChartOptions {
@@ -160,48 +166,61 @@ export class Reports {
   private readonly productsStore = createProductsStore();
   private readonly expensesStore = createExpensesStore();
   private readonly barnStore = createBarnStore();
+  private readonly productionStore = createDailyProductionsStore();
   private readonly periodFilter = inject(PeriodFilterService);
   private readonly themeService = inject(ThemeService);
 
-  /** Galpão selecionado no filtro do relatório. '' = Todos (visão consolidada). */
-  protected readonly selectedBarn = signal<string>('');
-  /** Galpões pro seletor. */
+  /** Galpões cadastrados — usados só pra rotular o painel de ovos por galpão. */
   protected readonly barns = computed(() => this.barnStore.items());
 
   /**
-   * Vendas do período selecionado, opcionalmente restritas ao galpão escolhido.
-   * Ao filtrar um galpão, contam só as vendas que baixaram estoque DESSE galpão
-   * (`stockLocation = barn:<id>`) — vendas de estoque com vendedor não são
-   * atribuídas a um galpão aqui.
+   * Vendas do período selecionado. As vendas voltaram a ser todas de "Plantel"
+   * (sem galpão): o galpão é dimensão só de PRODUÇÃO agora, então o
+   * faturamento é sempre consolidado, sem recorte por galpão.
    */
-  protected readonly vendasFiltradas = computed(() => {
-    const barn = this.selectedBarn();
-    return this.salesStore
+  protected readonly vendasFiltradas = computed(() =>
+    this.salesStore
       .items()
-      .filter(
-        (v) =>
-          this.periodFilter.includes(v.date) &&
-          !isFuturePeriod(v.date) &&
-          (barn === '' || barnIdFromLocation(v.stockLocation ?? '') === barn),
-      );
-  });
+      .filter((v) => this.periodFilter.includes(v.date) && !isFuturePeriod(v.date)),
+  );
+  /** Total de despesas do período (todas — sem recorte por galpão). */
+  protected readonly despesasFiltradas = computed(() =>
+    this.expensesStore
+      .items()
+      .filter((e) => this.periodFilter.includes(e.date) && !isFuturePeriod(e.date))
+      .reduce((soma, e) => soma + e.amount, 0),
+  );
+
   /**
-   * Despesas do período, opcionalmente restritas ao galpão escolhido. Ao filtrar
-   * um galpão, entram só as despesas atribuídas a ele (`barnId`) — despesas
-   * gerais (sem galpão) ficam de fora do payback de um galpão específico.
+   * Ovos produzidos por galpão no período (codorna + galinha). É o número que o
+   * Ytallo usa pro payback: quanto cada galpão produziu, independente de venda.
+   * Produção sem galpão (dado legado/import antigo) cai em "Sem galpão".
    */
-  protected readonly despesasFiltradas = computed(() => {
-    const barn = this.selectedBarn();
-    return this.expensesStore
+  protected readonly ovosPorGalpao = computed<OvosGalpao[]>(() => {
+    const producoes = this.productionStore
       .items()
-      .filter(
-        (e) =>
-          this.periodFilter.includes(e.date) &&
-          !isFuturePeriod(e.date) &&
-          (barn === '' || e.barnId === barn),
-      )
-      .reduce((soma, e) => soma + e.amount, 0);
+      .filter((p) => this.periodFilter.includes(p.date) && !isFuturePeriod(p.date));
+    const eggsOf = (p: { quailEggs: number | null; chickenEggs: number | null }) =>
+      (p.quailEggs ?? 0) + (p.chickenEggs ?? 0);
+
+    const linhas: OvosGalpao[] = this.barns().map((b) => ({
+      name: b.name,
+      eggs: producoes
+        .filter((p) => p.barnId != null && String(p.barnId) === b.id)
+        .reduce((soma, p) => soma + eggsOf(p), 0),
+    }));
+
+    const semGalpao = producoes
+      .filter((p) => p.barnId == null)
+      .reduce((soma, p) => soma + eggsOf(p), 0);
+    if (semGalpao > 0) {
+      linhas.push({ name: 'Sem galpão', eggs: semGalpao });
+    }
+    return linhas;
   });
+  protected readonly ovosPorGalpaoTotal = computed(() =>
+    this.ovosPorGalpao().reduce((soma, l) => soma + l.eggs, 0),
+  );
   /**
    * `true` quando o período selecionado é inteiramente futuro (ex.: chip
    * "próximo mês" do MonthTabs, ou custom range que só começa depois de

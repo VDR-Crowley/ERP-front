@@ -9,16 +9,14 @@ import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createVendorStockStore } from '@core/api/adapters/vendor-stock.adapter';
 import { createBarnStore } from '@core/api/adapters/barn.adapter';
-import { Barn } from '@core/interfaces/barn.interface';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { SalesQuickCreate } from '@core/services/sales-quick-create.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import {
   PLANTEL_LOCATION,
-  buildSaleLocationOptions,
+  buildLocationOptions,
   locationLabel,
-  barnLocation,
 } from '@core/utils/stock-location';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -32,7 +30,6 @@ function buildFields(
   productOptions: { value: string; label: string }[],
   products: WithId<Product>[],
   vendedores: WithId<Vendedor>[],
-  barns: WithId<Barn>[],
 ): CrudField[] {
   return [
   { key: 'date', label: 'Data', type: 'date', required: true },
@@ -56,7 +53,7 @@ function buildFields(
     label: 'Local do estoque (baixa ao salvar)',
     type: 'select',
     required: true,
-    optionsFor: () => buildSaleLocationOptions(vendedores, barns),
+    optionsFor: () => buildLocationOptions(vendedores),
   },
   { key: 'buyer', label: 'Comprador', type: 'text', required: true },
   {
@@ -108,10 +105,13 @@ export class Sales {
   private readonly barnStore = createBarnStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
-  /** Local padrão de uma venda nova: o primeiro galpão cadastrado (substituiu o "Plantel"). */
+  /**
+   * Local padrão de uma venda nova: "Plantel". As vendas voltaram a ser todas de
+   * Plantel — o galpão deixou de ser dimensão de venda (virou só de produção,
+   * ver Relatório > "Ovos produzidos por galpão").
+   */
   private defaultLocation(): string {
-    const first = this.barnStore.items()[0];
-    return first ? barnLocation(first.id) : PLANTEL_LOCATION;
+    return PLANTEL_LOCATION;
   }
   private readonly quickCreate = inject(SalesQuickCreate);
 
@@ -125,7 +125,7 @@ export class Sales {
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
     const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
-    return buildFields(productOptions, products, this.vendedoresStore.items(), this.barnStore.items());
+    return buildFields(productOptions, products, this.vendedoresStore.items());
   });
 
   protected readonly search = signal('');

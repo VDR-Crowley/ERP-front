@@ -3,10 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { Expense } from '@core/interfaces/expense.interface';
 import { WithId } from '@core/api/entity-store';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
-import { createBarnStore } from '@core/api/adapters/barn.adapter';
-import { Barn } from '@core/interfaces/barn.interface';
+import { createFlockStore } from '@core/api/adapters/flock.adapter';
 import { PeriodFilterService } from '@core/services/period-filter.service';
-import { brl, ptDate } from '@core/utils/format';
+import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -22,23 +21,11 @@ function toNumberOrUndefined(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function buildFields(barns: WithId<Barn>[]): CrudField[] {
+function buildFields(): CrudField[] {
   return [
   { key: 'date', label: 'Data', type: 'date', required: true },
   { key: 'description', label: 'Descrição', type: 'text', required: true },
   { key: 'category', label: 'Categoria', type: 'text', required: true },
-  {
-    key: 'barnId',
-    label: 'Galpão',
-    type: 'select',
-    // Opcional: "— (geral)" é a despesa não atribuída a um galpão (custo
-    // compartilhado). No relatório por galpão só as com galpão entram no
-    // payback daquele galpão.
-    options: [
-      { value: '', label: '— (geral)' },
-      ...barns.map((b) => ({ value: b.id, label: `Galpão: ${b.name}` })),
-    ],
-  },
   { key: 'quantity', label: 'Quantidade comprada', type: 'number', step: 1 },
   { key: 'unitPrice', label: 'Valor da unidade', type: 'number', step: 0.01 },
   {
@@ -79,18 +66,13 @@ export class Expenses {
   protected readonly brl = brl;
   protected readonly ptDate = ptDate;
 
+  protected readonly num = num;
+
   private readonly store = createExpensesStore();
-  private readonly barnStore = createBarnStore();
+  private readonly flockStore = createFlockStore();
   private readonly periodFilter = inject(PeriodFilterService);
 
-  protected readonly fields = computed<CrudField[]>(() => buildFields(this.barnStore.items()));
-
-  /** Nome do galpão de uma despesa, pra coluna da tabela. Vazio quando geral/removido. */
-  protected barnName(barnId?: string): string {
-    if (!barnId) return '—';
-    const barn = this.barnStore.items().find((b) => b.id === barnId);
-    return barn ? barn.name : '—';
-  }
+  protected readonly fields = computed<CrudField[]>(() => buildFields());
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['date', 'description', 'category'];
@@ -127,6 +109,20 @@ export class Expenses {
     () => this.despesasNoPeriodo().filter((e) => !e.paid).length,
   );
 
+  /** Total de aves em produção (soma da quantidade de cada lote do plantel). */
+  protected readonly totalAves = computed(() =>
+    this.flockStore.items().reduce((soma, f) => soma + (f.quantity ?? 0), 0),
+  );
+  /**
+   * Custo por ave = despesas do período ÷ total de aves. Número único que o
+   * Ytallo pediu no lugar do controle de despesa por galpão (difícil demais):
+   * quanto cada ave "custou" no período. Sem aves cadastradas, fica null.
+   */
+  protected readonly custoPorAve = computed(() => {
+    const aves = this.totalAves();
+    return aves > 0 ? this.total() / aves : null;
+  });
+
   protected readonly rows = computed<WithId<Expense>[]>(() =>
     sortRows(this.despesasNoPeriodo(), this.sortField(), this.sortDir()),
   );
@@ -138,7 +134,6 @@ export class Expenses {
       date: todayLocalISO(),
       description: '',
       category: '',
-      barnId: '',
       quantity: '',
       unitPrice: '',
       amount: 0,
@@ -150,7 +145,7 @@ export class Expenses {
   protected openEdit(e: WithId<Expense>): void {
     this.editingId = e.id;
     this.formTitle.set('Editar despesa');
-    this.draft = { ...e, paid: String(e.paid), barnId: e.barnId ?? '' };
+    this.draft = { ...e, paid: String(e.paid) };
     this.formOpen.set(true);
   }
 
@@ -164,7 +159,6 @@ export class Expenses {
       date: String(d['date']),
       description: String(d['description']),
       category: String(d['category']),
-      barnId: d['barnId'] ? String(d['barnId']) : undefined,
       quantity: toNumberOrUndefined(d['quantity']),
       unitPrice: toNumberOrUndefined(d['unitPrice']),
       amount: Number(d['amount']),
