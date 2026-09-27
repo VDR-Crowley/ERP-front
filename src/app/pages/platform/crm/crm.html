@@ -1,0 +1,163 @@
+<div class="page">
+  <section class="kpi-grid">
+    <article class="kpi kpi--blue">
+      <div class="kpi__label">Clientes</div>
+      <div class="kpi__value">{{ num(totalClientes()) }}</div>
+      <div class="kpi__foot">Compradores únicos</div>
+    </article>
+    <article class="kpi kpi--amber">
+      <div class="kpi__label">Sem telefone</div>
+      <div class="kpi__value">{{ num(semTelefone()) }}</div>
+      <div class="kpi__foot">Falta cadastrar contato</div>
+    </article>
+    <article class="kpi kpi--amber kpi--ink-red">
+      <div class="kpi__label">Sem comprar 30+ dias</div>
+      <div class="kpi__value">{{ num(semComprar30()) }}</div>
+      <div class="kpi__foot">Prioridade de contato</div>
+    </article>
+  </section>
+
+  <div class="panel">
+    <div class="panel__head">
+      <h2 class="panel__title">CRM — Clientes</h2>
+      <div class="search">
+        <i class="pi pi-search"></i>
+        <input
+          type="text"
+          placeholder="Buscar nome, telefone..."
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </div>
+      <button type="button" class="btn btn--ghost" (click)="copiarVisiveis()" title="Copia só os clientes visíveis (respeita a busca/filtro)">
+        <i class="pi" [class.pi-copy]="copiado() !== '__all__'" [class.pi-check]="copiado() === '__all__'"></i>
+        {{ copiado() === '__all__' ? 'Copiado!' : 'Copiar visíveis' }}
+      </button>
+      <button type="button" class="btn btn--primary" (click)="openNew()">
+        <i class="pi pi-plus"></i> Novo cliente
+      </button>
+    </div>
+
+    @let filtered = filtradas();
+
+    <div class="tbl-wrap">
+      <table class="tbl" style="min-width: 920px">
+        <thead>
+          <tr>
+            <th style="width: 32px"></th>
+            <th class="sortable" (click)="sortBy('name')">
+              Cliente <app-sort-icon [active]="sortField() === 'name'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('phone')">
+              Telefone <app-sort-icon [active]="sortField() === 'phone'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('vendedor')">
+              Vendedor <app-sort-icon [active]="sortField() === 'vendedor'" [dir]="sortDir()" />
+            </th>
+            <th class="sortable" (click)="sortBy('ultimaCompra')">
+              Última compra <app-sort-icon [active]="sortField() === 'ultimaCompra'" [dir]="sortDir()" />
+            </th>
+            <th class="num sortable" (click)="sortBy('diasSemComprar')">
+              Dias sem comprar <app-sort-icon [active]="sortField() === 'diasSemComprar'" [dir]="sortDir()" />
+            </th>
+            <th class="num sortable" (click)="sortBy('compras')">
+              Compras <app-sort-icon [active]="sortField() === 'compras'" [dir]="sortDir()" />
+            </th>
+            <th class="num sortable" (click)="sortBy('total')">
+              Total <app-sort-icon [active]="sortField() === 'total'" [dir]="sortDir()" />
+            </th>
+            <th class="actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of filtered; track c.id) {
+            <tr>
+              <td>
+                <button type="button" class="btn btn--icon" [title]="isExpandida(c.name) ? 'Recolher' : 'Ver histórico'" (click)="toggleExpandir(c.name)">
+                  <i class="pi" [class.pi-chevron-right]="!isExpandida(c.name)" [class.pi-chevron-down]="isExpandida(c.name)"></i>
+                </button>
+              </td>
+              <td class="strong" data-label="Cliente">{{ c.name }}</td>
+              <td data-label="Telefone">{{ c.phone || '—' }}</td>
+              <td data-label="Vendedor">{{ c.vendedor || '—' }}</td>
+              <td data-label="Última compra">{{ c.ultimaCompra ? ptDate(c.ultimaCompra) : '—' }}</td>
+              <td class="num" data-label="Dias sem comprar">
+                @if (nuncaComprou(c.diasSemComprar)) {
+                  <span class="badge badge--warn">nunca</span>
+                } @else {
+                  <span [class.strong]="c.diasSemComprar >= 30">{{ num(c.diasSemComprar) }}</span>
+                }
+              </td>
+              <td class="num" data-label="Compras">{{ num(c.compras) }}</td>
+              <td class="num strong" data-label="Total">{{ brl(c.total) }}</td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn btn--icon" [title]="copiado() === c.name ? 'Copiado!' : 'Copiar pro WhatsApp'" (click)="copiarCliente(c)">
+                    <i class="pi" [class.pi-copy]="copiado() !== c.name" [class.pi-check]="copiado() === c.name"></i>
+                  </button>
+                  @if (whatsappLink(c.phone)) {
+                    <a class="btn btn--icon" title="Abrir no WhatsApp" [href]="whatsappLink(c.phone)" target="_blank" rel="noopener">
+                      <i class="pi pi-whatsapp"></i>
+                    </a>
+                  }
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(c)">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            @if (isExpandida(c.name)) {
+              <tr class="crm-hist">
+                <td></td>
+                <td colspan="8">
+                  @if (c.historico.length) {
+                    <div class="crm-hist__title">Histórico de compras</div>
+                    <table class="tbl tbl--inner">
+                      <tbody>
+                        @for (h of c.historico; track $index) {
+                          <tr>
+                            <td>{{ ptDate(h.date) }}</td>
+                            <td class="strong">{{ h.product }}</td>
+                            <td class="num">{{ num(h.quantity) }}x</td>
+                            <td class="num strong">{{ brl(h.total) }}</td>
+                            <td>{{ h.seller || '—' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  } @else {
+                    <div class="empty">Sem compras registradas.</div>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (filtered.length === 0) {
+      <div class="empty">Nenhum cliente encontrado.</div>
+    }
+    <div class="tbl-foot">{{ filtered.length }} cliente(s)</div>
+  </div>
+</div>
+
+<app-crud-form-modal
+  [open]="formOpen()"
+  [title]="formTitle()"
+  [fields]="fields"
+  [model]="draft"
+  (saved)="saveForm()"
+  (cancelled)="cancelForm()"
+/>
+
+<app-confirm-modal
+  [open]="!!deleteTarget()"
+  [text]="'Excluir o cliente ' + (deleteTarget()?.name ?? '') + ' do CRM? O histórico de vendas não é afetado.'"
+  (confirmed)="confirmDelete()"
+  (cancelled)="cancelDelete()"
+/>

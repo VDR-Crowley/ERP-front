@@ -145,6 +145,12 @@ export class LayoutApp {
       sub: 'Indicadores e análises do período',
     },
     {
+      path: '/platform/crm',
+      icon: 'pi-address-book',
+      label: 'CRM',
+      sub: 'Clientes, telefones e histórico de compras',
+    },
+    {
       path: '/platform/analise-linha-negocio',
       icon: 'pi-percentage',
       label: 'Análise por Linha de Negócio',

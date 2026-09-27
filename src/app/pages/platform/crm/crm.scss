@@ -1,0 +1,24 @@
+.crm-hist {
+  background: color-mix(in srgb, var(--erp-panel) 60%, transparent);
+
+  td {
+    padding-top: 0.25rem;
+    padding-bottom: 0.75rem;
+  }
+
+  &__title {
+    font-size: 0.78rem;
+    color: var(--erp-dim);
+    margin: 0.25rem 0 0.5rem;
+  }
+}
+
+.tbl--inner {
+  min-width: 0;
+  width: 100%;
+
+  td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--erp-line) 50%, transparent);
+  }
+}
