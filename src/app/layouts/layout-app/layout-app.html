@@ -142,11 +142,13 @@
         @switch (importState()) {
           @case ('confirm') {
             <div class="modal__icon modal__icon--warn"><i class="pi pi-exclamation-triangle"></i></div>
-            <h2 class="modal__title">Importar planilha?</h2>
+            <h2 class="modal__title">Substituir tudo pela planilha?</h2>
             <p class="modal__text">
-              Cada linha das abas presentes no arquivo vai ser criada como um novo registro no
-              sistema. Linhas com erro ou referência a Produto/Vendedor não cadastrado são
-              rejeitadas — as demais são importadas normalmente.
+              <strong>Atenção:</strong> este import é um CLEAN — ele <strong>apaga todos os dados
+              atuais</strong> e recarrega só o que está na planilha (o que não estiver no arquivo
+              some). Seu <strong>login e o Fluxo de Caixa são preservados</strong>. Um backup
+              (<code>MiniERP-backup-antes-import.xlsx</code>) é baixado automaticamente antes, pra
+              recovery. Linhas com erro ou Produto/Vendedor não cadastrado são rejeitadas.
             </p>
             <div class="modal__actions">
               <button class="btn btn--ghost" type="button" (click)="cancelarImportacao()">Cancelar</button>
