@@ -18,6 +18,7 @@ import {
 import { TopBuyer } from '@core/interfaces/report.interface';
 import { Venda } from '@core/interfaces/venda.interface';
 import { Product } from '@core/interfaces/product.interface';
+import { ProducaoDiaria } from '@core/interfaces/producao-diaria.interface';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
 import { createProductsStore } from '@core/api/adapters/products.adapter';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
@@ -34,9 +35,11 @@ interface ProdutoDistribuicao {
   color: string;
 }
 
-/** Uma linha do painel "Ovos produzidos por galpão" do relatório. */
+/** Uma linha do painel "Ovos produzidos por galpão" do relatório (codorna + galinha). */
 interface OvosGalpao {
   name: string;
+  quail: number;
+  chicken: number;
   eggs: number;
 }
 
@@ -200,21 +203,23 @@ export class Reports {
     const producoes = this.productionStore
       .items()
       .filter((p) => this.periodFilter.includes(p.date) && !isFuturePeriod(p.date));
-    const eggsOf = (p: { quailEggs: number | null; chickenEggs: number | null }) =>
-      (p.quailEggs ?? 0) + (p.chickenEggs ?? 0);
+    const somar = (lista: ProducaoDiaria[], name: string): OvosGalpao => {
+      const quail = lista.reduce((soma, p) => soma + (p.quailEggs ?? 0), 0);
+      const chicken = lista.reduce((soma, p) => soma + (p.chickenEggs ?? 0), 0);
+      return { name, quail, chicken, eggs: quail + chicken };
+    };
 
-    const linhas: OvosGalpao[] = this.barns().map((b) => ({
-      name: b.name,
-      eggs: producoes
-        .filter((p) => p.barnId != null && String(p.barnId) === b.id)
-        .reduce((soma, p) => soma + eggsOf(p), 0),
-    }));
+    const linhas: OvosGalpao[] = this.barns().map((b) =>
+      somar(
+        producoes.filter((p) => p.barnId != null && String(p.barnId) === b.id),
+        b.name,
+      ),
+    );
 
-    const semGalpao = producoes
-      .filter((p) => p.barnId == null)
-      .reduce((soma, p) => soma + eggsOf(p), 0);
-    if (semGalpao > 0) {
-      linhas.push({ name: 'Sem galpão', eggs: semGalpao });
+    const semGalpao = producoes.filter((p) => p.barnId == null);
+    if (semGalpao.length > 0) {
+      const linha = somar(semGalpao, 'Sem galpão');
+      if (linha.eggs > 0) linhas.push(linha);
     }
     return linhas;
   });

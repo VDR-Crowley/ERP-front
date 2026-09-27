@@ -17,13 +17,23 @@
       <div class="kpi__value">{{ qtdPendente() }}</div>
     </article>
     <article class="kpi kpi--purple">
-      <div class="kpi__label">Custo por ave</div>
-      @if (custoPorAve() === null) {
+      <div class="kpi__label">Custo por ave · Codorna</div>
+      @if (custoPorAveCodorna() === null) {
         <div class="kpi__value">—</div>
-        <div class="kpi__foot">Sem aves cadastradas no plantel</div>
+        <div class="kpi__foot">Sem codornas no plantel</div>
       } @else {
-        <div class="kpi__value kpi__value--sm">{{ brl(custoPorAve()!) }}</div>
-        <div class="kpi__foot">Despesas do período ÷ {{ num(totalAves()) }} aves</div>
+        <div class="kpi__value kpi__value--sm">{{ brl(custoPorAveCodorna()!) }}</div>
+        <div class="kpi__foot">Despesas de codorna ÷ {{ num(avesPorEspecie().codorna) }} aves</div>
+      }
+    </article>
+    <article class="kpi kpi--blue">
+      <div class="kpi__label">Custo por ave · Galinha</div>
+      @if (custoPorAveGalinha() === null) {
+        <div class="kpi__value">—</div>
+        <div class="kpi__foot">Sem galinhas no plantel</div>
+      } @else {
+        <div class="kpi__value kpi__value--sm">{{ brl(custoPorAveGalinha()!) }}</div>
+        <div class="kpi__foot">Despesas de galinha ÷ {{ num(avesPorEspecie().galinha) }} aves</div>
       }
     </article>
   </section>

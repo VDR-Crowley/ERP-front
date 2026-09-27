@@ -4,6 +4,11 @@ import { Expense } from '@core/interfaces/expense.interface';
 import { WithId } from '@core/api/entity-store';
 import { createExpensesStore } from '@core/api/adapters/expenses.adapter';
 import { createFlockStore } from '@core/api/adapters/flock.adapter';
+import {
+  allocateExpenseAmount,
+  classifyFlockSpecies,
+  computeFlockRatio,
+} from '@core/utils/business-line-report.util';
 import { PeriodFilterService } from '@core/services/period-filter.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { todayLocalISO } from '@core/utils/date-diff';
@@ -109,18 +114,50 @@ export class Expenses {
     () => this.despesasNoPeriodo().filter((e) => !e.paid).length,
   );
 
-  /** Total de aves em produção (soma da quantidade de cada lote do plantel). */
-  protected readonly totalAves = computed(() =>
-    this.flockStore.items().reduce((soma, f) => soma + (f.quantity ?? 0), 0),
-  );
   /**
-   * Custo por ave = despesas do período ÷ total de aves. Número único que o
-   * Ytallo pediu no lugar do controle de despesa por galpão (difícil demais):
-   * quanto cada ave "custou" no período. Sem aves cadastradas, fica null.
+   * Aves em produção separadas por espécie (codorna x galinha), classificando
+   * cada lote do plantel pelo texto de `species` (mesma regra da Análise por
+   * Linha de Negócio — ver `classifyFlockSpecies`).
    */
-  protected readonly custoPorAve = computed(() => {
-    const aves = this.totalAves();
-    return aves > 0 ? this.total() / aves : null;
+  protected readonly avesPorEspecie = computed(() => {
+    let codorna = 0;
+    let galinha = 0;
+    for (const f of this.flockStore.items()) {
+      const especie = classifyFlockSpecies(f.species);
+      if (especie === 'codorna') codorna += f.quantity ?? 0;
+      else if (especie === 'galinha') galinha += f.quantity ?? 0;
+    }
+    return { codorna, galinha };
+  });
+  /**
+   * Despesas do período alocadas por espécie: cada despesa vai 100% pra codorna
+   * ou galinha quando a categoria/descrição menciona uma só; senão é rateada
+   * pelo tamanho do plantel (`allocateExpenseAmount`, mesma regra da Análise por
+   * Linha de Negócio).
+   */
+  protected readonly despesaPorEspecie = computed(() => {
+    const ratio = computeFlockRatio(this.flockStore.items());
+    let codorna = 0;
+    let galinha = 0;
+    for (const e of this.despesasNoPeriodo()) {
+      const alloc = allocateExpenseAmount(e, ratio);
+      codorna += alloc.codorna;
+      galinha += alloc.galinha;
+    }
+    return { codorna, galinha };
+  });
+  /**
+   * Custo por ave POR ESPÉCIE = despesas alocadas àquela espécie ÷ nº de aves
+   * dela. Codorna e galinha calculados separados (a granja não mistura o custo).
+   * Espécie sem aves cadastradas fica null.
+   */
+  protected readonly custoPorAveCodorna = computed(() => {
+    const aves = this.avesPorEspecie().codorna;
+    return aves > 0 ? this.despesaPorEspecie().codorna / aves : null;
+  });
+  protected readonly custoPorAveGalinha = computed(() => {
+    const aves = this.avesPorEspecie().galinha;
+    return aves > 0 ? this.despesaPorEspecie().galinha / aves : null;
   });
 
   protected readonly rows = computed<WithId<Expense>[]>(() =>

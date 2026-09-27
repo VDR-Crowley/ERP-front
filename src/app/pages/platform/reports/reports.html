@@ -36,11 +36,13 @@
         </span>
       </div>
       <div class="tbl-wrap">
-        <table class="tbl" style="min-width: 320px">
+        <table class="tbl" style="min-width: 460px">
           <thead>
             <tr>
               <th>Galpão</th>
-              <th class="num">Ovos produzidos</th>
+              <th class="num">Codorna</th>
+              <th class="num">Galinha</th>
+              <th class="num">Total</th>
               <th>Participação</th>
             </tr>
           </thead>
@@ -48,7 +50,9 @@
             @for (g of ovosPorGalpao(); track g.name) {
               <tr>
                 <td class="strong" data-label="Galpão">{{ g.name }}</td>
-                <td class="num strong" data-label="Ovos produzidos">{{ num(g.eggs) }}</td>
+                <td class="num" data-label="Codorna">{{ num(g.quail) }}</td>
+                <td class="num" data-label="Galinha">{{ num(g.chicken) }}</td>
+                <td class="num strong" data-label="Total">{{ num(g.eggs) }}</td>
                 <td data-label="Participação">
                   <span class="bar-track">
                     <span
