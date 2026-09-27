@@ -626,7 +626,69 @@ export async function importWorkbookFile(
     if (result.skipped > 0) skipped[importer.label] = result.skipped;
   }
 
+  // Import CLEAN: reajusta o estoque pro valor final da planilha. Cada venda
+  // importada re-aplicou a baixa (SaleService baixa no create) e cada saco
+  // aberto decrementou a ração — mas o estoque da planilha JÁ é o saldo final,
+  // então isso deixava product.stock (Plantel) e feed_stock negativos. barn/
+  // vendor stock não precisam: são importados DEPOIS das vendas via
+  // updateOrCreate, então já ficam com o valor da planilha.
+  if (forceCreate) await resetStockFromSheet(workbook, ctx, warnings);
+
   return { success: true, errors: [], summary, failed, skipped, rowErrors, warnings };
+}
+
+/**
+ * Reajuste de estoque do import CLEAN (ver chamada em `importWorkbookFile`):
+ * sobrescreve `product.stock` e `feed_stock` com os valores da planilha, que são
+ * o saldo FINAL (pós-vendas/pós-aberturas). Sem isso, a baixa que cada venda/
+ * saco aberto reaplica durante o import deixa esses saldos negativos. Resolve
+ * produto por nome e tipo de ração por "Tipo" (o "ID" da planilha é ignorado no
+ * CLEAN). Cada PUT é isolado — uma falha vira warning, não trava o import.
+ */
+async function resetStockFromSheet(wb: XLSX.WorkBook, ctx: ImportContext, warnings: string[]): Promise<void> {
+  const prodSheet = wb.Sheets[SHEET_NAMES.products];
+  if (prodSheet) {
+    const refs = await ctx.salesRefs();
+    const store = ctx.productsStore();
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(prodSheet, { defval: '' });
+    for (const row of rows) {
+      const name = toRequiredString(row['Produto']);
+      const id = refs.products.byName.get(name);
+      const item = store.items().find((p) => p.name === name);
+      if (id === undefined || !item) continue;
+      const stock = toNumber(row['Estoque']) ?? 0;
+      // Sempre reaplica o PUT: o `item` do store no front carrega o stock de
+      // CRIAÇÃO (o front nunca viu a baixa que o backend aplicou por venda),
+      // então comparar com ele não detectaria o negativo no banco.
+      try {
+        await store.update(String(id), { ...item, stock });
+      } catch (e) {
+        warnings.push(`CLEAN: não reajustei o estoque de "${name}" (${describeImportError(e)}).`);
+      }
+    }
+  }
+
+  const feedSheet = wb.Sheets[SHEET_NAMES.feedStock];
+  if (feedSheet) {
+    const idByType = await ctx.feedStockIdByType();
+    const store = ctx.feedStockStore();
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(feedSheet, { defval: '' });
+    for (const row of rows) {
+      const type = toRequiredString(row['Tipo']);
+      const id = idByType.get(type);
+      const item = store.items().find((f) => f.type === type);
+      if (id === undefined || !item) continue;
+      const bagsInStock = toNumber(row['Sacos em Estoque']) ?? 0;
+      const kgInStock = toNumber(row['Kg em Estoque']) ?? 0;
+      // Sempre reaplica o PUT (mesmo motivo do produto): o store do front tem o
+      // saldo de criação, não o decrementado pelas aberturas de saco no backend.
+      try {
+        await store.update(String(id), { ...item, bagsInStock, kgInStock });
+      } catch (e) {
+        warnings.push(`CLEAN: não reajustei a ração "${type}" (${describeImportError(e)}).`);
+      }
+    }
+  }
 }
 
 function getSheet(wb: XLSX.WorkBook, name: string): XLSX.WorkSheet | null {
