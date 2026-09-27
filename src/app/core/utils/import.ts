@@ -641,6 +641,10 @@ export async function importWorkbookFile(
   const failed: Record<string, number> = {};
   const skipped: Record<string, number> = {};
 
+  // Import CLEAN: zera o banco ANTES de carregar (a planilha é a fonte única).
+  // Preserva Usuários (login) e Fluxo de Caixa. Ver wipeBeforeImport.
+  if (forceCreate) await wipeBeforeImport(ctx, warnings);
+
   for (const importer of present) {
     const ws = getSheet(workbook, importer.label)!;
     const result = await importer.process(ws, rowErrors, warnings, ctx, onProgress);
@@ -659,6 +663,59 @@ export async function importWorkbookFile(
   if (forceCreate) await resetStockFromSheet(workbook, ctx, warnings);
 
   return { success: true, errors: [], summary, failed, skipped, rowErrors, warnings };
+}
+
+/**
+ * Import CLEAN: esvazia o banco ANTES de carregar a planilha, pra a planilha ser
+ * a fonte única (reimportar substitui tudo, não acumula). Apaga cada entidade
+ * pelos DELETE normais da API, na ordem filhos->pais exigida pelas FKs
+ * (`restrictOnDelete` em sales/flock/daily_productions/stock_transfers). PRESERVA
+ * Usuários (login) e Fluxo de Caixa. Cada delete é isolado — um erro isolado só
+ * vira warning e não trava o import.
+ *
+ * `feed_open_logs` não tem endpoint DELETE (recurso só-leitura por id): ao apagar
+ * o `feed_stock`, a FK `nullOnDelete` só zera o vínculo, o log fica. Então zeramos
+ * os feed_open_logs à parte, via o novo DELETE de feed-open-logs.
+ */
+async function wipeBeforeImport(ctx: ImportContext, warnings: string[]): Promise<void> {
+  const http = ctx.httpClient();
+  const apiBase = environment.apiUrl;
+
+  /** Apaga todas as linhas de `endpoint` (GET lista -> DELETE cada id). */
+  async function wipe(endpoint: string): Promise<void> {
+    let rows: { id: number }[];
+    try {
+      rows = await firstValueFrom(http.get<{ id: number }[]>(`${apiBase}/${endpoint}`));
+    } catch (e) {
+      warnings.push(`CLEAN: não consegui listar ${endpoint} pra limpar (${describeImportError(e)}).`);
+      return;
+    }
+    for (const r of rows) {
+      try {
+        await firstValueFrom(http.delete<void>(`${apiBase}/${endpoint}/${r.id}`));
+      } catch (e) {
+        warnings.push(`CLEAN: não removi ${endpoint} #${r.id} (${describeImportError(e)}).`);
+      }
+    }
+  }
+
+  // Filhos e quem tem restrictOnDelete pra produto/vendedor/galpão vão primeiro.
+  await wipe('sales'); // sale_exclusions caem por cascade
+  await wipe('stock-transfers'); // restringe produto; não é importado, mas precisa sair pro wipe de products
+  await wipe('daily-productions');
+  await wipe('flock');
+  await wipe('flock-cleanings');
+  await wipe('flock-incubations'); // hatch_events caem por cascade
+  await wipe('expenses'); // expense_species_overrides caem por cascade
+  await wipe('feed-open-logs'); // some sacos abertos antigos (sem isso, reimport duplicaria)
+  await wipe('feed-stocks');
+  // Pais, depois que nada mais os referencia. barn_stock e vendor_stock têm
+  // cascadeOnDelete em produto/vendedor/galpão, então caem sozinhos aqui — não
+  // precisam de wipe próprio (e barn-stocks nem tem endpoint DELETE).
+  await wipe('products');
+  await wipe('vendedores');
+  await wipe('barns');
+  // Usuários e Fluxo de Caixa nunca são tocados (login + caixa preservados).
 }
 
 /**
