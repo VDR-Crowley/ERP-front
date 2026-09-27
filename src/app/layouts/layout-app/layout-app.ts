@@ -295,8 +295,18 @@ export class LayoutApp {
     this.importState.set('loading');
     this.importProgress.set(null);
     try {
+      // BACKUP de segurança: baixa o estado atual ANTES de substituir. Como o
+      // import é "clean" (a planilha vira a fonte única), esse arquivo é o
+      // recovery — pra desfazer, é só reimportá-lo.
+      const { exportWorkbook } = await import('@core/utils/export');
+      await exportWorkbook('MiniERP-backup-antes-import', this.injector);
+
+      // forceCreate=true: import CLEAN — ignora o "ID" da planilha e cria tudo do
+      // zero. O ID exportado é de outro ambiente e reusá-lo num PUT causa colisão
+      // (registros se sobrescrevem e somem). Fluxo esperado: resetar o banco →
+      // importar. Ver ImportContext.forceCreate em import.ts.
       const { importWorkbookFile } = await import('@core/utils/import');
-      const result = await importWorkbookFile(this.injector, file, (progress) => this.importProgress.set(progress));
+      const result = await importWorkbookFile(this.injector, file, (progress) => this.importProgress.set(progress), true);
 
       if (!result.success) {
         this.importErrors.set(result.errors);

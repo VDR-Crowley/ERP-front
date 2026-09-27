@@ -122,6 +122,15 @@ interface ImportContext {
   feedOpenLogIds: () => Promise<Set<string>>;
   /** "Galpão" (nome) -> id do `barn`, pra resolver a coluna Galpão da Produção. Memoizado. */
   barnIdByName: () => Promise<Map<string, number>>;
+  /**
+   * Import CLEAN: quando `true`, o "ID" da planilha é IGNORADO e toda linha vira
+   * um POST (criação pura). O "ID" exportado é do ambiente de origem (ex.:
+   * produção) e não vale no banco de destino — reusá-lo num `PUT` causa colisão:
+   * um POST de uma linha ganha um id auto-incremento que um `PUT /{id}` de outra
+   * linha depois sobrescreve, e registros somem (ver histórico "50 ovos de
+   * codorna" engolido por "1 Bandeja"). Fluxo esperado: resetar o banco → importar.
+   */
+  forceCreate: boolean;
 }
 
 /** Memoiza uma factory síncrona: só chama `factory()` na primeira leitura. */
@@ -165,13 +174,14 @@ async function fetchBarnIdByName(http: HttpClient): Promise<Map<string, number>>
   return map;
 }
 
-function createImportContext(injector: Injector): ImportContext {
+function createImportContext(injector: Injector, forceCreate: boolean): ImportContext {
   const run = <T,>(factory: () => T): T => runInInjectionContext(injector, factory);
   const http = memo(() => run(() => inject(HttpClient)));
 
   const salesStore = memo(() => run(() => createSalesStore()));
 
   return {
+    forceCreate,
     salesStore,
     salesRefs: memoAsync(() => salesStore().fetchRefs()),
     dailyProductionsStore: memo(() => run(() => createDailyProductionsStore())),
@@ -329,9 +339,12 @@ function makeImporter<T>(
       let skipped = 0;
       const total = rows.length;
       let done = 0;
+      // Import CLEAN (forceCreate): ignora o "ID" da planilha e cria tudo do zero.
+      // O id exportado é de outro ambiente; reusá-lo num PUT colide com os ids
+      // auto-incremento que os POSTs vão gerando (ver ImportContext.forceCreate).
       for (const { row, item, id } of rows) {
         try {
-          await run(item, ctx, id, row, warnings);
+          await run(item, ctx, ctx.forceCreate ? undefined : id, row, warnings);
           imported++;
         } catch (e) {
           if (isDuplicate(e)) {
@@ -573,6 +586,7 @@ export async function importWorkbookFile(
   injector: Injector,
   file: File,
   onProgress?: (progress: ImportProgress) => void,
+  forceCreate = false,
 ): Promise<ImportResult> {
   const buffer = await file.arrayBuffer();
 
@@ -596,7 +610,7 @@ export async function importWorkbookFile(
     };
   }
 
-  const ctx = createImportContext(injector);
+  const ctx = createImportContext(injector, forceCreate);
   const rowErrors: string[] = [];
   const warnings: string[] = [];
   const summary: Record<string, number> = {};
