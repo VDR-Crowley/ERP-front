@@ -29,6 +29,7 @@ import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { createFlockIncubationsStore } from '@core/api/adapters/flock-incubations.adapter';
 import { createFeedStockStore, createFeedStockStoreExtended } from '@core/api/adapters/feed-stocks.adapter';
 import { createFlockCleaningsStore } from '@core/api/adapters/flock-cleanings.adapter';
+import { PLANTEL_LOCATION, vendedorLocation } from '@core/utils/stock-location';
 import { environment } from '../../../environments/environment';
 
 export interface ImportResult {
@@ -419,6 +420,26 @@ async function upsert<T>(
 
 async function runSales(item: Venda, ctx: ImportContext, id: string | undefined, row: number, warnings: string[]): Promise<void> {
   const refs = await ctx.salesRefs();
+  // Resolve o "Local do estoque" da planilha: "Vendedor: <nome>" mantém o
+  // vendedor (baixa do estoque dele); "Plantel", "Galpão: X" ou vazio viram
+  // Plantel — galpão deixou de ser local de venda (só de produção agora).
+  if (item.stockLocationLabel !== undefined) {
+    const raw = item.stockLocationLabel.trim();
+    const vendedorMatch = raw.match(/^vendedor:\s*(.+)$/i);
+    if (vendedorMatch) {
+      const name = vendedorMatch[1].trim();
+      const vendedorId = refs.vendedores.byName.get(name);
+      if (vendedorId === undefined) {
+        warnings.push(`${SHEET_NAMES.sales} linha ${row}: vendedor "${name}" do "Local do estoque" não encontrado — venda gravada em Plantel.`);
+        item.stockLocation = PLANTEL_LOCATION;
+      } else {
+        item.stockLocation = vendedorLocation(String(vendedorId));
+      }
+    } else {
+      item.stockLocation = PLANTEL_LOCATION;
+    }
+    delete item.stockLocationLabel;
+  }
   if (id === undefined) {
     await ctx.salesStore().add(item, refs);
     return;
@@ -873,6 +894,7 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | un
       unitPrice !== undefined &&
       total !== undefined
     ) {
+      const stockLocationLabel = toRequiredString(row['Local do estoque']);
       result.push({
         row: r,
         id: idRaw ?? undefined,
@@ -887,6 +909,7 @@ function parseSales(ws: XLSX.WorkSheet, errors: string[]): RowItem<Venda>[] | un
           seller,
           deliveryPending: deliveryRaw === 'FALTA',
           deliveryDate: deliveryDate ?? null,
+          ...(stockLocationLabel ? { stockLocationLabel } : {}),
         },
       });
     }

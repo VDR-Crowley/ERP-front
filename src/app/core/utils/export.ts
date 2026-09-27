@@ -28,6 +28,7 @@ interface VendedorApi { id: number; name: string; contact: string | null; active
 interface SaleApi {
   id: number; date: string; product_id: number; quantity: number; unit_price: string; total: string;
   payment_pending: boolean; buyer: string; seller_id: number; delivery_pending: boolean; delivery_date: string | null;
+  stock_location_type: string; stock_location_vendedor_id: number | null; stock_location_barn_id: number | null;
 }
 interface DailyProductionApi { id: number; date: string; quail_eggs: number | null; chicken_eggs: number | null; barn_id: number | null }
 interface BarnApi { id: number; name: string; location: string | null; start_date: string | null; notes: string | null }
@@ -186,7 +187,7 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
 
   const vendasHeader = [
     'ID', 'Data', 'Produto', 'Quantidade', 'Preço Unitário', 'Total', 'Status Pagamento',
-    'Comprador', 'Vendedor', 'Status da entrega', 'Data da Entrega',
+    'Comprador', 'Vendedor', 'Local do estoque', 'Status da entrega', 'Data da Entrega',
   ];
   const vendasSheet = XLSX.utils.json_to_sheet(
     vendasApi.map((v) => ({
@@ -199,6 +200,12 @@ export async function buildExportWorkbook(injector: Injector): Promise<XLSX.Work
       'Status Pagamento': v.payment_pending ? 'F' : 'PAGO',
       Comprador: v.buyer,
       Vendedor: vendedorNameById.get(v.seller_id) ?? '',
+      // Vendedor mantém o local; galpão e plantel viram "Plantel" (galpão deixou
+      // de ser local de venda — ver runSales no import.ts). Reimportar reconstrói
+      // o local certo a partir daqui.
+      'Local do estoque': v.stock_location_type === 'vendedor'
+        ? `Vendedor: ${vendedorNameById.get(v.stock_location_vendedor_id ?? -1) ?? ''}`
+        : 'Plantel',
       'Status da entrega': v.delivery_pending ? 'FALTA' : 'ENTREGUE',
       'Data da Entrega': v.delivery_date ? ptDate(v.delivery_date) : '',
     })),

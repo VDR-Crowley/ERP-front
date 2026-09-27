@@ -16,4 +16,10 @@ export interface Venda {
    * PLANTEL_LOCATION.
    */
   stockLocation?: string;
+  /**
+   * Rótulo "Local do estoque" vindo da planilha (coluna do export: "Plantel" ou
+   * "Vendedor: <nome>"), transitório do import — resolvido pra `stockLocation`
+   * (vendedor por nome; galpão/vazio viram Plantel) e nunca persistido.
+   */
+  stockLocationLabel?: string;
 }
