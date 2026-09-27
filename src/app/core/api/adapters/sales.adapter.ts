@@ -28,7 +28,8 @@ export interface SalesRefs {
  * padrão, mantido pro uso normal de tela: garante refs sempre atuais).
  */
 export interface SalesStore extends EntityStore<Venda> {
-  add(item: Venda, refs?: SalesRefs): Promise<void>;
+  /** `skipStock`: cria a venda sem baixar estoque (import CLEAN — a planilha já traz o saldo final). Ver SaleService no backend. */
+  add(item: Venda, refs?: SalesRefs, skipStock?: boolean): Promise<void>;
   update(id: string, item: Venda, refs?: SalesRefs): Promise<void>;
   fetchRefs(): Promise<SalesRefs>;
 }
@@ -132,9 +133,10 @@ export function createSalesStore(): SalesStore {
     });
   }
 
-  async function add(item: Venda, preloadedRefs?: SalesRefs): Promise<void> {
+  async function add(item: Venda, preloadedRefs?: SalesRefs, skipStock = false): Promise<void> {
     const refs = preloadedRefs ?? (await fetchRefs());
-    const created = await firstValueFrom(http.post<SaleApi>(base, toApi(item, refs.products, refs.vendedores)));
+    const body = { ...toApi(item, refs.products, refs.vendedores), ...(skipStock ? { skip_stock: true } : {}) };
+    const created = await firstValueFrom(http.post<SaleApi>(base, body));
     items.update((list) => [...list, toFront(created, refs.products, refs.vendedores)]);
   }
 

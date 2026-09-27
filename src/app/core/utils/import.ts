@@ -440,8 +440,11 @@ async function runSales(item: Venda, ctx: ImportContext, id: string | undefined,
     }
     delete item.stockLocationLabel;
   }
+  // Import CLEAN (forceCreate): cria a venda SEM baixar estoque — a planilha já
+  // traz o saldo final, re-aplicar a baixa contaria em dobro (product.stock/
+  // vendor_stock negativos, linhas de estoque de vendedor que a planilha não tem).
   if (id === undefined) {
-    await ctx.salesStore().add(item, refs);
+    await ctx.salesStore().add(item, refs, ctx.forceCreate);
     return;
   }
   try {
@@ -449,7 +452,7 @@ async function runSales(item: Venda, ctx: ImportContext, id: string | undefined,
   } catch (e) {
     if (!isNotFound(e)) throw e;
     warnings.push(`${SHEET_NAMES.sales} linha ${row}: ID ${id} não encontrado no backend (registro excluído lá?) — recriado como novo registro.`);
-    await ctx.salesStore().add(item, refs);
+    await ctx.salesStore().add(item, refs, ctx.forceCreate);
   }
 }
 
