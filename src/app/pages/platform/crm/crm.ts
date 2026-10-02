@@ -174,7 +174,8 @@ export class Crm {
 
   protected openEdit(row: CrmRow): void {
     this.editingId = row.id;
-    this.formTitle.set('Editar cliente');
+    // Nome no título (o campo "Nome" some pro vendedor) — pra saber de quem é.
+    this.formTitle.set(`Editar cliente — ${row.name}`);
     this.draft = { name: row.name, phone: row.phone };
     this.formOpen.set(true);
   }
