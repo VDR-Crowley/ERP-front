@@ -8,10 +8,21 @@ interface CustomerApi {
   id: number;
   name: string;
   phone: string | null;
+  last_purchase?: string | null;
+  purchase_count?: number;
+  total?: number;
+  last_seller?: string | null;
 }
 
 function toFront(api: CustomerApi): Customer {
-  return { name: api.name, phone: api.phone ?? '' };
+  return {
+    name: api.name,
+    phone: api.phone ?? '',
+    lastPurchase: api.last_purchase ?? null,
+    purchaseCount: api.purchase_count ?? 0,
+    total: api.total ?? 0,
+    lastSeller: api.last_seller ?? null,
+  };
 }
 
 function toApi(item: Customer) {

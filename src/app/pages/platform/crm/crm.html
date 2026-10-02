@@ -33,9 +33,11 @@
         <i class="pi" [class.pi-copy]="copiado() !== '__all__'" [class.pi-check]="copiado() === '__all__'"></i>
         {{ copiado() === '__all__' ? 'Copiado!' : 'Copiar visíveis' }}
       </button>
-      <button type="button" class="btn btn--primary" (click)="openNew()">
-        <i class="pi pi-plus"></i> Novo cliente
-      </button>
+      @if (!isVendedor()) {
+        <button type="button" class="btn btn--primary" (click)="openNew()">
+          <i class="pi pi-plus"></i> Novo cliente
+        </button>
+      }
     </div>
 
     @let filtered = filtradas();
@@ -73,9 +75,11 @@
           @for (c of filtered; track c.id) {
             <tr>
               <td>
-                <button type="button" class="btn btn--icon" [title]="isExpandida(c.name) ? 'Recolher' : 'Ver histórico'" (click)="toggleExpandir(c.name)">
-                  <i class="pi" [class.pi-chevron-right]="!isExpandida(c.name)" [class.pi-chevron-down]="isExpandida(c.name)"></i>
-                </button>
+                @if (!isVendedor()) {
+                  <button type="button" class="btn btn--icon" [title]="isExpandida(c.name) ? 'Recolher' : 'Ver histórico'" (click)="toggleExpandir(c.name)">
+                    <i class="pi" [class.pi-chevron-right]="!isExpandida(c.name)" [class.pi-chevron-down]="isExpandida(c.name)"></i>
+                  </button>
+                }
               </td>
               <td class="strong" data-label="Cliente">{{ c.name }}</td>
               <td data-label="Telefone">{{ c.phone || '—' }}</td>
@@ -100,16 +104,18 @@
                       <i class="pi pi-whatsapp"></i>
                     </a>
                   }
-                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">
-                    <i class="pi pi-pencil"></i>
-                  </button>
-                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(c)">
-                    <i class="pi pi-trash"></i>
-                  </button>
+                  @if (!isVendedor()) {
+                    <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">
+                      <i class="pi pi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(c)">
+                      <i class="pi pi-trash"></i>
+                    </button>
+                  }
                 </div>
               </td>
             </tr>
-            @if (isExpandida(c.name)) {
+            @if (isExpandida(c.name) && !isVendedor()) {
               <tr class="crm-hist">
                 <td></td>
                 <td colspan="8">

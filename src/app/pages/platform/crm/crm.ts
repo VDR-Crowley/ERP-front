@@ -1,9 +1,10 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Customer } from '@core/interfaces/customer.interface';
 import { Venda } from '@core/interfaces/venda.interface';
 import { createCustomersStore } from '@core/api/adapters/customers.adapter';
 import { createSalesStore } from '@core/api/adapters/sales.adapter';
+import { AuthSession } from '@core/services/auth-session.service';
 import { brl, num, ptDate } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
@@ -55,8 +56,12 @@ export class Crm {
 
   private readonly store = createCustomersStore();
   private readonly salesStore = createSalesStore();
+  private readonly session = inject(AuthSession);
 
-  /** Vendas agrupadas por comprador (nome) — histórico e datas de cada cliente. */
+  /** VENDEDOR: esconde o accordion de itens detalhados (mantém nº compras e total). */
+  protected readonly isVendedor = this.session.isVendedor;
+
+  /** Vendas agrupadas por comprador (nome) — só pro accordion (histórico detalhado). */
   private readonly vendasPorCliente = computed(() => {
     const mapa = new Map<string, Venda[]>();
     for (const v of this.salesStore.items()) {
@@ -74,16 +79,19 @@ export class Crm {
     const porCliente = this.vendasPorCliente();
     return this.store.items().map((c) => {
       const vendas = [...(porCliente.get(c.name) ?? [])].sort((a, b) => b.date.localeCompare(a.date));
-      const ultima = vendas[0]?.date ?? null;
+      // Colunas vêm dos AGREGADOS do backend (histórico completo, mesmo pro
+      // vendedor cujo /sales é escopado em mês/não-pagas) — evita o falso
+      // "nunca". O accordion (historico) usa o /sales carregado.
+      const ultima = c.lastPurchase ?? vendas[0]?.date ?? null;
       return {
         id: c.id,
         name: c.name,
         phone: c.phone,
-        vendedor: vendas[0]?.seller ?? '',
+        vendedor: c.lastSeller ?? vendas[0]?.seller ?? '',
         ultimaCompra: ultima,
         diasSemComprar: ultima ? diasEntre(ultima) : Infinity,
-        compras: vendas.length,
-        total: vendas.reduce((s, v) => s + v.total, 0),
+        compras: c.purchaseCount ?? vendas.length,
+        total: c.total ?? vendas.reduce((s, v) => s + v.total, 0),
         historico: vendas.map((v) => ({
           date: v.date,
           product: v.product,
@@ -207,12 +215,15 @@ export class Crm {
     } else {
       linhas.push('Última compra: nunca comprou');
     }
-    if (row.historico.length) {
+    // VENDEDOR não vê a lista de itens — só o resumo (nº compras + total).
+    if (!this.session.isVendedor() && row.historico.length) {
       linhas.push('Histórico:');
       for (const h of row.historico) {
         const vend = h.seller ? ` [${h.seller}]` : '';
         linhas.push(`- ${ptDate(h.date)}: ${num(h.quantity)}x ${h.product} = ${brl(h.total)}${vend}`);
       }
+    }
+    if (row.compras > 0) {
       linhas.push(`Total: ${brl(row.total)} em ${row.compras} compra(s)`);
     }
     return linhas.join('\n');
