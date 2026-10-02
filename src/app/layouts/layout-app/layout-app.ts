@@ -195,6 +195,9 @@ export class LayoutApp {
   /** VENDEDOR (acesso restrito) — esconde import/export/modelo e telas de admin. */
   protected readonly isVendedor = this.session.isVendedor;
 
+  /** Rótulo do papel no rodapé da sidebar (Vendedor x Proprietário). */
+  protected readonly roleLabel = computed(() => (this.session.isVendedor() ? 'Vendedor' : 'Proprietário'));
+
   protected readonly visibleNav = computed<NavItem[]>(() => {
     if (this.session.isVendedor()) {
       return this.nav.filter(

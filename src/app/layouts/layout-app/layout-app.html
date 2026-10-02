@@ -44,7 +44,7 @@
         <span class="side__avatar"><i class="pi pi-user"></i></span>
         <span class="side__uinfo">
           {{ firstName() }}
-          <small>Proprietário</small>
+          <small>{{ roleLabel() }}</small>
         </span>
       </div>
       <button type="button" class="side__link side__link--muted" (click)="sair()">
