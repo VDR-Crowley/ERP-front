@@ -12,4 +12,9 @@ export interface UserAccount {
   isActive: boolean;
   password?: string;
   passwordConfirmation?: string;
+  /** 'ADMINISTRADOR' (padrão) | 'VENDEDOR'. */
+  role?: string;
+  /** Vendedor ligado (quando role VENDEDOR) — define o escopo de acesso dele. */
+  vendedorId?: string | null;
+  vendedorName?: string | null;
 }

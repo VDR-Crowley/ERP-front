@@ -9,21 +9,32 @@ interface UserApi {
   name: string;
   email: string;
   role: string;
+  vendedor_id: number | null;
+  vendedor_name: string | null;
   is_active: boolean;
   created_at: string;
 }
 
 function toFront(api: UserApi): UserAccount {
-  return { name: api.name, email: api.email, isActive: api.is_active };
+  return {
+    name: api.name,
+    email: api.email,
+    isActive: api.is_active,
+    role: api.role,
+    vendedorId: api.vendedor_id != null ? String(api.vendedor_id) : null,
+    vendedorName: api.vendedor_name,
+  };
 }
 
-/** Role nunca é enviada — sempre ADMINISTRADOR no backend (ver UserManagementService). */
+/** Role opcional (default ADMINISTRADOR no backend). VENDEDOR precisa de vendedor_id. */
 function toApiCreate(item: UserAccount) {
   return {
     name: item.name,
     email: item.email,
     password: item.password,
     password_confirmation: item.passwordConfirmation,
+    ...(item.role ? { role: item.role } : {}),
+    ...(item.role === 'VENDEDOR' && item.vendedorId ? { vendedor_id: Number(item.vendedorId) } : {}),
   };
 }
 

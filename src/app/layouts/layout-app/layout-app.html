@@ -25,7 +25,7 @@
     </button>
 
     <nav class="side__nav">
-      @for (item of nav; track item.path) {
+      @for (item of visibleNav(); track item.path) {
         <a
           class="side__link"
           [routerLink]="item.path"
@@ -81,15 +81,17 @@
           [value]="periodFilter.active() ? periodFilter.range() : null"
           (valueChange)="onPeriodChange($event)"
         />
-        <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
-          <i class="pi pi-file-excel"></i> Modelo
-        </button>
-        <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
-          <i class="pi pi-upload"></i> Importar
-        </button>
-        <button class="btn btn--ghost" type="button" (click)="exportar()">
-          <i class="pi pi-download"></i> Exportar
-        </button>
+        @if (!isVendedor()) {
+          <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
+            <i class="pi pi-file-excel"></i> Modelo
+          </button>
+          <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
+            <i class="pi pi-upload"></i> Importar
+          </button>
+          <button class="btn btn--ghost" type="button" (click)="exportar()">
+            <i class="pi pi-download"></i> Exportar
+          </button>
+        }
       </div>
     </header>
 
@@ -110,15 +112,17 @@
         (valueChange)="onPeriodChange($event)"
       />
       <div class="top__sheet-actions">
-        <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
-          <i class="pi pi-file-excel"></i> Modelo
-        </button>
-        <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
-          <i class="pi pi-upload"></i> Importar
-        </button>
-        <button class="btn btn--ghost" type="button" (click)="exportar()">
-          <i class="pi pi-download"></i> Exportar
-        </button>
+        @if (!isVendedor()) {
+          <button class="btn btn--ghost" type="button" (click)="baixarModelo()">
+            <i class="pi pi-file-excel"></i> Modelo
+          </button>
+          <button class="btn btn--ghost" type="button" (click)="fileInput.click()">
+            <i class="pi pi-upload"></i> Importar
+          </button>
+          <button class="btn btn--ghost" type="button" (click)="exportar()">
+            <i class="pi pi-download"></i> Exportar
+          </button>
+        }
       </div>
     </app-bottom-sheet>
 
@@ -128,7 +132,7 @@
   </div>
 
   <nav class="tabbar">
-    @for (tab of tabs; track tab.path) {
+    @for (tab of visibleTabs(); track tab.path) {
       <a class="tabbar__link" [routerLink]="tab.path" routerLinkActive="tabbar__link--active">
         <i [class]="'pi ' + tab.icon"></i>
         <span>{{ tab.label }}</span>

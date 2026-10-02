@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { UserAccount } from '@core/interfaces/user-account.interface';
 import { WithId } from '@core/api/entity-store';
 import { createUsersStore } from '@core/api/adapters/users.adapter';
+import { createVendedoresStore } from '@core/api/adapters/vendedores.adapter';
 import { AuthSession } from '@core/services/auth-session.service';
 import { num } from '@core/utils/format';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
@@ -13,13 +14,6 @@ import { createSortState, sortRows } from '@shared/table-sort/table-sort';
 import { SortIcon } from '@shared/sort-icon/sort-icon';
 
 type SortField = keyof UserAccount;
-
-const FIELDS: CrudField[] = [
-  { key: 'name', label: 'Nome', type: 'text', required: true },
-  { key: 'email', label: 'E-mail', type: 'text', required: true },
-  { key: 'password', label: 'Senha', type: 'text' },
-  { key: 'passwordConfirmation', label: 'Confirmar senha', type: 'text' },
-];
 
 /**
  * Administração de usuários (`/api/users`) — diferente do cadastro público
@@ -36,10 +30,51 @@ const FIELDS: CrudField[] = [
 })
 export class Users {
   protected readonly num = num;
-  protected readonly fields = FIELDS;
 
   private readonly store = createUsersStore();
+  private readonly vendedoresStore = createVendedoresStore();
   private readonly session = inject(AuthSession);
+
+  /** `true` ao criar (mostra Perfil + Vendedor); no editar, fica só nome/e-mail/senha. */
+  private readonly creating = signal(true);
+
+  /**
+   * Campos do form. Ao CRIAR, inclui "Perfil" (Admin/Vendedor) e "Vendedor"
+   * (obrigatório p/ VENDEDOR — liga o login ao vendedor que ele enxerga). O
+   * vendedor é sempre mostrado na criação; se o perfil for Admin, o backend
+   * ignora. Perfil não é editável depois (mantém simples).
+   */
+  protected readonly fields = computed<CrudField[]>(() => {
+    const base: CrudField[] = [
+      { key: 'name', label: 'Nome', type: 'text', required: true },
+      { key: 'email', label: 'E-mail', type: 'text', required: true },
+      { key: 'password', label: 'Senha', type: 'text' },
+      { key: 'passwordConfirmation', label: 'Confirmar senha', type: 'text' },
+    ];
+    if (!this.creating()) return base;
+    return [
+      ...base,
+      {
+        key: 'role',
+        label: 'Perfil',
+        type: 'select',
+        required: true,
+        options: [
+          { value: 'ADMINISTRADOR', label: 'Administrador (acesso total)' },
+          { value: 'VENDEDOR', label: 'Vendedor (só vendas e CRM dele)' },
+        ],
+      },
+      {
+        key: 'vendedorId',
+        label: 'Vendedor (se perfil Vendedor)',
+        type: 'select',
+        optionsFor: () => [
+          { value: '', label: '—' },
+          ...this.vendedoresStore.items().map((v) => ({ value: v.id, label: v.name })),
+        ],
+      },
+    ];
+  });
 
   protected readonly search = signal('');
   protected readonly searchKeys: SortField[] = ['name', 'email'];
@@ -72,15 +107,17 @@ export class Users {
   protected openNew(): void {
     this.editingId = null;
     this.editingTarget = null;
+    this.creating.set(true);
     this.formTitle.set('Novo usuário');
     this.formErrors.set([]);
-    this.draft = { name: '', email: '', password: '', passwordConfirmation: '' };
+    this.draft = { name: '', email: '', password: '', passwordConfirmation: '', role: 'ADMINISTRADOR', vendedorId: '' };
     this.formOpen.set(true);
   }
 
   protected openEdit(u: WithId<UserAccount>): void {
     this.editingId = u.id;
     this.editingTarget = u;
+    this.creating.set(false);
     this.formTitle.set('Editar usuário');
     this.formErrors.set([]);
     // Senha nunca vem pré-preenchida — em branco significa "não trocar" (ver UserAccount).
@@ -103,6 +140,10 @@ export class Users {
       isActive: this.editingTarget?.isActive ?? true,
       ...(password
         ? { password, passwordConfirmation: String(d['passwordConfirmation'] ?? '') }
+        : {}),
+      // Perfil/vendedor só na criação (ver fields). Admin ignora vendedorId.
+      ...(this.creating()
+        ? { role: String(d['role'] ?? 'ADMINISTRADOR'), vendedorId: String(d['vendedorId'] ?? '') || null }
         : {}),
     };
 

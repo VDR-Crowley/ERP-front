@@ -52,6 +52,39 @@
     </article>
   </section>
 
+  @if (isVendedor() && meuEstoque().length > 0) {
+    <div class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Meu estoque</h2>
+        <span style="font-size: 0.78rem; color: var(--erp-dim)">
+          Negativo = já vendido, falta entregar · Plantel = disponível pra repor
+        </span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 420px">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th class="num">Meu saldo</th>
+              <th class="num">Disponível no Plantel</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of meuEstoque(); track e.name) {
+              <tr>
+                <td class="strong" data-label="Produto">{{ e.name }}</td>
+                <td class="num" data-label="Meu saldo">
+                  <span [class.badge]="e.minha < 0" [class.badge--warn]="e.minha < 0">{{ num(e.minha) }}</span>
+                </td>
+                <td class="num strong" data-label="Disponível no Plantel">{{ num(e.plantel) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
   <div class="panel">
     <div class="panel__head">
       <h2 class="panel__title">Vendas</h2>

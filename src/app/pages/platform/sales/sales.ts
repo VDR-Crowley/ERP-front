@@ -17,7 +17,9 @@ import {
   PLANTEL_LOCATION,
   buildLocationOptions,
   locationLabel,
+  vendedorLocation,
 } from '@core/utils/stock-location';
+import { AuthSession } from '@core/services/auth-session.service';
 import { CrudField, CrudFormModal } from '@shared/crud-form-modal/crud-form-modal';
 import { ConfirmModal } from '@shared/confirm-modal/confirm-modal';
 import { FilterByPipe } from '@core/pipes/filter-by.pipe';
@@ -30,8 +32,9 @@ function buildFields(
   productOptions: { value: string; label: string }[],
   products: WithId<Product>[],
   vendedores: WithId<Vendedor>[],
+  isVendedor: boolean,
 ): CrudField[] {
-  return [
+  const campos: CrudField[] = [
   { key: 'date', label: 'Data', type: 'date', required: true },
   {
     key: 'product',
@@ -85,6 +88,11 @@ function buildFields(
   },
   { key: 'deliveryDate', label: 'Data de entrega', type: 'date' },
   ];
+  // Perfil VENDEDOR: esconde "Vendedor" e "Local do estoque" — são travados
+  // nele (o backend força os dois ao salvar). Ele só preenche o resto.
+  return isVendedor
+    ? campos.filter((f) => f.key !== 'seller' && f.key !== 'stockLocation')
+    : campos;
 }
 
 @Component({
@@ -104,14 +112,18 @@ export class Sales {
   private readonly vendorStockStore = createVendorStockStore();
   private readonly barnStore = createBarnStore();
   private readonly periodFilter = inject(PeriodFilterService);
+  private readonly session = inject(AuthSession);
 
   /**
-   * Local padrão de uma venda nova: "Plantel". As vendas voltaram a ser todas de
-   * Plantel — o galpão deixou de ser dimensão de venda (virou só de produção,
-   * ver Relatório > "Ovos produzidos por galpão").
+   * Local padrão de uma venda nova: "Plantel" pro admin. Pro VENDEDOR, é o
+   * estoque DELE (a venda sempre baixa do estoque do próprio vendedor — o
+   * backend força isso de qualquer jeito). Galpão não é mais local de venda.
    */
   private defaultLocation(): string {
-    return PLANTEL_LOCATION;
+    const vendedorId = this.session.user()?.vendedor_id;
+    return this.session.isVendedor() && vendedorId != null
+      ? vendedorLocation(String(vendedorId))
+      : PLANTEL_LOCATION;
   }
   private readonly quickCreate = inject(SalesQuickCreate);
 
@@ -125,7 +137,27 @@ export class Sales {
   protected readonly fields = computed<CrudField[]>(() => {
     const products = this.productsStore.items();
     const productOptions = products.map((p) => ({ value: p.name, label: p.name }));
-    return buildFields(productOptions, products, this.vendedoresStore.items());
+    return buildFields(productOptions, products, this.vendedoresStore.items(), this.session.isVendedor());
+  });
+
+  protected readonly isVendedor = this.session.isVendedor;
+
+  /**
+   * Estoque pro VENDEDOR decidir se pode vender: o saldo DELE por produto
+   * (positivo = tem; negativo = já vendeu e deve entregar) e o que há no Plantel
+   * (o dono repõe). Mostra só produtos com algum saldo (dele ou no Plantel).
+   */
+  protected readonly meuEstoque = computed<{ name: string; minha: number; plantel: number }[]>(() => {
+    if (!this.session.isVendedor()) return [];
+    const vendor = this.vendorStockStore.items();
+    return this.productsStore
+      .items()
+      .map((p) => ({
+        name: p.name,
+        minha: vendor.filter((v) => v.product === p.name).reduce((s, v) => s + v.quantity, 0),
+        plantel: p.stock,
+      }))
+      .filter((r) => r.minha !== 0 || r.plantel !== 0);
   });
 
   protected readonly search = signal('');
@@ -186,7 +218,8 @@ export class Sales {
       unitPrice: 0,
       stockLocation: this.defaultLocation(),
       buyer: '',
-      seller: '',
+      // VENDEDOR: vendedor fixo nele (campo escondido; backend força mesmo).
+      seller: this.session.isVendedor() ? (this.session.vendedorName() ?? '') : '',
       paymentPending: 'F',
       deliveryPending: 'FALTA',
       deliveryDate: '',

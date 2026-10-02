@@ -1,4 +1,4 @@
-import { Component, Injector, inject, signal } from '@angular/core';
+import { Component, Injector, computed, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -188,8 +188,24 @@ export class LayoutApp {
     },
   ];
 
-  /** Atalhos da tab bar fixa no mobile (<=768px): as 4 telas mais usadas. */
-  protected readonly tabs: NavItem[] = this.nav.slice(0, 4);
+  /**
+   * Menu visível conforme o papel. VENDEDOR (acesso restrito) só vê Vendas e
+   * CRM — o resto é bloqueado no backend (403) e escondido aqui. Admin vê tudo.
+   */
+  /** VENDEDOR (acesso restrito) — esconde import/export/modelo e telas de admin. */
+  protected readonly isVendedor = this.session.isVendedor;
+
+  protected readonly visibleNav = computed<NavItem[]>(() => {
+    if (this.session.isVendedor()) {
+      return this.nav.filter(
+        (n) => n.path === '/platform/sales' || n.path === '/platform/crm',
+      );
+    }
+    return this.nav;
+  });
+
+  /** Atalhos da tab bar fixa no mobile (<=768px): as 4 primeiras telas visíveis. */
+  protected readonly visibleTabs = computed<NavItem[]>(() => this.visibleNav().slice(0, 4));
 
   private isDesktop(): boolean {
     return typeof window !== 'undefined' && window.innerWidth >= 1024;

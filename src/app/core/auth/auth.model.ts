@@ -5,6 +5,10 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  /** Vendedor ligado (quando role VENDEDOR) — escopa o que ele vê/cria. Null p/ admin. */
+  vendedor_id?: number | null;
+  /** Nome do vendedor ligado — o front trava vendedor/local da venda nele. */
+  vendedor_name?: string | null;
   created_at: string;
 }
 

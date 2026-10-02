@@ -30,6 +30,13 @@ export class AuthSession {
   readonly userId = computed(() => this.user()?.id ?? null);
   readonly isAuthenticated = computed(() => this.user() !== null);
 
+  /** Papel do usuário logado ('ADMINISTRADOR' | 'VENDEDOR' | null). */
+  readonly role = computed(() => this.user()?.role ?? null);
+  /** `true` quando é um vendedor com acesso restrito (só Vendas + CRM, dados dele). */
+  readonly isVendedor = computed(() => this.role() === 'VENDEDOR');
+  /** Nome do vendedor ligado (quando VENDEDOR) — pra travar a venda nele. */
+  readonly vendedorName = computed(() => this.user()?.vendedor_name ?? null);
+
   setCurrent(user: AuthUser): void {
     const overlay = this.readOverlay(user.email);
     this.user.set({ ...user, ...overlay });
