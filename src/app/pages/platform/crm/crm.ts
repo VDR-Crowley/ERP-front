@@ -151,10 +151,16 @@ export class Crm {
   // --- Editar telefone (CRUD) ---
   protected readonly formOpen = signal(false);
   protected readonly formTitle = signal('Editar cliente');
-  protected readonly fields: CrudField[] = [
-    { key: 'name', label: 'Nome', type: 'text', required: true },
-    { key: 'phone', label: 'Telefone', type: 'text' },
-  ];
+  // VENDEDOR só edita o telefone (o nome é fixo — identifica o cliente e liga ao
+  // histórico de vendas). Admin edita nome + telefone.
+  protected readonly fields = computed<CrudField[]>(() =>
+    this.session.isVendedor()
+      ? [{ key: 'phone', label: 'Telefone', type: 'text' }]
+      : [
+          { key: 'name', label: 'Nome', type: 'text', required: true },
+          { key: 'phone', label: 'Telefone', type: 'text' },
+        ],
+  );
   protected draft: Record<string, unknown> = {};
   private editingId: string | null = null;
   protected readonly deleteTarget = signal<CrmRow | null>(null);

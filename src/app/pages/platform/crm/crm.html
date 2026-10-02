@@ -104,10 +104,10 @@
                       <i class="pi pi-whatsapp"></i>
                     </a>
                   }
+                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">
+                    <i class="pi pi-pencil"></i>
+                  </button>
                   @if (!isVendedor()) {
-                    <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(c)">
-                      <i class="pi pi-pencil"></i>
-                    </button>
                     <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(c)">
                       <i class="pi pi-trash"></i>
                     </button>
@@ -155,7 +155,7 @@
 <app-crud-form-modal
   [open]="formOpen()"
   [title]="formTitle()"
-  [fields]="fields"
+  [fields]="fields()"
   [model]="draft"
   (saved)="saveForm()"
   (cancelled)="cancelForm()"
