@@ -182,14 +182,18 @@
               </td>
               <td data-label="Entrega em">{{ v.deliveryDate ? ptDate(v.deliveryDate) : '—' }}</td>
               <td>
-                <div class="row-actions">
-                  <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(v)">
-                    <i class="pi pi-pencil"></i>
-                  </button>
-                  <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(v)">
-                    <i class="pi pi-trash"></i>
-                  </button>
-                </div>
+                @if (!isVendedor()) {
+                  <div class="row-actions">
+                    <button type="button" class="btn btn--icon" title="Editar" (click)="openEdit(v)">
+                      <i class="pi pi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn--icon btn--danger" title="Excluir" (click)="askDelete(v)">
+                      <i class="pi pi-trash"></i>
+                    </button>
+                  </div>
+                } @else {
+                  <span style="color: var(--erp-dim)">—</span>
+                }
               </td>
             </tr>
           }
