@@ -55,8 +55,11 @@ painel.
 (usado no build via `fileReplacements`, ver `angular.json`):
 
 ```
-https://laravel-production-4c67.up.railway.app/api
+https://app-production-f793b099.up.railway.app/api
 ```
+
+Projeto Railway: "ERP" (conta do Vando), serviços Postgres, App (backend) e
+Front. Domínio do front: `https://front-production-30ff7e3e.up.railway.app`.
 
 Prefixo `/api` confirmado em `ERP-Backend/routes/api.php` +
 `bootstrap/app.php` (`withRouting(api: ...)`, sem override de prefixo — padrão
@@ -97,7 +100,7 @@ simular `Host: localhost` diretamente:
 1. `Dockerfile` no repo (raiz) — Railway detecta e builda automaticamente.
 2. Nenhuma env var obrigatória a configurar no painel (`PORT` é injetada pelo
    Railway).
-3. Confirmar que o serviço do backend (`laravel-production-4c67.up.railway.app`)
+3. Confirmar que o serviço do backend (`app-production-f793b099.up.railway.app`)
    está no ar antes de testar login/rotas autenticadas no front.
 4. Após deploy, testar uma rota SSR (ex: `/login`) e uma chamada de API real
    pra confirmar CORS/prefixo `/api` batendo com o backend.

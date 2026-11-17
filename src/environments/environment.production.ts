@@ -10,5 +10,5 @@ import { Environment } from './environment.type';
  */
 export const environment: Environment = {
   production: true,
-  apiUrl: 'https://laravel-production-4c67.up.railway.app/api',
+  apiUrl: 'https://app-production-f793b099.up.railway.app/api',
 };
