@@ -69,6 +69,10 @@ export const PLATFORM_ROUTES: Routes = [
       import('./stock-transfers/stock-transfers').then((m) => m.StockTransfers),
   },
   {
+    path: 'consumo-railway',
+    loadComponent: () => import('./consumo-railway/consumo-railway').then((m) => m.ConsumoRailway),
+  },
+  {
     path: 'users',
     loadComponent: () => import('./users/users').then((m) => m.Users),
   },

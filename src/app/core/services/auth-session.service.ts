@@ -34,6 +34,8 @@ export class AuthSession {
   readonly role = computed(() => this.user()?.role ?? null);
   /** `true` quando é um vendedor com acesso restrito (só Vendas + CRM, dados dele). */
   readonly isVendedor = computed(() => this.role() === 'VENDEDOR');
+  /** `true` só para ADMINISTRADOR — telas/ações exclusivas de admin (ex.: consumo do Railway). */
+  readonly isAdmin = computed(() => this.role() === 'ADMINISTRADOR');
   /** Nome do vendedor ligado (quando VENDEDOR) — pra travar a venda nele. */
   readonly vendedorName = computed(() => this.user()?.vendedor_name ?? null);
 
