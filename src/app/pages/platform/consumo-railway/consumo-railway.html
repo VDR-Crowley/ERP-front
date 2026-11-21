@@ -1,0 +1,143 @@
+<div class="page">
+  <div class="railway__toolbar">
+    <p class="railway__hint">
+      Custo do ciclo de cobrança atual do projeto
+      @if (usage()?.projectName; as project) {
+        <strong>{{ project }}</strong>
+      }
+      no Railway.
+    </p>
+    <button type="button" class="btn btn--primary" (click)="refresh()" [disabled]="loading()">
+      <i class="pi pi-refresh" [class.pi-spin]="loading()"></i>
+      {{ loading() ? 'Atualizando…' : 'Atualizar agora' }}
+    </button>
+  </div>
+
+  @if (error(); as err) {
+    <div class="panel railway__error" role="alert">
+      <h2 class="panel__title">Não foi possível carregar</h2>
+      <p>{{ err.message }}</p>
+      @if (err.missing?.length) {
+        <p>
+          Variáveis faltando:
+          @for (m of err.missing; track m) {
+            <code>{{ m }}</code>
+          }
+        </p>
+      }
+      @if (err.howToFix) {
+        <p class="railway__hint">{{ err.howToFix }}</p>
+      }
+    </div>
+  } @else if (usage(); as u) {
+    <section class="kpi-grid">
+      <article class="kpi kpi--blue">
+        <div class="kpi__row">
+          <div>
+            <div class="kpi__label">Custo até agora</div>
+            <div class="kpi__value kpi__value--sm">{{ usd(u.currentCostUsd) }}</div>
+          </div>
+          <span class="kpi__icon"><i class="pi pi-dollar"></i></span>
+        </div>
+        <div class="kpi__foot">{{ num(u.creditUsedPercent, 1) }}% do crédito do plano</div>
+      </article>
+      <article class="kpi kpi--amber">
+        <div class="kpi__row">
+          <div>
+            <div class="kpi__label">Estimado no fim do ciclo</div>
+            <div class="kpi__value kpi__value--sm">{{ usd(u.estimatedCycleEndCostUsd) }}</div>
+          </div>
+          <span class="kpi__icon"><i class="pi pi-chart-line"></i></span>
+        </div>
+        <div class="kpi__foot">{{ num(u.estimatedCreditUsedPercent, 1) }}% do crédito do plano</div>
+      </article>
+      <article class="kpi kpi--green">
+        <div class="kpi__row">
+          <div>
+            <div class="kpi__label">Crédito do plano</div>
+            <div class="kpi__value kpi__value--sm">{{ usd(u.planCreditUsd, 2) }}</div>
+          </div>
+          <span class="kpi__icon"><i class="pi pi-wallet"></i></span>
+        </div>
+        <div class="kpi__foot">Acima disso, cobra no cartão</div>
+      </article>
+    </section>
+
+    <div class="panel">
+      <h2 class="panel__title">Crédito usado</h2>
+      <div class="railway__bar-label">
+        <span>Até agora</span>
+        <span>{{ num(u.creditUsedPercent, 1) }}%</span>
+      </div>
+      <div class="railway__bar" role="progressbar" [attr.aria-valuenow]="barWidth(u.creditUsedPercent)" aria-valuemin="0" aria-valuemax="100">
+        <div
+          class="railway__bar-fill railway__bar-fill--{{ tone(u.creditUsedPercent) }}"
+          [style.width.%]="barWidth(u.creditUsedPercent)"
+        ></div>
+      </div>
+      <div class="railway__bar-label">
+        <span>Estimado no fim do ciclo</span>
+        <span>{{ num(u.estimatedCreditUsedPercent, 1) }}%</span>
+      </div>
+      <div class="railway__bar">
+        <div
+          class="railway__bar-fill railway__bar-fill--{{ tone(u.estimatedCreditUsedPercent) }}"
+          [style.width.%]="barWidth(u.estimatedCreditUsedPercent)"
+        ></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title">Consumo por serviço</h2>
+      <div class="tbl-wrap">
+        <table class="tbl" style="min-width: 760px">
+          <thead>
+            <tr>
+              <th>Serviço</th>
+              <th class="num">Custo</th>
+              <th class="num">CPU (vCPU·min)</th>
+              <th class="num">Memória (GB·min)</th>
+              <th class="num">Rede saída (GB)</th>
+              <th class="num">Volume (GB·min)</th>
+              <th class="num">Backup (GB·min)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of u.services; track s.serviceId ?? s.name) {
+              <tr>
+                <td class="strong" data-label="Serviço">{{ s.name }}</td>
+                <td class="num" data-label="Custo">{{ usd(s.costUsd) }}</td>
+                <td class="num" data-label="CPU">{{ num(s.usage.cpuVcpuMinutes, 1) }}</td>
+                <td class="num" data-label="Memória">{{ num(s.usage.memoryGbMinutes, 1) }}</td>
+                <td class="num" data-label="Rede saída">{{ num(s.usage.networkEgressGb, 3) }}</td>
+                <td class="num" data-label="Volume">{{ num(s.usage.volumeGbMinutes, 1) }}</td>
+                <td class="num" data-label="Backup">{{ num(s.usage.backupGbMinutes, 1) }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="railway__empty">Nenhum consumo registrado neste ciclo.</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="strong">Estimado (fim do ciclo)</td>
+              <td class="num strong">{{ usd(u.estimatedCycleEndCostUsd) }}</td>
+              <td class="num">{{ num(u.estimatedUsage.cpuVcpuMinutes, 1) }}</td>
+              <td class="num">{{ num(u.estimatedUsage.memoryGbMinutes, 1) }}</td>
+              <td class="num">{{ num(u.estimatedUsage.networkEgressGb, 3) }}</td>
+              <td class="num">{{ num(u.estimatedUsage.volumeGbMinutes, 1) }}</td>
+              <td class="num">{{ num(u.estimatedUsage.backupGbMinutes, 1) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="railway__hint">
+        {{ u.note }}
+        Atualizado em {{ u.fetchedAt | date: 'dd/MM/yyyy HH:mm' }}{{ u.cached ? ' (cache de até 5 min)' : '' }}.
+      </p>
+    </div>
+  } @else {
+    <div class="panel railway__loading">Carregando consumo do Railway…</div>
+  }
+</div>

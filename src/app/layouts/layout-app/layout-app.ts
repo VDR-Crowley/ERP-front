@@ -15,6 +15,8 @@ interface NavItem {
   icon: string;
   label: string;
   sub: string;
+  /** Visível só para ADMINISTRADOR. */
+  adminOnly?: boolean;
 }
 
 type ImportState = 'idle' | 'confirm' | 'loading' | 'errors' | 'success';
@@ -181,6 +183,13 @@ export class LayoutApp {
       sub: 'Contas de acesso ao sistema',
     },
     {
+      path: '/platform/consumo-railway',
+      icon: 'pi-server',
+      label: 'Consumo Railway',
+      sub: 'Custo e consumo do Railway no ciclo atual',
+      adminOnly: true,
+    },
+    {
       path: '/platform/settings',
       icon: 'pi-cog',
       label: 'Configurações',
@@ -204,7 +213,7 @@ export class LayoutApp {
         (n) => n.path === '/platform/sales' || n.path === '/platform/crm',
       );
     }
-    return this.nav;
+    return this.session.isAdmin() ? this.nav : this.nav.filter((n) => !n.adminOnly);
   });
 
   /** Atalhos da tab bar fixa no mobile (<=768px): as 4 primeiras telas visíveis. */

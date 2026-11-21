@@ -9,6 +9,15 @@ export function brl(value: number | null | undefined): string {
   })}`;
 }
 
+/** Valor em dólar (ex.: custos da Railway). `decimals` padrão 4 — os valores costumam ser frações de dólar. */
+export function usd(value: number | null | undefined, decimals = 4): string {
+  const n = Number(value ?? 0);
+  return `US$ ${n.toLocaleString('pt-BR', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+}
+
 export function num(value: number | null | undefined, decimals = 0): string {
   if (value === null || value === undefined) {
     return '—';
